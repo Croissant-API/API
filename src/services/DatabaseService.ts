@@ -23,7 +23,6 @@ export class DatabaseService {
                 filename: __dirname + '/../../database.db',
                 driver: sqlite3.Database
             });
-            console.log("Database opened");
             return this.db;
         } catch (err) {
             console.error("Error opening database", err);

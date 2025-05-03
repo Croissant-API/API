@@ -1,6 +1,6 @@
 import { Item } from "interfaces/Item";
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from '../services/database';
+import { IDatabaseService } from './DatabaseService';
 
 export interface IItemService {
   createItem(itemId: string, name: string, description: string, price: number, owner: string): Promise<void>;

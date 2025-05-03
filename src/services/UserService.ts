@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./database";
+import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
 import { genKey } from "../utils/GenKey";
 

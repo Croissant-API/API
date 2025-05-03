@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./database";
+import { IDatabaseService } from "./DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
 
 export interface ILobbyService {

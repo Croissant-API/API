@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./database";
+import { IDatabaseService } from "./DatabaseService";
 import { Trade, TradeItem } from "../interfaces/Trade";
 import { v4 } from "uuid";
 import { IInventoryService } from "./InventoryService";

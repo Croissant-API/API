@@ -1,7 +1,7 @@
 import { Container } from "inversify";
 
 import { IItemService, ItemService } from "./services/ItemService";
-import { DatabaseService, IDatabaseService } from "./services/database";
+import { DatabaseService, IDatabaseService } from "./services/DatabaseService";
 import { IUserService, UserService } from "./services/UserService";
 import { IInventoryService, InventoryService } from "./services/InventoryService";
 import { ILobbyService, LobbyService } from "./services/LobbyService";
