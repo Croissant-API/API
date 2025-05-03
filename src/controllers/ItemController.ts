@@ -7,6 +7,7 @@ import { IInventoryService } from '../services/InventoryService';
 import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner, OwnerCheck } from '../middlewares/OwnerCheck';
+import { v4 } from 'uuid';
 
 @controller("/api/items")
 export class ItemController {
@@ -64,7 +65,8 @@ export class ItemController {
             const message = (error instanceof Error) ? error.message : String(error);
             return res.status(400).send({ message: "Invalid item data", error: message });
         }
-        const { itemId, name, description, price } = req.body;
+        const itemId = v4(); // Generate a new UUID for the itemId
+        const { name, description, price } = req.body;
         try {
             await this.itemService.createItem(itemId, name, description, price, req.user.user_id).then(() => {
                 res.status(200).send({ message: "Item created" });

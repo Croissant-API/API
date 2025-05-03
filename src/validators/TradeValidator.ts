@@ -13,7 +13,6 @@ export const tradeSchema = yup.object({
     toUserItems: yup.array().of(tradeItemSchema).required(),
     approvedFromUser: yup.boolean().required(),
     approvedToUser: yup.boolean().required(),
-    uniqueId: yup.string().required(),
     status: yup.string().oneOf(["pending", "completed", "canceled"]).required(),
 });
 

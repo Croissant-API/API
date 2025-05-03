@@ -7,6 +7,7 @@ export interface IInventoryService {
     addItem(userId: string, itemId: string, amount: number): Promise<void>;
     removeItem(userId: string, itemId: string, amount: number): Promise<void>;
     setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
+    hasItem(userId: string, itemId: string, amount?: number): Promise<boolean>;
 }
 
 @injectable()
@@ -51,5 +52,12 @@ export class InventoryService implements IInventoryService {
              ON CONFLICT(user_id, item_id) DO UPDATE SET amount = ?`,
             [userId, itemId, amount, amount]
         );
+    }
+
+    async hasItem(userId: string, itemId: string, amount = 1): Promise<boolean> {
+        const items = await this.getInventory(userId);
+        const item = items.inventory.find(item => item.item_id === itemId);
+        if (!item) return false;
+        return item.amount >= amount;
     }
 }

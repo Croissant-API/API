@@ -2,7 +2,6 @@ import * as yup from 'yup';
 
 // Validator pour la création d'un item
 export const createItemValidator = yup.object().shape({
-    itemId: yup.string().required(),
     name: yup.string().required(),
     description: yup.string().optional(),
     price: yup.number().required()

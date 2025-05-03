@@ -9,6 +9,7 @@ import {
     createLobbyBodySchema,
 } from '../validators/LobbyValidator';
 import { ValidationError } from 'yup';
+import { v4 } from 'uuid';
 
 @controller("/api/lobbies")
 export class LobbyController {
@@ -94,7 +95,8 @@ export class LobbyController {
     public async createLobby(req: Request, res: Response) {
         try {
             await createLobbyBodySchema.validate(req.body);
-            const { lobbyId, users } = req.body;
+            const lobbyId = v4(); // Generate a new UUID for the lobbyId
+            const { users } = req.body;
             await this.lobbyService.createLobby(lobbyId, users);
             res.status(201).send({ message: "Lobby created" });
         } catch (error) {
