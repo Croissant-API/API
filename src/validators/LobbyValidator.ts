@@ -1,0 +1,25 @@
+import * as yup from "yup";
+
+// Validator for lobbyId in params
+export const lobbyIdParamSchema = yup.object({
+    lobbyId: yup.string().trim().required("lobbyId is required"),
+});
+
+// Validator for userId in params
+export const userIdParamSchema = yup.object({
+    userId: yup.string().trim().required("userId is required"),
+});
+
+// Validator for join/leave lobby body
+export const userIdBodySchema = yup.object({
+    userId: yup.string().trim().required("userId is required"),
+});
+
+// Validator for createLobby body
+export const createLobbyBodySchema = yup.object({
+    lobbyId: yup.string().trim().required("lobbyId is required"),
+    users: yup
+        .array()
+        .of(yup.string().trim().required())
+        .optional(),
+});
