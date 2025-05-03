@@ -11,7 +11,7 @@ import {
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
 
-@controller("/api/lobbies")
+@controller("/lobbies")
 export class LobbyController {
     constructor(
         @inject("LobbyService") private lobbyService: ILobbyService,

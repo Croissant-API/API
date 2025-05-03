@@ -9,7 +9,7 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner, OwnerCheck } from '../middlewares/OwnerCheck';
 import { v4 } from 'uuid';
 
-@controller("/api/items")
+@controller("/items")
 export class ItemController {
     constructor(
         @inject("ItemService") private itemService: IItemService,

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
 import { IInventoryService } from '../services/InventoryService';
-import { IItemService } from 'services/ItemService';
+import { IItemService } from '../services/ItemService';
 import {
     userIdParamSchema,
     addItemSchema,
@@ -10,7 +10,7 @@ import {
     setItemAmountSchema
 } from '../validators/InventoryValidator';
 
-@controller("/api/inventory")
+@controller("/inventory")
 export class InventoryController {
     constructor(
         @inject("InventoryService") private inventoryService: IInventoryService,

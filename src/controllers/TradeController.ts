@@ -7,7 +7,7 @@ import { TradeItem } from '../interfaces/Trade';
 import { tradeSchema, tradeStatusSchema, tradeApproveSchema, tradeItemActionSchema } from '../validators/TradeValidator';
 import { ValidationError } from 'yup';
 
-@controller("/api/trades")
+@controller("/trades")
 export class TradeController {
     constructor(
         @inject("TradeService") private tradeService: ITradeService

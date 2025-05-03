@@ -4,10 +4,10 @@ import { controller, httpGet, httpPost, httpPut, httpDelete } from "inversify-ex
 import { IGameService } from '../services/GameService';
 import { ValidationError } from 'yup';
 import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from '../validators/GameValidator';
-import { AuthenticatedRequest, LoggedCheck } from 'middlewares/LoggedCheck';
+import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { v4 } from 'uuid';
 
-@controller("/api/games")
+@controller("/games")
 export class GameController {
     constructor(
         @inject("GameService") private gameService: IGameService,
