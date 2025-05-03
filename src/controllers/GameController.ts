@@ -6,6 +6,7 @@ import { ValidationError } from 'yup';
 import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from '../validators/GameValidator';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { v4 } from 'uuid';
+import { describe } from '../decorators/describe';
 
 @controller("/games")
 export class GameController {
@@ -13,6 +14,13 @@ export class GameController {
         @inject("GameService") private gameService: IGameService,
     ) {}
 
+    @describe({
+        endpoint: "/games",
+        method: "GET",
+        description: "List all games",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, ownerId: string, showInStore: boolean}]",
+        example: "GET /api/games"
+    })
     @httpGet("/")
     public async listGames(req: Request, res: Response) {
         try {
@@ -24,6 +32,14 @@ export class GameController {
         }
     }
 
+    @describe({
+        endpoint: "/games/:gameId",
+        method: "GET",
+        description: "Get a game by gameId",
+        params: { gameId: "The id of the game" },
+        responseType: "object{gameId: string, name: string, description: string, price: number, ownerId: string, showInStore: boolean}",
+        example: "GET /api/games/123"
+    })
     @httpGet("/:gameId")
     public async getGame(req: Request, res: Response) {
         try {
@@ -43,6 +59,19 @@ export class GameController {
         }
     }
 
+    @describe({
+        endpoint: "/games",
+        method: "POST",
+        description: "Create a new game",
+        body: {
+            name: "Name of the game",
+            description: "Description of the game",
+            price: "Price of the game",
+            showInStore: "Whether to show the game in the store"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/games {\"name\": \"Chess\", \"description\": \"A classic game\", \"price\": 0, \"showInStore\": true}"
+    })
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
         try {
@@ -70,6 +99,20 @@ export class GameController {
         }
     }
 
+    @describe({
+        endpoint: "/games/:gameId",
+        method: "PUT",
+        description: "Update a game",
+        params: { gameId: "The id of the game" },
+        body: {
+            name: "Name of the game",
+            description: "Description of the game",
+            price: "Price of the game",
+            showInStore: "Whether to show the game in the store"
+        },
+        responseType: "object{message: string}",
+        example: "PUT /api/games/123 {\"name\": \"Chess\", \"description\": \"A classic game\", \"price\": 0, \"showInStore\": true}"
+    })
     @httpPut("/:gameId")
     public async updateGame(req: Request, res: Response) {
         try {
@@ -87,6 +130,14 @@ export class GameController {
         }
     }
 
+    @describe({
+        endpoint: "/games/:gameId",
+        method: "DELETE",
+        description: "Delete a game",
+        params: { gameId: "The id of the game" },
+        responseType: "object{message: string}",
+        example: "DELETE /api/games/123"
+    })
     @httpDelete("/:gameId")
     public async deleteGame(req: Request, res: Response) {
         try {

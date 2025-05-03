@@ -9,6 +9,7 @@ import {
     removeItemSchema,
     setItemAmountSchema
 } from '../validators/InventoryValidator';
+import { describe } from '../decorators/describe';
 
 @controller("/inventory")
 export class InventoryController {
@@ -17,11 +18,26 @@ export class InventoryController {
         @inject("ItemService") private itemService: IItemService,
     ) {}
 
+    @describe({
+        endpoint: "/inventory",
+        method: "GET",
+        description: "Prompt to specify a userId for inventory lookup",
+        responseType: "object{message: string}",
+        example: "GET /api/inventory"
+    })
     @httpGet("/")
     public async getAllInventories(req: Request, res: Response) {
         res.send({ message: "Please specify /api/inventory/<userId>" });
     }
 
+    @describe({
+        endpoint: "/inventory/:userId",
+        method: "GET",
+        description: "Get the inventory of a user",
+        params: { userId: "The id of the user" },
+        responseType: "array[object{itemId: string, name: string, description: string, amount: number}]",
+        example: "GET /api/inventory/123"
+    })
     @httpGet("/:userId")
     public async getInventory(req: Request, res: Response) {
         try {
@@ -55,6 +71,18 @@ export class InventoryController {
         }
     }
 
+    @describe({
+        endpoint: "/inventory/:userId/add",
+        method: "POST",
+        description: "Add an item to a user's inventory",
+        params: { userId: "The id of the user" },
+        body: {
+            itemId: "The id of the item to add",
+            amount: "The amount of the item to add"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/inventory/123/add {\"itemId\": \"item_1\", \"amount\": 2}"
+    })
     @httpPost("/:userId/add")
     public async addItem(req: Request, res: Response) {
         try {
@@ -74,6 +102,18 @@ export class InventoryController {
         }
     }
 
+    @describe({
+        endpoint: "/inventory/:userId/remove",
+        method: "POST",
+        description: "Remove an item from a user's inventory",
+        params: { userId: "The id of the user" },
+        body: {
+            itemId: "The id of the item to remove",
+            amount: "The amount of the item to remove"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/inventory/123/remove {\"itemId\": \"item_1\", \"amount\": 1}"
+    })
     @httpPost("/:userId/remove")
     public async removeItem(req: Request, res: Response) {
         try {
@@ -93,6 +133,18 @@ export class InventoryController {
         }
     }
 
+    @describe({
+        endpoint: "/inventory/:userId/set",
+        method: "PUT",
+        description: "Set the amount of an item in a user's inventory",
+        params: { userId: "The id of the user" },
+        body: {
+            itemId: "The id of the item to set",
+            amount: "The new amount of the item"
+        },
+        responseType: "object{message: string}",
+        example: "PUT /api/inventory/123/set {\"itemId\": \"item_1\", \"amount\": 5}"
+    })
     @httpPut("/:userId/set")
     public async setItemAmount(req: Request, res: Response) {
         try {

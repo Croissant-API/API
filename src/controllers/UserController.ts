@@ -3,13 +3,22 @@ import { inject } from 'inversify';
 import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { IUserService } from '../services/UserService';
 import { createUserValidator, userIdParamValidator } from '../validators/UserValidator';
+import { describe } from '../decorators/describe';
 
-@controller("/api/users")
+@controller("/users")
 export class UserController {
     constructor(
         @inject("UserService") private userService: IUserService,
     ) {}
 
+    @describe({
+        endpoint: "/users/:userId",
+        method: "GET",
+        description: "Get a user by userId",
+        params: { userId: "The id of the user" },
+        responseType: "object{userId: string, balance: number, username: string}",
+        example: "GET /api/users/123"
+    })
     @httpGet("/:userId")
     public async getUser(req: Request, res: Response) {
         try {
@@ -31,6 +40,18 @@ export class UserController {
         res.send(filteredUser);
     }
 
+    @describe({
+        endpoint: "/users/create",
+        method: "POST",
+        description: "Create a new user",
+        body: {
+            userId: "The id of the user",
+            username: "The username of the user",
+            balance: "The starting balance of the user"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/users/create {\"userId\": \"123\", \"username\": \"Alice\", \"balance\": 1000}"
+    })
     @httpPost("/create")
     public async createUser(req: Request, res: Response) {
         try {

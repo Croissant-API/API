@@ -8,6 +8,7 @@ import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner, OwnerCheck } from '../middlewares/OwnerCheck';
 import { v4 } from 'uuid';
+import { describe } from '../decorators/describe';
 
 @controller("/items")
 export class ItemController {
@@ -17,6 +18,13 @@ export class ItemController {
         @inject("UserService") private userService: IUserService,
     ) {}
 
+    @describe({
+        endpoint: "/items",
+        method: "GET",
+        description: "Get all non-deleted items",
+        responseType: "array[object{id: string, name: string, price: number, description: string, emoji: string, owner: string}]",
+        example: "GET /api/items"
+    })
     @httpGet("/")
     public async getAllItems(req: Request, res: Response) {
         const items = await this.itemService.getAllItems();
@@ -34,6 +42,14 @@ export class ItemController {
         res.send(filteredItemsMap);
     }
 
+    @describe({
+        endpoint: "/items/:itemId",
+        method: "GET",
+        description: "Get a single item by itemId",
+        params: { itemId: "The id of the item" },
+        responseType: "object{name: string, description: string, owner: string, price: number, showInStore: number}",
+        example: "GET /api/items/123"
+    })
     @httpGet("/:itemId")
     public async healthCheck(req: Request, res: Response) {
         try {
@@ -57,6 +73,18 @@ export class ItemController {
         res.send(filteredItem);
     }
 
+    @describe({
+        endpoint: "/items/create",
+        method: "POST",
+        description: "Create a new item",
+        body: {
+            name: "Name of the item",
+            description: "Description of the item",
+            price: "Price of the item"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100}"
+    })
     @httpPost("/create", LoggedCheck.middleware)
     public async createItem(req: AuthenticatedRequest, res: Response) {
         try {
@@ -82,6 +110,19 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/update/:itemId",
+        method: "PUT",
+        description: "Update an existing item",
+        params: { itemId: "The id of the item" },
+        body: {
+            name: "Name of the item",
+            description: "Description of the item",
+            price: "Price of the item"
+        },
+        responseType: "object{message: string}",
+        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100}"
+    })
     @httpPut("/update/:itemId", OwnerCheck.middleware)
     public async updateItem(req: AuthenticatedRequestWithOwner, res: Response) {
         try {
@@ -103,6 +144,14 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/delete/:itemId",
+        method: "DELETE",
+        description: "Delete an item",
+        params: { itemId: "The id of the item" },
+        responseType: "object{message: string}",
+        example: "DELETE /api/items/delete/123"
+    })
     @httpDelete("/delete/:itemId", OwnerCheck.middleware)
     public async deleteItem(req: AuthenticatedRequestWithOwner, res: Response) {
         try {
@@ -122,6 +171,17 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/buy/:itemId",
+        method: "POST",
+        description: "Buy an item",
+        body: {
+            itemId: "The id of the item to buy",
+            amount: "The amount of the item to buy"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/buy/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+    })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
     public async buyItem(req: AuthenticatedRequest, res: Response) {
         const { itemId, amount } = req.body;
@@ -154,6 +214,17 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/sell/:itemId",
+        method: "POST",
+        description: "Sell an item",
+        body: {
+            itemId: "The id of the item to sell",
+            amount: "The amount of the item to sell"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/sell/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+    })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
     public async sellItem(req: AuthenticatedRequest, res: Response) {
         const { itemId, amount } = req.body;
@@ -182,6 +253,17 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/give/:itemId",
+        method: "POST",
+        description: "Give an item to a user (owner only)",
+        body: {
+            itemId: "The id of the item to give",
+            amount: "The amount of the item to give"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/give/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
+    })
     @httpPost("/give/:itemId", OwnerCheck.middleware)
     public async giveItem(req: AuthenticatedRequestWithOwner, res: Response) {
         const { itemId, amount } = req.body;
@@ -203,6 +285,17 @@ export class ItemController {
         }
     }
 
+    @describe({
+        endpoint: "/items/consume/:itemId",
+        method: "POST",
+        description: "Consume an item from a user (owner only)",
+        body: {
+            itemId: "The id of the item to consume",
+            amount: "The amount of the item to consume"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/consume/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
+    })
     @httpPost("/consume/:itemId", OwnerCheck.middleware)
     public async consumeItem(req: AuthenticatedRequestWithOwner, res: Response) {
         const { itemId, amount } = req.body;

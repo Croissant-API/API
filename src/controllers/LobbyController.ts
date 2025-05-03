@@ -10,6 +10,7 @@ import {
 } from '../validators/LobbyValidator';
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
+import { describe } from '../decorators/describe';
 
 @controller("/lobbies")
 export class LobbyController {
@@ -17,6 +18,14 @@ export class LobbyController {
         @inject("LobbyService") private lobbyService: ILobbyService,
     ) {}
 
+    @describe({
+        endpoint: "/lobbies/:lobbyId",
+        method: "GET",
+        description: "Get a lobby by lobbyId",
+        params: { lobbyId: "The id of the lobby" },
+        responseType: "object{lobbyId: string, users: array[string]}",
+        example: "GET /api/lobbies/123"
+    })
     @httpGet("/:lobbyId")
     public async getLobby(req: Request, res: Response) {
         try {
@@ -36,6 +45,15 @@ export class LobbyController {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/:lobbyId/join",
+        method: "POST",
+        description: "Join a lobby",
+        params: { lobbyId: "The id of the lobby" },
+        body: { userId: "The id of the user joining the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/join {\"userId\": \"user_1\"}"
+    })
     @httpPost("/:lobbyId/join")
     public async joinLobby(req: Request, res: Response) {
         try {
@@ -54,6 +72,15 @@ export class LobbyController {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/:lobbyId/leave",
+        method: "POST",
+        description: "Leave a lobby",
+        params: { lobbyId: "The id of the lobby" },
+        body: { userId: "The id of the user leaving the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/leave {\"userId\": \"user_1\"}"
+    })
     @httpPost("/:lobbyId/leave")
     public async leaveLobby(req: Request, res: Response) {
         try {
@@ -72,6 +99,14 @@ export class LobbyController {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/user/:userId",
+        method: "GET",
+        description: "Get the lobby a user is in",
+        params: { userId: "The id of the user" },
+        responseType: "object{lobbyId: string, users: array[string]}",
+        example: "GET /api/lobbies/user/123"
+    })
     @httpGet("/user/:userId")
     public async getUserLobby(req: Request, res: Response) {
         try {
@@ -91,6 +126,14 @@ export class LobbyController {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies",
+        method: "POST",
+        description: "Create a new lobby",
+        body: { users: "Array of user IDs to add to the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies {\"users\": [\"user_1\", \"user_2\"]}"
+    })
     @httpPost("/")
     public async createLobby(req: Request, res: Response) {
         try {
