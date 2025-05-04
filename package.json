@@ -2,7 +2,7 @@
   "name": "croissant-api",
   "version": "1.0.0",
   "description": "template",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "start": "npx node dist/index.js",
     "lint": "npx eslint src --ext .ts",
