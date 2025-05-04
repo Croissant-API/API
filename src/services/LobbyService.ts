@@ -19,7 +19,7 @@ export class LobbyService implements ILobbyService {
 
     async getLobby(lobbyId: string): Promise<Lobby | null> {
         const rows = await this.databaseService.read<Lobby[]>(
-            "SELECT id, users FROM lobbies WHERE lobbyId = ?",
+            "SELECT users FROM lobbies WHERE lobbyId = ?",
             [lobbyId]
         );
         if (rows.length === 0) return null;
@@ -41,6 +41,7 @@ export class LobbyService implements ILobbyService {
 
     async leaveLobby(lobbyId: string, userId: string): Promise<void> {
         const lobby = await this.getLobby(lobbyId);
+        console.log(lobby);
         if (!lobby) throw new Error("Lobby not found");
         const newUsers = lobby.users.filter(u => u !== userId);
         if (newUsers.length === 0) {

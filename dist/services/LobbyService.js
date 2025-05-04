@@ -19,7 +19,7 @@ let LobbyService = class LobbyService {
         this.databaseService = databaseService;
     }
     async getLobby(lobbyId) {
-        const rows = await this.databaseService.read("SELECT id, users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
+        const rows = await this.databaseService.read("SELECT users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
         if (rows.length === 0)
             return null;
         const row = rows[0];
@@ -36,6 +36,7 @@ let LobbyService = class LobbyService {
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
+        console.log(lobby);
         if (!lobby)
             throw new Error("Lobby not found");
         const newUsers = lobby.users.filter(u => u !== userId);
