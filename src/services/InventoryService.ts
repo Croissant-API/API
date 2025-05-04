@@ -40,9 +40,9 @@ export class InventoryService implements IInventoryService {
         // Try to update, if not exists, insert
         await this.databaseService.update(
             `INSERT INTO inventories (user_id, item_id, amount)
-             VALUES (?, ?, ?)
-             ON CONFLICT(user_id, item_id) DO UPDATE SET amount = amount + ?`,
-            [userId, itemId, amount, amount]
+             VALUES (?, ?, ?)`,
+            //  ON CONFLICT(user_id, item_id) DO UPDATE SET amount = amount + ?`,
+            [userId, itemId, amount]
         );
     }
 

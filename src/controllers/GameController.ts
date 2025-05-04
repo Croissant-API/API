@@ -59,19 +59,6 @@ export class GameController {
         }
     }
 
-    @describe({
-        endpoint: "/games",
-        method: "POST",
-        description: "Create a new game",
-        body: {
-            name: "Name of the game",
-            description: "Description of the game",
-            price: "Price of the game",
-            showInStore: "Whether to show the game in the store"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/games {\"name\": \"Chess\", \"description\": \"A classic game\", \"price\": 0, \"showInStore\": true}"
-    })
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
         try {

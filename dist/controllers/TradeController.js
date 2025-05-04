@@ -18,7 +18,6 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const TradeValidator_1 = require("../validators/TradeValidator");
 const yup_1 = require("yup");
-const describe_1 = require("../decorators/describe");
 let TradeController = class TradeController {
     constructor(tradeService) {
         this.tradeService = tradeService;
@@ -140,127 +139,48 @@ let TradeController = class TradeController {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades",
-        method: "POST",
-        description: "Create a new trade",
-        body: {
-            fromUserId: "ID of the user initiating the trade",
-            toUserId: "ID of the user receiving the trade",
-            fromUserItems: "Array of items from the sender",
-            toUserItems: "Array of items from the receiver"
-        },
-        responseType: "object{tradeId: string, ...}",
-        example: "POST /api/trades {\"fromUserId\": \"user1\", \"toUserId\": \"user2\", \"fromUserItems\": [...], \"toUserItems\": [...]}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "createTrade", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id",
-        method: "GET",
-        description: "Get a trade by ID",
-        params: { id: "The id of the trade" },
-        responseType: "object{tradeId: string, ...}",
-        example: "GET /api/trades/123"
-    }),
     (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "getTradeById", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/user/:userId",
-        method: "GET",
-        description: "Get all trades for a user",
-        params: { userId: "The id of the user" },
-        responseType: "array[object{tradeId: string, ...}]",
-        example: "GET /api/trades/user/123"
-    }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "getTradesByUser", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id/status",
-        method: "PUT",
-        description: "Update the status of a trade",
-        params: { id: "The id of the trade" },
-        body: { status: "The new status of the trade" },
-        responseType: "object{message: string}",
-        example: "PUT /api/trades/123/status {\"status\": \"accepted\"}"
-    }),
     (0, inversify_express_utils_1.httpPut)("/:id/status", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "updateTradeStatus", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id/approve",
-        method: "PUT",
-        description: "Approve a trade",
-        params: { id: "The id of the trade" },
-        body: { userId: "The id of the user approving the trade" },
-        responseType: "object{message: string}",
-        example: "PUT /api/trades/123/approve {\"userId\": \"user1\"}"
-    }),
     (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "approveTrade", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id",
-        method: "DELETE",
-        description: "Delete a trade",
-        params: { id: "The id of the trade" },
-        responseType: "object{message: string}",
-        example: "DELETE /api/trades/123"
-    }),
     (0, inversify_express_utils_1.httpDelete)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "deleteTrade", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id/add-item",
-        method: "POST",
-        description: "Add an item to a trade",
-        params: { id: "The id of the trade" },
-        body: {
-            userKey: "\"fromUserItems\" or \"toUserItems\"",
-            tradeItem: "The item to add"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/trades/123/add-item {\"userKey\": \"fromUserItems\", \"tradeItem\": {...}}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TradeController.prototype, "addItemToTrade", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/trades/:id/remove-item",
-        method: "POST",
-        description: "Remove an item from a trade",
-        params: { id: "The id of the trade" },
-        body: {
-            userKey: "\"fromUserItems\" or \"toUserItems\"",
-            tradeItem: "The item to remove"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/trades/123/remove-item {\"userKey\": \"fromUserItems\", \"tradeItem\": {...}}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

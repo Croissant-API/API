@@ -6,7 +6,6 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { TradeItem } from '../interfaces/Trade';
 import { tradeSchema, tradeStatusSchema, tradeApproveSchema, tradeItemActionSchema } from '../validators/TradeValidator';
 import { ValidationError } from 'yup';
-import { describe } from '../decorators/describe';
 
 @controller("/trades")
 export class TradeController {
@@ -14,19 +13,6 @@ export class TradeController {
         @inject("TradeService") private tradeService: ITradeService
     ) {}
 
-    @describe({
-        endpoint: "/trades",
-        method: "POST",
-        description: "Create a new trade",
-        body: {
-            fromUserId: "ID of the user initiating the trade",
-            toUserId: "ID of the user receiving the trade",
-            fromUserItems: "Array of items from the sender",
-            toUserItems: "Array of items from the receiver"
-        },
-        responseType: "object{tradeId: string, ...}",
-        example: "POST /api/trades {\"fromUserId\": \"user1\", \"toUserId\": \"user2\", \"fromUserItems\": [...], \"toUserItems\": [...]}"
-    })
     @httpPost("/", LoggedCheck.middleware)
     public async createTrade(req: AuthenticatedRequest, res: Response) {
         try {
@@ -43,14 +29,6 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id",
-        method: "GET",
-        description: "Get a trade by ID",
-        params: { id: "The id of the trade" },
-        responseType: "object{tradeId: string, ...}",
-        example: "GET /api/trades/123"
-    })
     @httpGet("/:id", LoggedCheck.middleware)
     public async getTradeById(req: AuthenticatedRequest, res: Response) {
         try {
@@ -66,14 +44,6 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/user/:userId",
-        method: "GET",
-        description: "Get all trades for a user",
-        params: { userId: "The id of the user" },
-        responseType: "array[object{tradeId: string, ...}]",
-        example: "GET /api/trades/user/123"
-    })
     @httpGet("/user/:userId", LoggedCheck.middleware)
     public async getTradesByUser(req: AuthenticatedRequest, res: Response) {
         try {
@@ -86,16 +56,7 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id/status",
-        method: "PUT",
-        description: "Update the status of a trade",
-        params: { id: "The id of the trade" },
-        body: { status: "The new status of the trade" },
-        responseType: "object{message: string}",
-        example: "PUT /api/trades/123/status {\"status\": \"accepted\"}"
-    })
-    @httpPut("/:id/status", LoggedCheck.middleware)
+     @httpPut("/:id/status", LoggedCheck.middleware)
     public async updateTradeStatus(req: AuthenticatedRequest, res: Response) {
         try {
             await tradeStatusSchema.validate(req.body, { abortEarly: false });
@@ -112,15 +73,6 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id/approve",
-        method: "PUT",
-        description: "Approve a trade",
-        params: { id: "The id of the trade" },
-        body: { userId: "The id of the user approving the trade" },
-        responseType: "object{message: string}",
-        example: "PUT /api/trades/123/approve {\"userId\": \"user1\"}"
-    })
     @httpPut("/:id/approve", LoggedCheck.middleware)
     public async approveTrade(req: AuthenticatedRequest, res: Response) {
         try {
@@ -138,14 +90,6 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id",
-        method: "DELETE",
-        description: "Delete a trade",
-        params: { id: "The id of the trade" },
-        responseType: "object{message: string}",
-        example: "DELETE /api/trades/123"
-    })
     @httpDelete("/:id", LoggedCheck.middleware)
     public async deleteTrade(req: AuthenticatedRequest, res: Response) {
         try {
@@ -158,19 +102,7 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id/add-item",
-        method: "POST",
-        description: "Add an item to a trade",
-        params: { id: "The id of the trade" },
-        body: {
-            userKey: "\"fromUserItems\" or \"toUserItems\"",
-            tradeItem: "The item to add"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/trades/123/add-item {\"userKey\": \"fromUserItems\", \"tradeItem\": {...}}"
-    })
-    @httpPost("/:id/add-item", LoggedCheck.middleware)
+@httpPost("/:id/add-item", LoggedCheck.middleware)
     public async addItemToTrade(req: AuthenticatedRequest, res: Response) {
         try {
             await tradeItemActionSchema.validate(req.body, { abortEarly: false });
@@ -187,18 +119,6 @@ export class TradeController {
         }
     }
 
-    @describe({
-        endpoint: "/trades/:id/remove-item",
-        method: "POST",
-        description: "Remove an item from a trade",
-        params: { id: "The id of the trade" },
-        body: {
-            userKey: "\"fromUserItems\" or \"toUserItems\"",
-            tradeItem: "The item to remove"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/trades/123/remove-item {\"userKey\": \"fromUserItems\", \"tradeItem\": {...}}"
-    })
     @httpPost("/:id/remove-item", LoggedCheck.middleware)
     public async removeItemToTrade(req: AuthenticatedRequest, res: Response) {
         try {

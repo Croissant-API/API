@@ -144,7 +144,9 @@ let ItemController = class ItemController {
             if (user.balance < item.price * amount) {
                 return res.status(400).send({ message: "Insufficient balance" });
             }
-            await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
+            if (user.user_id !== item.owner) {
+                await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
+            }
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
             if (currentAmount) {
                 await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);

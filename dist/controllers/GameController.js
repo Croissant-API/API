@@ -136,19 +136,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GameController.prototype, "getGame", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games",
-        method: "POST",
-        description: "Create a new game",
-        body: {
-            name: "Name of the game",
-            description: "Description of the game",
-            price: "Price of the game",
-            showInStore: "Whether to show the game in the store"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/games {\"name\": \"Chess\", \"description\": \"A classic game\", \"price\": 0, \"showInStore\": true}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
