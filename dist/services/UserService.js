@@ -21,8 +21,8 @@ const GenKey_1 = require("../utils/GenKey");
 const UserCache_1 = require("../utils/UserCache");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
-const BOT_TOKEN = process.env.BOT_TOKEN;
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
+const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
@@ -36,7 +36,7 @@ let UserService = class UserService {
             }
             const headers = {};
             if (BOT_TOKEN) {
-                headers["Authorization"] = BOT_TOKEN;
+                headers["Authorization"] = "Bot " + BOT_TOKEN;
             }
             const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
                 headers

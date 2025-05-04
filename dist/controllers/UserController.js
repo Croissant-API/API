@@ -33,8 +33,9 @@ let UserController = class UserController {
             return res.status(404).send({ message: "User not found" });
         }
         // Filter user to only expose allowed fields
+        const discordUser = await this.userService.getDiscordUser(user.user_id);
         const filteredUser = {
-            ...this.userService.getDiscordUser(user.user_id),
+            ...discordUser,
             userId: user.user_id,
             balance: user.balance,
             username: user.username,
@@ -49,12 +50,16 @@ let UserController = class UserController {
         }
         try {
             const users = await this.userService.searchUsersByUsername(query);
-            const filtered = users.map(user => ({
-                ...this.userService.getDiscordUser(user.user_id),
-                userId: user.user_id,
-                username: user.username,
-                balance: user.balance,
-            }));
+            const filtered = [];
+            for (const user of users) {
+                const discordUser = await this.userService.getDiscordUser(user.user_id);
+                filtered.push({
+                    ...discordUser,
+                    userId: user.user_id,
+                    username: user.username,
+                    balance: user.balance,
+                });
+            }
             res.send(filtered);
         }
         catch (error) {
@@ -88,7 +93,9 @@ let UserController = class UserController {
             return res.status(404).send({ message: "User not found" });
         }
         // Filter user to only expose allowed fields
+        const discordUser = await this.userService.getDiscordUser(user.user_id);
         const filteredUser = {
+            ...discordUser,
             userId: user.user_id,
             balance: user.balance,
             username: user.username,

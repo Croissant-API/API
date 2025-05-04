@@ -1,0 +1,42 @@
+{
+  "724847846897221642": {
+    "data": {
+      "id": "724847846897221642",
+      "username": "fox3000foxy.new",
+      "avatar": "3fe240e01286b9ddd0c1add42b03325a",
+      "discriminator": "0",
+      "public_flags": 4194432,
+      "flags": 4194432,
+      "banner": "a_837443d38c3aa9c006e025cf40e0744e",
+      "accent_color": null,
+      "global_name": "Fox",
+      "avatar_decoration_data": {
+        "asset": "a_35713167cc82e0f408c26dfc032a7f0f",
+        "sku_id": "1346499610763464776",
+        "expires_at": null
+      },
+      "collectibles": {
+        "nameplate": {
+          "sku_id": "1349849614102036581",
+          "asset": "nameplates/nameplates/cherry_blossoms/",
+          "label": "COLLECTIBLES_NAMEPLATES_CHERRY_BLOSSOMS_A11Y",
+          "palette": "berry"
+        }
+      },
+      "banner_color": null,
+      "clan": {
+        "identity_guild_id": "547906569489350657",
+        "identity_enabled": true,
+        "tag": "DEV",
+        "badge": "716f861f1bbe558cea11515ccadd5e22"
+      },
+      "primary_guild": {
+        "identity_guild_id": "547906569489350657",
+        "identity_enabled": true,
+        "tag": "DEV",
+        "badge": "716f861f1bbe558cea11515ccadd5e22"
+      }
+    },
+    "timestamp": 1746399874394
+  }
+}

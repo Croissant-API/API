@@ -6,9 +6,9 @@ import { getCachedUser, setCachedUser } from "../utils/UserCache";
 import { config } from "dotenv";
 import path from "path";
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-
 config({path: path.join(__dirname, "..", "..", ".env")});
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
 export interface IUserService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,7 +38,7 @@ export class UserService implements IUserService {
             }
             const headers: Record<string, string> = {};
             if (BOT_TOKEN) {
-                headers["Authorization"] = BOT_TOKEN;
+                headers["Authorization"] = "Bot " + BOT_TOKEN;
             }
             const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
                 headers
