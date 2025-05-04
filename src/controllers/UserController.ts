@@ -38,7 +38,7 @@ export class UserController {
         method: "GET",
         description: "Check the verification key for the user",
         responseType: "object{success: boolean}",
-        params: { userId: "The id of the user", verificationKey: "The verification key" },
+        query: { userId: "The id of the user", verificationKey: "The verification key" },
         example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
     })
     @httpPost("/auth-verification")
