@@ -202,7 +202,8 @@ let ItemController = class ItemController {
         }
     }
     async consumeItem(req, res) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -221,7 +222,8 @@ let ItemController = class ItemController {
         }
     }
     async dropItem(req, res) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -375,9 +377,9 @@ __decorate([
         method: "POST",
         description: "Consume an item from a user (owner only)",
         body: {
-            itemId: "The id of the item to consume",
             amount: "The amount of the item to consume"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/consume/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
     }),
