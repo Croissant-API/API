@@ -4,6 +4,7 @@ import { Inventory, InventoryItem } from "../interfaces/Inventory";
 
 export interface IInventoryService {
     getInventory(userId: string): Promise<Inventory>;
+    getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number): Promise<void>;
     removeItem(userId: string, itemId: string, amount: number): Promise<void>;
     setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
@@ -24,6 +25,15 @@ export class InventoryService implements IInventoryService {
         const filteredItems = items
             .filter(item => item.amount > 0); // Filter out items with amount <= 0
         return { user_id: userId, inventory: filteredItems };
+    }
+
+    async getItemAmount(userId: string, itemId: string): Promise<number> {
+        const items = await this.databaseService.read<InventoryItem[]>(
+            "SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?",
+            [userId, itemId]
+        );
+        if (items.length === 0) return 0;
+        return items[0].amount;
     }
 
     async addItem(userId: string, itemId: string, amount: number): Promise<void> {

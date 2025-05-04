@@ -203,7 +203,15 @@ export class ItemController {
             }
 
             await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
-            await this.inventoryService.addItem(user.user_id, itemId, amount);
+
+            const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
+            if (currentAmount) {
+                // L'utilisateur a déjà cet item, on augmente la quantité
+                await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
+            } else {
+                // L'utilisateur n'a pas cet item, on l'ajoute
+                await this.inventoryService.addItem(user.user_id, itemId, amount);
+            }
 
             res.status(200).send({ message: "Item bought" });
         } catch (error) {
@@ -276,7 +284,15 @@ export class ItemController {
             if(!user) {
                 return res.status(404).send({ message: "User not found" });
             }
-            await this.inventoryService.addItem(user.user_id, itemId, amount);
+
+            const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
+            if (currentAmount) {
+                // L'utilisateur a déjà cet item, on augmente la quantité
+                await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
+            } else {
+                // L'utilisateur n'a pas cet item, on l'ajoute
+                await this.inventoryService.addItem(user.user_id, itemId, amount);
+            }
 
             res.status(200).send({ message: "Item given" });
         } catch (error) {

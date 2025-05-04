@@ -24,6 +24,12 @@ let InventoryService = class InventoryService {
             .filter(item => item.amount > 0); // Filter out items with amount <= 0
         return { user_id: userId, inventory: filteredItems };
     }
+    async getItemAmount(userId, itemId) {
+        const items = await this.databaseService.read("SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?", [userId, itemId]);
+        if (items.length === 0)
+            return 0;
+        return items[0].amount;
+    }
     async addItem(userId, itemId, amount) {
         // Try to update, if not exists, insert
         await this.databaseService.update(`INSERT INTO inventories (user_id, item_id, amount)
