@@ -54,13 +54,13 @@ export class LobbyService implements ILobbyService {
     }
 
     async getUserLobby(userId: string): Promise<Lobby | null> {
-        const rows = await this.databaseService.read<{ id: number, users: string }[]>(
+        const rows = await this.databaseService.read<{ lobbyId: string,  users: string }[]>(
             "SELECT lobbyId, users FROM lobbies"
         );
         for (const row of rows) {
             const users: string[] = JSON.parse(row.users);
             if (users.includes(userId)) {
-                return { id: row.id, users };
+                return { lobbyId: row.lobbyId, users };
             }
         }
         return null;

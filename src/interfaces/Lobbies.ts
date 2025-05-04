@@ -1,4 +1,5 @@
 export interface Lobby {
-    id: number;
+    id?: number;
+    lobbyId: string; // Unique identifier for the lobby
     users: string[]; // Array of user IDs in the lobby
 }

@@ -51,7 +51,7 @@ let LobbyService = class LobbyService {
         for (const row of rows) {
             const users = JSON.parse(row.users);
             if (users.includes(userId)) {
-                return { id: row.id, users };
+                return { lobbyId: row.lobbyId, users };
             }
         }
         return null;

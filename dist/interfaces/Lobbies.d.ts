@@ -1,4 +1,5 @@
 export interface Lobby {
-    id: number;
+    id?: number;
+    lobbyId: string;
     users: string[];
 }
