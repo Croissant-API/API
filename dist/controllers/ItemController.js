@@ -146,12 +146,15 @@ let ItemController = class ItemController {
             }
             await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
+            console.log("Current amount: ", currentAmount);
             if (currentAmount) {
+                console.log("User already has this item, increasing amount");
                 // L'utilisateur a déjà cet item, on augmente la quantité
                 await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
             }
             else {
                 // L'utilisateur n'a pas cet item, on l'ajoute
+                console.log("Adding item to inventory");
                 await this.inventoryService.addItem(user.user_id, itemId, amount);
             }
             res.status(200).send({ message: "Item bought" });
@@ -335,34 +338,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ItemController.prototype, "deleteItem", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/buy/:itemId",
-        method: "POST",
-        description: "Buy an item",
-        body: {
-            amount: "The amount of the item to buy"
-        },
-        params: { itemId: "The id of the item" },
-        responseType: "object{message: string}",
-        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ItemController.prototype, "buyItem", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/sell/:itemId",
-        method: "POST",
-        description: "Sell an item",
-        body: {
-            amount: "The amount of the item to sell"
-        },
-        params: { itemId: "The id of the item" },
-        responseType: "object{message: string}",
-        example: "POST /api/items/sell/item_1 {\"amount\": 2}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
