@@ -180,7 +180,7 @@ export class ItemController {
         },
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
-        example: "POST /api/items/buy/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
     })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
     public async buyItem(req: AuthenticatedRequest, res: Response) {
@@ -224,7 +224,7 @@ export class ItemController {
         },
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
-        example: "POST /api/items/sell/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+        example: "POST /api/items/sell/item_1 {\"amount\": 2}"
     })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
     public async sellItem(req: AuthenticatedRequest, res: Response) {
@@ -260,15 +260,15 @@ export class ItemController {
         method: "POST",
         description: "Give an item to a user (owner only)",
         body: {
-            itemId: "The id of the item to give",
             amount: "The amount of the item to give"
         },
         responseType: "object{message: string}",
-        example: "POST /api/items/give/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
+        example: "POST /api/items/give/item_1 {\"amount\": 1}"
     })
     @httpPost("/give/:itemId", OwnerCheck.middleware)
     public async giveItem(req: AuthenticatedRequestWithOwner, res: Response) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
