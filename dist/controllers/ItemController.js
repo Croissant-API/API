@@ -28,15 +28,14 @@ let ItemController = class ItemController {
     }
     async getAllItems(req, res) {
         const items = await this.itemService.getAllItems();
-        const filteredItems = items.filter(item => !item.deleted);
+        const filteredItems = items.filter(item => !item.deleted && item.showInStore);
         const filteredItemsMap = filteredItems.map(item => {
             return {
                 "itemId": item.itemId,
                 "name": item.name,
                 "description": item.description,
                 "owner": item.owner,
-                "price": item.price,
-                "showInStore": 1,
+                "price": item.price
             };
         });
         res.send(filteredItemsMap);
@@ -58,8 +57,7 @@ let ItemController = class ItemController {
             name: item.name,
             description: item.description,
             owner: item.owner,
-            price: item.price,
-            showInStore: 1,
+            price: item.price
         };
         res.send(filteredItem);
     }
