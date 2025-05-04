@@ -5,8 +5,7 @@ import { ILobbyService } from '../services/LobbyService';
 import {
     lobbyIdParamSchema,
     userIdParamSchema,
-    userIdBodySchema,
-    createLobbyBodySchema,
+    userIdBodySchema
 } from '../validators/LobbyValidator';
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
@@ -127,18 +126,15 @@ export class LobbyController {
         }
     }
 
-    @httpPost("/")
-    public async createLobby(req: Request, res: Response) {
+    @httpPost("/", LoggedCheck.middleware)
+    public async createLobby(req: AuthenticatedRequest, res: Response) {
         try {
-            await createLobbyBodySchema.validate(req.body);
             const lobbyId = v4(); // Generate a new UUID for the lobbyId
-            const { users } = req.body;
-            await this.lobbyService.createLobby(lobbyId, users);
+            await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
+            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
+
             res.status(201).send({ message: "Lobby created" });
         } catch (error) {
-            if (error instanceof ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error creating lobby", error: message });
         }

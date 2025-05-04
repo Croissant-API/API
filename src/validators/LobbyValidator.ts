@@ -14,11 +14,3 @@ export const userIdParamSchema = yup.object({
 export const userIdBodySchema = yup.object({
     userId: yup.string().trim().required("userId is required"),
 });
-
-// Validator for createLobby body
-export const createLobbyBodySchema = yup.object({
-    users: yup
-        .array()
-        .of(yup.string().trim().required())
-        .optional(),
-});

@@ -9,5 +9,5 @@ export declare class LobbyController {
     leaveLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyLobby(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUserLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    createLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    createLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
 }

@@ -113,16 +113,12 @@ let LobbyController = class LobbyController {
     }
     async createLobby(req, res) {
         try {
-            await LobbyValidator_1.createLobbyBodySchema.validate(req.body);
             const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
-            const { users } = req.body;
-            await this.lobbyService.createLobby(lobbyId, users);
+            await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
+            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             res.status(201).send({ message: "Lobby created" });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error creating lobby", error: message });
         }
@@ -175,7 +171,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "getUserLobby", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/"),
+    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

@@ -14,8 +14,3 @@ export declare const userIdBodySchema: yup.ObjectSchema<{
 }, yup.AnyObject, {
     userId: undefined;
 }, "">;
-export declare const createLobbyBodySchema: yup.ObjectSchema<{
-    users: string[] | undefined;
-}, yup.AnyObject, {
-    users: "";
-}, "">;
