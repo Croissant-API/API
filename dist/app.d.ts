@@ -1,0 +1,10 @@
+import "reflect-metadata";
+import express from "express";
+import "./controllers/DescribeController";
+import "./controllers/GameController";
+import "./controllers/InventoryController";
+import "./controllers/ItemController";
+import "./controllers/LobbyController";
+import "./controllers/TradeController";
+import "./controllers/UserController";
+export declare const app: express.Application;
