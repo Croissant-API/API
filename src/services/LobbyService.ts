@@ -55,7 +55,7 @@ export class LobbyService implements ILobbyService {
 
     async getUserLobby(userId: string): Promise<Lobby | null> {
         const rows = await this.databaseService.read<{ id: number, users: string }[]>(
-            "SELECT id, users FROM lobbies"
+            "SELECT lobbyId, users FROM lobbies"
         );
         for (const row of rows) {
             const users: string[] = JSON.parse(row.users);
