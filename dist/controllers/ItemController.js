@@ -129,7 +129,8 @@ let ItemController = class ItemController {
         }
     }
     async buyItem(req, res) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -156,7 +157,8 @@ let ItemController = class ItemController {
         }
     }
     async sellItem(req, res) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -215,6 +217,25 @@ let ItemController = class ItemController {
             console.error("Error consuming item", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error consuming item", error: message });
+        }
+    }
+    async dropItem(req, res) {
+        const { itemId, amount } = req.body;
+        if (!itemId || isNaN(amount)) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const user = req.user;
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            await this.inventoryService.removeItem(user.user_id, itemId, amount);
+            res.status(200).send({ message: "Item dropped" });
+        }
+        catch (error) {
+            console.error("Error dropping item", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error dropping item", error: message });
         }
     }
 };
@@ -302,9 +323,9 @@ __decorate([
         method: "POST",
         description: "Buy an item",
         body: {
-            itemId: "The id of the item to buy",
             amount: "The amount of the item to buy"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/buy/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
     }),
@@ -319,9 +340,9 @@ __decorate([
         method: "POST",
         description: "Sell an item",
         body: {
-            itemId: "The id of the item to sell",
             amount: "The amount of the item to sell"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/sell/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
     }),
@@ -364,6 +385,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ItemController.prototype, "consumeItem", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ItemController.prototype, "dropItem", null);
 ItemController = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),

@@ -176,15 +176,16 @@ export class ItemController {
         method: "POST",
         description: "Buy an item",
         body: {
-            itemId: "The id of the item to buy",
             amount: "The amount of the item to buy"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/buy/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
     })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
     public async buyItem(req: AuthenticatedRequest, res: Response) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -219,15 +220,16 @@ export class ItemController {
         method: "POST",
         description: "Sell an item",
         body: {
-            itemId: "The id of the item to sell",
             amount: "The amount of the item to sell"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/sell/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
     })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
     public async sellItem(req: AuthenticatedRequest, res: Response) {
-        const { itemId, amount } = req.body;
+        const {itemId} = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
