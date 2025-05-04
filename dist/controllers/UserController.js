@@ -127,18 +127,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "getUser", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/create",
-        method: "POST",
-        description: "Create a new user",
-        body: {
-            userId: "The id of the user",
-            username: "The username of the user",
-            balance: "The starting balance of the user"
-        },
-        responseType: "object{message: string}",
-        example: "POST /api/users/create {\"userId\": \"123\", \"username\": \"Alice\", \"balance\": 1000}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/create"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
