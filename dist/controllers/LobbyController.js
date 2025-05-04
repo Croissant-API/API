@@ -19,7 +19,7 @@ const LobbyValidator_1 = require("../validators/LobbyValidator");
 const yup_1 = require("yup");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-const LoggedCheck_1 = require("middlewares/LoggedCheck");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let LobbyController = class LobbyController {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;

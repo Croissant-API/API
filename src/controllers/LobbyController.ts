@@ -11,7 +11,7 @@ import {
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
-import { AuthenticatedRequest, LoggedCheck } from 'middlewares/LoggedCheck';
+import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 
 @controller("/lobbies")
 export class LobbyController {

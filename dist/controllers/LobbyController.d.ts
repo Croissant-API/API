@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { ILobbyService } from '../services/LobbyService';
-import { AuthenticatedRequest } from 'middlewares/LoggedCheck';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 export declare class LobbyController {
     private lobbyService;
     constructor(lobbyService: ILobbyService);
