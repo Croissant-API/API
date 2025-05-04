@@ -317,4 +317,24 @@ export class ItemController {
             res.status(500).send({ message: "Error consuming item", error: message });
         }
     }
+
+    @httpPost("/drop/:itemId", LoggedCheck.middleware)
+    public async dropItem(req: AuthenticatedRequest, res: Response) {
+        const { itemId, amount } = req.body;
+        if (!itemId || isNaN(amount)) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const user = req.user;
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            await this.inventoryService.removeItem(user.user_id, itemId, amount);
+            res.status(200).send({ message: "Item dropped" });
+        } catch (error) {
+            console.error("Error dropping item", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error dropping item", error: message });
+        }
+    }
 }
