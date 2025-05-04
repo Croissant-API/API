@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { IInventoryService } from '../services/InventoryService';
 import { IItemService } from '../services/ItemService';
-import { AuthenticatedRequest } from 'middlewares/LoggedCheck';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 export declare class InventoryController {
     private inventoryService;
     private itemService;

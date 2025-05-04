@@ -5,7 +5,7 @@ import { IInventoryService } from '../services/InventoryService';
 import { IItemService } from '../services/ItemService';
 import { userIdParamSchema } from '../validators/InventoryValidator';
 import { describe } from '../decorators/describe';
-import { AuthenticatedRequest, LoggedCheck } from 'middlewares/LoggedCheck';
+import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 
 @controller("/inventory")
 export class InventoryController {

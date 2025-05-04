@@ -17,7 +17,7 @@ const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
-const LoggedCheck_1 = require("middlewares/LoggedCheck");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let InventoryController = class InventoryController {
     constructor(inventoryService, itemService) {
         this.inventoryService = inventoryService;
