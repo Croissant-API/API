@@ -182,7 +182,8 @@ let ItemController = class ItemController {
         }
     }
     async giveItem(req, res) {
-        const { itemId, amount } = req.body;
+        const { itemId } = req.params;
+        const { amount } = req.body;
         if (!itemId || isNaN(amount)) {
             return res.status(400).send({ message: "Invalid input" });
         }
@@ -327,7 +328,7 @@ __decorate([
         },
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
-        example: "POST /api/items/buy/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
     }),
     (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -344,7 +345,7 @@ __decorate([
         },
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
-        example: "POST /api/items/sell/item_1 {\"itemId\": \"item_1\", \"amount\": 2}"
+        example: "POST /api/items/sell/item_1 {\"amount\": 2}"
     }),
     (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -357,11 +358,11 @@ __decorate([
         method: "POST",
         description: "Give an item to a user (owner only)",
         body: {
-            itemId: "The id of the item to give",
             amount: "The amount of the item to give"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
-        example: "POST /api/items/give/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
+        example: "POST /api/items/give/item_1 {\"amount\": 1}"
     }),
     (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),

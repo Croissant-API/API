@@ -262,6 +262,7 @@ export class ItemController {
         body: {
             amount: "The amount of the item to give"
         },
+        params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "POST /api/items/give/item_1 {\"amount\": 1}"
     })
