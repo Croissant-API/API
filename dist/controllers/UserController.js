@@ -41,6 +41,26 @@ let UserController = class UserController {
         };
         res.send(filteredUser);
     }
+    async searchUsers(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users = await this.userService.searchUsersByUsername(query);
+            const filtered = users.map(user => ({
+                userId: user.user_id,
+                username: user.username,
+                balance: user.balance,
+            }));
+            res.send(filtered);
+        }
+        catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.query;
         if (!userId || !verificationKey) {
@@ -91,26 +111,6 @@ let UserController = class UserController {
             res.status(500).send({ message: "Error creating user", error: message });
         }
     }
-    async searchUsers(req, res) {
-        const query = req.query.q?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            const users = await this.userService.searchUsersByUsername(query);
-            const filtered = users.map(user => ({
-                userId: user.user_id,
-                username: user.username,
-                balance: user.balance,
-            }));
-            res.send(filtered);
-        }
-        catch (error) {
-            console.error("Error searching users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error searching users", error: message });
-        }
-    }
 };
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
@@ -118,6 +118,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "getMe", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "searchUsers", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/auth-verification",
@@ -152,12 +158,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "createUser", null);
-__decorate([
-    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], UserController.prototype, "searchUsers", null);
 UserController = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),

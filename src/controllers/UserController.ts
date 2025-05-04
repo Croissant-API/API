@@ -34,6 +34,28 @@ export class UserController {
         res.send(filteredUser);
     }
 
+    
+    @httpGet("/search", LoggedCheck.middleware)
+    public async searchUsers(req: AuthenticatedRequest, res: Response) {
+        const query = (req.query.q as string)?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users: User[] = await this.userService.searchUsersByUsername(query);
+            const filtered = users.map(user => ({
+                userId: user.user_id,
+                username: user.username,
+                balance: user.balance,
+            }));
+            res.send(filtered);
+        } catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
+
     @describe({
         endpoint: "/users/auth-verification",
         method: "GET",
@@ -101,28 +123,6 @@ export class UserController {
             console.error("Error creating user", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error creating user", error: message });
-        }
-    }
-
-
-    @httpGet("/search", LoggedCheck.middleware)
-    public async searchUsers(req: AuthenticatedRequest, res: Response) {
-        const query = (req.query.q as string)?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            const users: User[] = await this.userService.searchUsersByUsername(query);
-            const filtered = users.map(user => ({
-                userId: user.user_id,
-                username: user.username,
-                balance: user.balance,
-            }));
-            res.send(filtered);
-        } catch (error) {
-            console.error("Error searching users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error searching users", error: message });
         }
     }
 
