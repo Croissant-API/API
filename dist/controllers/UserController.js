@@ -34,6 +34,7 @@ let UserController = class UserController {
         }
         // Filter user to only expose allowed fields
         const filteredUser = {
+            ...this.userService.getDiscordUser(user.user_id),
             userId: user.user_id,
             balance: user.balance,
             username: user.username,
@@ -49,6 +50,7 @@ let UserController = class UserController {
         try {
             const users = await this.userService.searchUsersByUsername(query);
             const filtered = users.map(user => ({
+                ...this.userService.getDiscordUser(user.user_id),
                 userId: user.user_id,
                 username: user.username,
                 balance: user.balance,

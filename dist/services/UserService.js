@@ -11,13 +11,47 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const inversify_1 = require("inversify");
 const GenKey_1 = require("../utils/GenKey");
+const UserCache_1 = require("../utils/UserCache");
+const dotenv_1 = require("dotenv");
+const path_1 = __importDefault(require("path"));
+const BOT_TOKEN = process.env.BOT_TOKEN;
+(0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getDiscordUser(userId) {
+        try {
+            const cached = (0, UserCache_1.getCachedUser)(userId);
+            if (cached) {
+                return cached;
+            }
+            const headers = {};
+            if (BOT_TOKEN) {
+                headers["Authorization"] = BOT_TOKEN;
+            }
+            const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+                headers
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const user = await response.json();
+            (0, UserCache_1.setCachedUser)(userId, user);
+            return user;
+        }
+        catch (error) {
+            console.error("Error fetching Discord user:", error);
+            return null;
+        }
     }
     async searchUsersByUsername(query) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);

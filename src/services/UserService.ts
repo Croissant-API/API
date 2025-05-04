@@ -2,8 +2,17 @@ import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
 import { genKey } from "../utils/GenKey";
+import { getCachedUser, setCachedUser } from "../utils/UserCache";
+import { config } from "dotenv";
+import path from "path";
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+config({path: path.join(__dirname, "..", "..", ".env")});
 
 export interface IUserService {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
     createUser(user_id: string, username: string, balance: number): Promise<void>;
@@ -19,6 +28,32 @@ export class UserService implements IUserService {
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
     ) {}
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getDiscordUser(userId: string): Promise<any> {
+        try {
+            const cached = getCachedUser(userId);
+            if (cached) {
+                return cached;
+            }
+            const headers: Record<string, string> = {};
+            if (BOT_TOKEN) {
+                headers["Authorization"] = BOT_TOKEN;
+            }
+            const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+                headers
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const user = await response.json();
+            setCachedUser(userId, user);
+            return user;
+        } catch (error) {
+            console.error("Error fetching Discord user:", error);
+            return null;
+        }
+    }
 
     async searchUsersByUsername(query: string): Promise<User[]> {
         const users = await this.databaseService.read<User[]>(

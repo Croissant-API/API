@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+dotenv.config({path: path.join(__dirname, "..", ".env")});
 
 export function genKey(userId: string): string {
     if (!userId) throw new Error('userId is required for key generation');
