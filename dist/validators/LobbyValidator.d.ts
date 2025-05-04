@@ -9,8 +9,3 @@ export declare const userIdParamSchema: yup.ObjectSchema<{
 }, yup.AnyObject, {
     userId: undefined;
 }, "">;
-export declare const userIdBodySchema: yup.ObjectSchema<{
-    userId: string;
-}, yup.AnyObject, {
-    userId: undefined;
-}, "">;

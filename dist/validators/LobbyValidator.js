@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userIdBodySchema = exports.userIdParamSchema = exports.lobbyIdParamSchema = void 0;
+exports.userIdParamSchema = exports.lobbyIdParamSchema = void 0;
 const yup = __importStar(require("yup"));
 // Validator for lobbyId in params
 exports.lobbyIdParamSchema = yup.object({
@@ -31,9 +31,5 @@ exports.lobbyIdParamSchema = yup.object({
 });
 // Validator for userId in params
 exports.userIdParamSchema = yup.object({
-    userId: yup.string().trim().required("userId is required"),
-});
-// Validator for join/leave lobby body
-exports.userIdBodySchema = yup.object({
     userId: yup.string().trim().required("userId is required"),
 });

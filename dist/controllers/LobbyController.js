@@ -45,10 +45,8 @@ let LobbyController = class LobbyController {
     async joinLobby(req, res) {
         try {
             await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            await LobbyValidator_1.userIdBodySchema.validate(req.body);
             const lobbyId = req.params.lobbyId;
-            const { userId } = req.body;
-            await this.lobbyService.joinLobby(lobbyId, userId);
+            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Joined lobby" });
         }
         catch (error) {
@@ -62,10 +60,8 @@ let LobbyController = class LobbyController {
     async leaveLobby(req, res) {
         try {
             await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            await LobbyValidator_1.userIdBodySchema.validate(req.body);
             const lobbyId = req.params.lobbyId;
-            const { userId } = req.body;
-            await this.lobbyService.leaveLobby(lobbyId, userId);
+            await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Left lobby" });
         }
         catch (error) {
@@ -139,13 +135,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "getLobby", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:lobbyId/join"),
+    (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "joinLobby", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave"),
+    (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

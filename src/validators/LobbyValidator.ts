@@ -9,8 +9,3 @@ export const lobbyIdParamSchema = yup.object({
 export const userIdParamSchema = yup.object({
     userId: yup.string().trim().required("userId is required"),
 });
-
-// Validator for join/leave lobby body
-export const userIdBodySchema = yup.object({
-    userId: yup.string().trim().required("userId is required"),
-});

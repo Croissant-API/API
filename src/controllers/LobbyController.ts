@@ -4,8 +4,7 @@ import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { ILobbyService } from '../services/LobbyService';
 import {
     lobbyIdParamSchema,
-    userIdParamSchema,
-    userIdBodySchema
+    userIdParamSchema
 } from '../validators/LobbyValidator';
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
@@ -45,14 +44,12 @@ export class LobbyController {
         }
     }
 
-    @httpPost("/:lobbyId/join")
-    public async joinLobby(req: Request, res: Response) {
+    @httpPost("/:lobbyId/join", LoggedCheck.middleware)
+    public async joinLobby(req: AuthenticatedRequest, res: Response) {
         try {
             await lobbyIdParamSchema.validate(req.params);
-            await userIdBodySchema.validate(req.body);
             const lobbyId = req.params.lobbyId;
-            const { userId } = req.body;
-            await this.lobbyService.joinLobby(lobbyId, userId);
+            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Joined lobby" });
         } catch (error) {
             if (error instanceof ValidationError) {
@@ -63,14 +60,12 @@ export class LobbyController {
         }
     }
 
-    @httpPost("/:lobbyId/leave")
-    public async leaveLobby(req: Request, res: Response) {
+    @httpPost("/:lobbyId/leave", LoggedCheck.middleware)
+    public async leaveLobby(req: AuthenticatedRequest, res: Response) {
         try {
             await lobbyIdParamSchema.validate(req.params);
-            await userIdBodySchema.validate(req.body);
             const lobbyId = req.params.lobbyId;
-            const { userId } = req.body;
-            await this.lobbyService.leaveLobby(lobbyId, userId);
+            await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Left lobby" });
         } catch (error) {
             if (error instanceof ValidationError) {
