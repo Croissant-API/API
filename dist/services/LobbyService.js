@@ -47,7 +47,7 @@ let LobbyService = class LobbyService {
         }
     }
     async getUserLobby(userId) {
-        const rows = await this.databaseService.read("SELECT id, users FROM lobbies");
+        const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
             const users = JSON.parse(row.users);
             if (users.includes(userId)) {
