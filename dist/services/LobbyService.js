@@ -30,8 +30,9 @@ let LobbyService = class LobbyService {
         if (!lobby)
             throw new Error("Lobby not found");
         if (!lobby.users.includes(userId)) {
-            lobby.users.push(userId);
-            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(lobby.users), lobbyId]);
+            const users = JSON.parse(lobby.users);
+            users.push(userId);
+            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(users), lobbyId]);
         }
     }
     async leaveLobby(lobbyId, userId) {
@@ -39,7 +40,7 @@ let LobbyService = class LobbyService {
         console.log(lobby);
         if (!lobby)
             throw new Error("Lobby not found");
-        const newUsers = lobby.users.filter(u => u !== userId);
+        const newUsers = JSON.parse(lobby.users).filter((u) => u !== userId);
         if (newUsers.length === 0) {
             await this.deleteLobby(lobbyId);
         }
@@ -52,7 +53,7 @@ let LobbyService = class LobbyService {
         for (const row of rows) {
             const users = JSON.parse(row.users);
             if (users.includes(userId)) {
-                return { lobbyId: row.lobbyId, users };
+                return { lobbyId: row.lobbyId, users: JSON.parse(row.users) };
             }
         }
         return null;

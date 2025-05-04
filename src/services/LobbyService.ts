@@ -31,10 +31,11 @@ export class LobbyService implements ILobbyService {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby) throw new Error("Lobby not found");
         if (!lobby.users.includes(userId)) {
-            lobby.users.push(userId);
+            const users: string[] = JSON.parse(lobby.users);
+            users.push(userId);
             await this.databaseService.update(
                 "UPDATE lobbies SET users = ? WHERE id = ?",
-                [JSON.stringify(lobby.users), lobbyId]
+                [JSON.stringify(users), lobbyId]
             );
         }
     }
@@ -43,7 +44,7 @@ export class LobbyService implements ILobbyService {
         const lobby = await this.getLobby(lobbyId);
         console.log(lobby);
         if (!lobby) throw new Error("Lobby not found");
-        const newUsers = lobby.users.filter(u => u !== userId);
+        const newUsers = JSON.parse(lobby.users).filter((u: string) => u !== userId);
         if (newUsers.length === 0) {
             await this.deleteLobby(lobbyId);
         } else {
@@ -61,7 +62,7 @@ export class LobbyService implements ILobbyService {
         for (const row of rows) {
             const users: string[] = JSON.parse(row.users);
             if (users.includes(userId)) {
-                return { lobbyId: row.lobbyId, users };
+                return { lobbyId: row.lobbyId, users: JSON.parse(row.users) };
             }
         }
         return null;
