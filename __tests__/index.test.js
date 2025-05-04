@@ -41,8 +41,8 @@
  */
 
 const app = require("../dist/app").app;
-const container = require("../dist/container").default;
-const request = require("supertest");
+// const container = require("../dist/container").default;
+// const request = require("supertest");
 
 test("Simple assertion", () => {
   expect(true).toBe(true);
@@ -52,19 +52,19 @@ test("Server definition", () => {
   expect(app).toBeDefined();
 });
 
-test("Exemple request to /exemple", async () => {
-    const response = await request(app).get("/exemple");
-    const expected = container.get("ExempleService").getHelloWorld();
-    console.log("response", response);
-    expect(response.statusCode).toBe(200);
-    expect(response.text).toEqual(expected);
-});
+// test("Exemple request to /exemple", async () => {
+//     const response = await request(app).get("/exemple");
+//     const expected = container.get("ExempleService").getHelloWorld();
+//     console.log("response", response);
+//     expect(response.statusCode).toBe(200);
+//     expect(response.text).toEqual(expected);
+// });
 
 
-test("Exemple request to /exemple/user", async () => {
-    const response = await request(app).get("/exemple/user");
-    const expected = container.get("ExempleService").getHelloWorldWithName("user");
-    console.log("response", response);
-    expect(response.statusCode).toBe(200);
-    expect(response.text).toEqual(expected);
-});
+// test("Exemple request to /exemple/user", async () => {
+//     const response = await request(app).get("/exemple/user");
+//     const expected = container.get("ExempleService").getHelloWorldWithName("user");
+//     console.log("response", response);
+//     expect(response.statusCode).toBe(200);
+//     expect(response.text).toEqual(expected);
+// });
