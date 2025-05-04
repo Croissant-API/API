@@ -37,7 +37,7 @@ export class UserController {
         endpoint: "/users/auth-verification",
         method: "GET",
         description: "Check the verification key for the user",
-        responseType: "object{verificationKey: string}",
+        responseType: "object{success: boolean}",
         params: { userId: "The id of the user", verificationKey: "The verification key" },
         example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
     })
