@@ -19,6 +19,10 @@ let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
+    async searchUsersByUsername(query) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);
+        return users;
+    }
     async updateUserBalance(user_id, balance) {
         await this.databaseService.update("UPDATE users SET balance = ? WHERE user_id = ?", [balance, user_id]);
     }

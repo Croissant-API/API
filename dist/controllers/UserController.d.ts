@@ -8,4 +8,5 @@ export declare class UserController {
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     createUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    searchUsers(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

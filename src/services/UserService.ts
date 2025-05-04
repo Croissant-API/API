@@ -4,6 +4,7 @@ import { User } from "../interfaces/User";
 import { genKey } from "../utils/GenKey";
 
 export interface IUserService {
+    searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
     createUser(user_id: string, username: string, balance: number): Promise<void>;
     getUser(user_id: string): Promise<User | null>;
@@ -18,6 +19,15 @@ export class UserService implements IUserService {
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
     ) {}
+
+    async searchUsersByUsername(query: string): Promise<User[]> {
+        const users = await this.databaseService.read<User[]>(
+            "SELECT * FROM users WHERE username LIKE ?",
+            [`%${query}%`]
+        );
+        return users;
+    }
+
 
     async updateUserBalance(user_id: string, balance: number): Promise<void> {
         await this.databaseService.update(
