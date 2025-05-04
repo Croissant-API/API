@@ -62,7 +62,7 @@ export class LobbyService implements ILobbyService {
         for (const row of rows) {
             const users: string[] = JSON.parse(row.users);
             if (users.includes(userId)) {
-                return { lobbyId: row.lobbyId, users: JSON.parse(row.users) };
+                return { lobbyId: row.lobbyId, users: row.users };
             }
         }
         return null;
