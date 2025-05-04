@@ -11,6 +11,7 @@ import {
 import { ValidationError } from 'yup';
 import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
+import { AuthenticatedRequest, LoggedCheck } from 'middlewares/LoggedCheck';
 
 @controller("/lobbies")
 export class LobbyController {
@@ -45,15 +46,6 @@ export class LobbyController {
         }
     }
 
-    @describe({
-        endpoint: "/lobbies/:lobbyId/join",
-        method: "POST",
-        description: "Join a lobby",
-        params: { lobbyId: "The id of the lobby" },
-        body: { userId: "The id of the user joining the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies/123/join {\"userId\": \"user_1\"}"
-    })
     @httpPost("/:lobbyId/join")
     public async joinLobby(req: Request, res: Response) {
         try {
@@ -72,15 +64,6 @@ export class LobbyController {
         }
     }
 
-    @describe({
-        endpoint: "/lobbies/:lobbyId/leave",
-        method: "POST",
-        description: "Leave a lobby",
-        params: { lobbyId: "The id of the lobby" },
-        body: { userId: "The id of the user leaving the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies/123/leave {\"userId\": \"user_1\"}"
-    })
     @httpPost("/:lobbyId/leave")
     public async leaveLobby(req: Request, res: Response) {
         try {
@@ -96,6 +79,24 @@ export class LobbyController {
             }
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error leaving lobby", error: message });
+        }
+    }
+
+    @httpGet("/user/@me", LoggedCheck.middleware)
+    public async getMyLobby(req: AuthenticatedRequest, res: Response) {
+        try {
+            const userId = req.user.user_id;
+            const lobby = await this.lobbyService.getUserLobby(userId);
+            if (!lobby) {
+                return res.status(404).send({ message: "User is not in any lobby" });
+            }
+            res.send(lobby);
+        } catch (error) {
+            if (error instanceof ValidationError) {
+                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+            }
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user lobby", error: message });
         }
     }
 
@@ -126,14 +127,6 @@ export class LobbyController {
         }
     }
 
-    @describe({
-        endpoint: "/lobbies",
-        method: "POST",
-        description: "Create a new lobby",
-        body: { users: "Array of user IDs to add to the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies {\"users\": [\"user_1\", \"user_2\"]}"
-    })
     @httpPost("/")
     public async createLobby(req: Request, res: Response) {
         try {

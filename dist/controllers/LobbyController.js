@@ -19,6 +19,7 @@ const LobbyValidator_1 = require("../validators/LobbyValidator");
 const yup_1 = require("yup");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
+const LoggedCheck_1 = require("middlewares/LoggedCheck");
 let LobbyController = class LobbyController {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;
@@ -75,6 +76,23 @@ let LobbyController = class LobbyController {
             res.status(500).send({ message: "Error leaving lobby", error: message });
         }
     }
+    async getMyLobby(req, res) {
+        try {
+            const userId = req.user.user_id;
+            const lobby = await this.lobbyService.getUserLobby(userId);
+            if (!lobby) {
+                return res.status(404).send({ message: "User is not in any lobby" });
+            }
+            res.send(lobby);
+        }
+        catch (error) {
+            if (error instanceof yup_1.ValidationError) {
+                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+            }
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user lobby", error: message });
+        }
+    }
     async getUserLobby(req, res) {
         try {
             await LobbyValidator_1.userIdParamSchema.validate(req.params);
@@ -125,35 +143,23 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "getLobby", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies/:lobbyId/join",
-        method: "POST",
-        description: "Join a lobby",
-        params: { lobbyId: "The id of the lobby" },
-        body: { userId: "The id of the user joining the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies/123/join {\"userId\": \"user_1\"}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "joinLobby", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies/:lobbyId/leave",
-        method: "POST",
-        description: "Leave a lobby",
-        params: { lobbyId: "The id of the lobby" },
-        body: { userId: "The id of the user leaving the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies/123/leave {\"userId\": \"user_1\"}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "leaveLobby", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], LobbyController.prototype, "getMyLobby", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/user/:userId",
@@ -169,14 +175,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LobbyController.prototype, "getUserLobby", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies",
-        method: "POST",
-        description: "Create a new lobby",
-        body: { users: "Array of user IDs to add to the lobby" },
-        responseType: "object{message: string}",
-        example: "POST /api/lobbies {\"users\": [\"user_1\", \"user_2\"]}"
-    }),
     (0, inversify_express_utils_1.httpPost)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
