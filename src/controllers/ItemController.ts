@@ -169,17 +169,6 @@ export class ItemController {
         }
     }
 
-    @describe({
-        endpoint: "/items/buy/:itemId",
-        method: "POST",
-        description: "Buy an item",
-        body: {
-            amount: "The amount of the item to buy"
-        },
-        params: { itemId: "The id of the item" },
-        responseType: "object{message: string}",
-        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
-    })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
     public async buyItem(req: AuthenticatedRequest, res: Response) {
         const { itemId } = req.params;
@@ -221,17 +210,6 @@ export class ItemController {
         }
     }
 
-    @describe({
-        endpoint: "/items/sell/:itemId",
-        method: "POST",
-        description: "Sell an item",
-        body: {
-            amount: "The amount of the item to sell"
-        },
-        params: { itemId: "The id of the item" },
-        responseType: "object{message: string}",
-        example: "POST /api/items/sell/item_1 {\"amount\": 2}"
-    })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
     public async sellItem(req: AuthenticatedRequest, res: Response) {
         const {itemId} = req.params;
