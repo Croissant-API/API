@@ -4,8 +4,8 @@ import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { IUserService } from '../services/UserService';
 import { createUserValidator, userIdParamValidator } from '../validators/UserValidator';
 import { describe } from '../decorators/describe';
-import { AuthenticatedRequest, LoggedCheck } from 'middlewares/LoggedCheck';
-import { genVerificationKey } from 'utils/GenKey';
+import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+import { genVerificationKey } from '../utils/GenKey';
 
 @controller("/users")
 export class UserController {
