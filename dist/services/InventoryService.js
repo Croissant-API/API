@@ -42,9 +42,7 @@ let InventoryService = class InventoryService {
              WHERE user_id = ? AND item_id = ?`, [amount, userId, itemId]);
     }
     async setItemAmount(userId, itemId, amount) {
-        await this.databaseService.update(`INSERT INTO inventories (user_id, item_id, amount)
-             VALUES (?, ?, ?)
-             ON CONFLICT(user_id, item_id) DO UPDATE SET amount = ?`, [userId, itemId, amount, amount]);
+        await this.databaseService.update(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`, [amount, userId, itemId]);
     }
     async hasItem(userId, itemId, amount = 1) {
         const items = await this.getInventory(userId);

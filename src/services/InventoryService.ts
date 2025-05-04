@@ -57,10 +57,8 @@ export class InventoryService implements IInventoryService {
 
     async setItemAmount(userId: string, itemId: string, amount: number): Promise<void> {
         await this.databaseService.update(
-            `INSERT INTO inventories (user_id, item_id, amount)
-             VALUES (?, ?, ?)
-             ON CONFLICT(user_id, item_id) DO UPDATE SET amount = ?`,
-            [userId, itemId, amount, amount]
+            `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`,
+            [amount, userId, itemId]
         );
     }
 

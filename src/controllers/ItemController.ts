@@ -194,14 +194,9 @@ export class ItemController {
             await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
 
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
-            console.log("Current amount: ", currentAmount);
             if (currentAmount) {
-                console.log("User already has this item, increasing amount");
-                // L'utilisateur a déjà cet item, on augmente la quantité
                 await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
             } else {
-                // L'utilisateur n'a pas cet item, on l'ajoute
-                console.log("Adding item to inventory");
                 await this.inventoryService.addItem(user.user_id, itemId, amount);
             }
 
