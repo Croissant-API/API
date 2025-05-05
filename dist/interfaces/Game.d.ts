@@ -5,6 +5,7 @@ export interface Game {
     description: string;
     price: number;
     ownerId: string;
+    download_link: string;
     showInStore: boolean;
 }
 export interface GameOwner {

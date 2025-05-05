@@ -28,7 +28,14 @@ export class Games {
     public async listGames(req: Request, res: Response) {
         try {
             const games = await this.gameService.listGames();
-            res.send(games);
+            const filteredGames = games.map((game) => {return {
+                gameId: game.gameId,
+                name: game.name,
+                description: game.description,
+                price: game.price,
+                ownerId: game.ownerId
+            }})
+            res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error listing games", error: message });
@@ -40,7 +47,15 @@ export class Games {
         try {
             const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
             const games = await this.gameService.getUserGames(userId);
-            res.send(games);
+            const filteredGames = games.map((game) => {return {
+                gameId: game.gameId,
+                name: game.name,
+                description: game.description,
+                price: game.price,
+                ownerId: game.ownerId,
+                download_link: game.download_link
+            }})
+            res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error fetching user games", error: message });
@@ -60,7 +75,15 @@ export class Games {
         try {
             const { userId } = req.params;
             const games = await this.gameService.getUserGames(userId);
-            res.send(games);
+
+            const filteredGames = games.map((game) => {return {
+                gameId: game.gameId,
+                name: game.name,
+                description: game.description,
+                price: game.price,
+                ownerId: game.ownerId
+            }})
+            res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error fetching user games", error: message });
@@ -85,7 +108,14 @@ export class Games {
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            res.send(game);
+            const filteredGame = {
+                gameId: game.gameId,
+                name: game.name,
+                description: game.description,
+                price: game.price,
+                ownerId: game.ownerId
+            }
+            res.send(filteredGame);
         } catch (error) {
             if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
@@ -101,7 +131,7 @@ export class Games {
         try {
             await createGameBodySchema.validate(req.body);
 
-            const { name, description, price, showInStore } = req.body;
+            const { name, description, price, showInStore, download_link } = req.body;
             const gameId = v4(); // Generate a new UUID for the gameId
             const ownerId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
 
@@ -111,7 +141,8 @@ export class Games {
                 description,
                 price,
                 ownerId,
-                showInStore
+                showInStore,
+                download_link
             });
             res.status(201).send({ message: "Game created" });
         } catch (error) {

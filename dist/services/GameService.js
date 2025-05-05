@@ -37,12 +37,13 @@ let GameService = class GameService {
         return games;
     }
     async createGame(game) {
-        await this.databaseService.update("INSERT INTO games (gameId, name, description, price, owner_id, showInStore) VALUES (?, ?, ?, ?, ?, ?)", [
+        await this.databaseService.update("INSERT INTO games (gameId, name, description, price, owner_id, showInStore, download_link) VALUES (?, ?, ?, ?, ?, ?, ?)", [
             game.gameId,
             game.name,
             game.description,
             game.price,
             game.ownerId,
+            game.download_link,
             game.showInStore ? 1 : 0
         ]);
     }

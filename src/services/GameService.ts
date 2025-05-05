@@ -50,13 +50,14 @@ export class GameService implements IGameService {
 
     async createGame(game: Omit<Game, "id">): Promise<void> {
         await this.databaseService.update(
-            "INSERT INTO games (gameId, name, description, price, owner_id, showInStore) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO games (gameId, name, description, price, owner_id, showInStore, download_link) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 game.gameId,
                 game.name,
                 game.description,
                 game.price,
                 game.ownerId,
+                game.download_link,
                 game.showInStore ? 1 : 0
             ]
         );
