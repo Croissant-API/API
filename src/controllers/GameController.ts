@@ -9,7 +9,7 @@ import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
 
 @controller("/games")
-export class GameController {
+export class Games {
     constructor(
         @inject("GameService") private gameService: IGameService,
     ) {}

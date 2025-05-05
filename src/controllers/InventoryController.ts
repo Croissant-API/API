@@ -8,7 +8,7 @@ import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 
 @controller("/inventory")
-export class InventoryController {
+export class Inventories {
     constructor(
         @inject("InventoryService") private inventoryService: IInventoryService,
         @inject("ItemService") private itemService: IItemService,

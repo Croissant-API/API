@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { ILobbyService } from '../services/LobbyService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
-export declare class LobbyController {
+export declare class Lobbies {
     private lobbyService;
     constructor(lobbyService: ILobbyService);
     getLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

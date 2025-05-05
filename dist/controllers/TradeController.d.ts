@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { ITradeService } from '../services/TradeService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
-export declare class TradeController {
+export declare class Trades {
     private tradeService;
     constructor(tradeService: ITradeService);
     createTrade(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

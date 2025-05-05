@@ -12,13 +12,13 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TradeController = void 0;
+exports.Trades = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const TradeValidator_1 = require("../validators/TradeValidator");
 const yup_1 = require("yup");
-let TradeController = class TradeController {
+let Trades = class Trades {
     constructor(tradeService) {
         this.tradeService = tradeService;
     }
@@ -143,52 +143,52 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "createTrade", null);
+], Trades.prototype, "createTrade", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "getTradeById", null);
+], Trades.prototype, "getTradeById", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "getTradesByUser", null);
+], Trades.prototype, "getTradesByUser", null);
 __decorate([
     (0, inversify_express_utils_1.httpPut)("/:id/status", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "updateTradeStatus", null);
+], Trades.prototype, "updateTradeStatus", null);
 __decorate([
     (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "approveTrade", null);
+], Trades.prototype, "approveTrade", null);
 __decorate([
     (0, inversify_express_utils_1.httpDelete)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "deleteTrade", null);
+], Trades.prototype, "deleteTrade", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "addItemToTrade", null);
+], Trades.prototype, "addItemToTrade", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], TradeController.prototype, "removeItemToTrade", null);
-TradeController = __decorate([
+], Trades.prototype, "removeItemToTrade", null);
+Trades = __decorate([
     (0, inversify_express_utils_1.controller)("/trades"),
     __param(0, (0, inversify_1.inject)("TradeService")),
     __metadata("design:paramtypes", [Object])
-], TradeController);
-exports.TradeController = TradeController;
+], Trades);
+exports.Trades = Trades;

@@ -12,13 +12,13 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InventoryController = void 0;
+exports.Inventories = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-let InventoryController = class InventoryController {
+let Inventories = class Inventories {
     constructor(inventoryService, itemService) {
         this.inventoryService = inventoryService;
         this.itemService = itemService;
@@ -84,13 +84,13 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], InventoryController.prototype, "getAllInventories", null);
+], Inventories.prototype, "getAllInventories", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], InventoryController.prototype, "getMyInventory", null);
+], Inventories.prototype, "getMyInventory", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/inventory/:userId",
@@ -104,11 +104,11 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], InventoryController.prototype, "getInventory", null);
-InventoryController = __decorate([
+], Inventories.prototype, "getInventory", null);
+Inventories = __decorate([
     (0, inversify_express_utils_1.controller)("/inventory"),
     __param(0, (0, inversify_1.inject)("InventoryService")),
     __param(1, (0, inversify_1.inject)("ItemService")),
     __metadata("design:paramtypes", [Object, Object])
-], InventoryController);
-exports.InventoryController = InventoryController;
+], Inventories);
+exports.Inventories = Inventories;

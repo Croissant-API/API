@@ -9,7 +9,7 @@ import { genVerificationKey } from '../utils/GenKey';
 import { User } from '../interfaces/User';
 
 @controller("/users")
-export class UserController {
+export class Users {
     constructor(
         @inject("UserService") private userService: IUserService,
     ) {}

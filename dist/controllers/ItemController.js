@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ItemController = void 0;
+exports.Items = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const ItemValidator_1 = require("../validators/ItemValidator");
@@ -20,7 +20,7 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-let ItemController = class ItemController {
+let Items = class Items {
     constructor(itemService, inventoryService, userService) {
         this.itemService = itemService;
         this.inventoryService = inventoryService;
@@ -268,7 +268,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "getAllItems", null);
+], Items.prototype, "getAllItems", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/:itemId",
@@ -282,7 +282,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "healthCheck", null);
+], Items.prototype, "healthCheck", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",
@@ -300,7 +300,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "createItem", null);
+], Items.prototype, "createItem", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/update/:itemId",
@@ -319,7 +319,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "updateItem", null);
+], Items.prototype, "updateItem", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/delete/:itemId",
@@ -333,19 +333,19 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "deleteItem", null);
+], Items.prototype, "deleteItem", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "buyItem", null);
+], Items.prototype, "buyItem", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "sellItem", null);
+], Items.prototype, "sellItem", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/give/:itemId",
@@ -362,7 +362,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "giveItem", null);
+], Items.prototype, "giveItem", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/consume/:itemId",
@@ -379,18 +379,18 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "consumeItem", null);
+], Items.prototype, "consumeItem", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], ItemController.prototype, "dropItem", null);
-ItemController = __decorate([
+], Items.prototype, "dropItem", null);
+Items = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),
     __param(1, (0, inversify_1.inject)("InventoryService")),
     __param(2, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object, Object])
-], ItemController);
-exports.ItemController = ItemController;
+], Items);
+exports.Items = Items;

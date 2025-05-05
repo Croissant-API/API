@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
-export declare class UserController {
+export declare class Users {
     private userService;
     constructor(userService: IUserService);
     getMe(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

@@ -12,7 +12,7 @@ import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 
 @controller("/lobbies")
-export class LobbyController {
+export class Lobbies {
     constructor(
         @inject("LobbyService") private lobbyService: ILobbyService,
     ) {}

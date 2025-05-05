@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { IGameService } from '../services/GameService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
-export declare class GameController {
+export declare class Games {
     private gameService;
     constructor(gameService: IGameService);
     listGames(req: Request, res: Response): Promise<void>;

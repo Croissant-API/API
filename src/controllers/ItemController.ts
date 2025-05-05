@@ -11,7 +11,7 @@ import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
 
 @controller("/items")
-export class ItemController {
+export class Items {
     constructor(
         @inject("ItemService") private itemService: IItemService,
         @inject("InventoryService") private inventoryService: IInventoryService,

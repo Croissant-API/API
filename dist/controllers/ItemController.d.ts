@@ -4,7 +4,7 @@ import { IInventoryService } from '../services/InventoryService';
 import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner } from '../middlewares/OwnerCheck';
-export declare class ItemController {
+export declare class Items {
     private itemService;
     private inventoryService;
     private userService;

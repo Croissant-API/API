@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LobbyController = void 0;
+exports.Lobbies = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LobbyValidator_1 = require("../validators/LobbyValidator");
@@ -20,7 +20,7 @@ const yup_1 = require("yup");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-let LobbyController = class LobbyController {
+let Lobbies = class Lobbies {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;
     }
@@ -133,25 +133,25 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "getLobby", null);
+], Lobbies.prototype, "getLobby", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "joinLobby", null);
+], Lobbies.prototype, "joinLobby", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "leaveLobby", null);
+], Lobbies.prototype, "leaveLobby", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "getMyLobby", null);
+], Lobbies.prototype, "getMyLobby", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/user/:userId",
@@ -165,16 +165,16 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "getUserLobby", null);
+], Lobbies.prototype, "getUserLobby", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], LobbyController.prototype, "createLobby", null);
-LobbyController = __decorate([
+], Lobbies.prototype, "createLobby", null);
+Lobbies = __decorate([
     (0, inversify_express_utils_1.controller)("/lobbies"),
     __param(0, (0, inversify_1.inject)("LobbyService")),
     __metadata("design:paramtypes", [Object])
-], LobbyController);
-exports.LobbyController = LobbyController;
+], Lobbies);
+exports.Lobbies = Lobbies;

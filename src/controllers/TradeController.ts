@@ -8,7 +8,7 @@ import { tradeSchema, tradeStatusSchema, tradeApproveSchema, tradeItemActionSche
 import { ValidationError } from 'yup';
 
 @controller("/trades")
-export class TradeController {
+export class Trades {
     constructor(
         @inject("TradeService") private tradeService: ITradeService
     ) {}

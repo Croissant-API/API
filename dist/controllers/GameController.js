@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GameController = void 0;
+exports.Games = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const yup_1 = require("yup");
@@ -20,7 +20,7 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-let GameController = class GameController {
+let Games = class Games {
     constructor(gameService) {
         this.gameService = gameService;
     }
@@ -163,7 +163,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "listGames", null);
+], Games.prototype, "listGames", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/games/:gameId",
@@ -177,46 +177,46 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "getGame", null);
+], Games.prototype, "getGame", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "createGame", null);
+], Games.prototype, "createGame", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/list", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "getUserGames", null);
+], Games.prototype, "getUserGames", null);
 __decorate([
     (0, inversify_express_utils_1.httpPut)("/:gameId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "updateGame", null);
+], Games.prototype, "updateGame", null);
 __decorate([
     (0, inversify_express_utils_1.httpDelete)("/:gameId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "deleteGame", null);
+], Games.prototype, "deleteGame", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:gameId/owners", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "addOwner", null);
+], Games.prototype, "addOwner", null);
 __decorate([
     (0, inversify_express_utils_1.httpDelete)("/:gameId/owners/:ownerId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameController.prototype, "removeOwner", null);
-GameController = __decorate([
+], Games.prototype, "removeOwner", null);
+Games = __decorate([
     (0, inversify_express_utils_1.controller)("/games"),
     __param(0, (0, inversify_1.inject)("GameService")),
     __metadata("design:paramtypes", [Object])
-], GameController);
-exports.GameController = GameController;
+], Games);
+exports.Games = Games;

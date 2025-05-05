@@ -12,14 +12,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserController = void 0;
+exports.Users = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const UserValidator_1 = require("../validators/UserValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
-let UserController = class UserController {
+let Users = class Users {
     constructor(userService) {
         this.userService = userService;
     }
@@ -126,13 +126,13 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], UserController.prototype, "getMe", null);
+], Users.prototype, "getMe", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], UserController.prototype, "searchUsers", null);
+], Users.prototype, "searchUsers", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/auth-verification",
@@ -146,7 +146,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], UserController.prototype, "checkVerificationKey", null);
+], Users.prototype, "checkVerificationKey", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/:userId",
@@ -160,16 +160,16 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], UserController.prototype, "getUser", null);
+], Users.prototype, "getUser", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/create"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], UserController.prototype, "createUser", null);
-UserController = __decorate([
+], Users.prototype, "createUser", null);
+Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object])
-], UserController);
-exports.UserController = UserController;
+], Users);
+exports.Users = Users;
