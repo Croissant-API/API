@@ -29,11 +29,10 @@ let LobbyService = class LobbyService {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        if (!lobby.users.includes(userId)) {
-            const users = JSON.parse(lobby.users);
-            users.push(userId);
-            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(users), lobbyId]);
-        }
+        const users = JSON.parse(lobby.users);
+        users.push(userId);
+        const uniqueUsers = [...new Set(users)];
+        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(uniqueUsers), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
