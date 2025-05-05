@@ -7,11 +7,13 @@ import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from '.
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
+import { IUserService } from '../services/UserService';
 
 @controller("/games")
 export class Games {
     constructor(
         @inject("GameService") private gameService: IGameService,
+        @inject("UserService") private userService: IUserService,
     ) {}
 
     // Publique : liste tous les jeux
@@ -156,31 +158,36 @@ export class Games {
         }
     }
 
-    // Interne : ajouter un owner secondaire
-    @httpPost("/:gameId/owners", LoggedCheck.middleware)
-    public async addOwner(req: AuthenticatedRequest, res: Response) {
+    // Interne : acheter un jeu (buy)
+    @httpPost("/:gameId/buy", LoggedCheck.middleware)
+    public async buyGame(req: AuthenticatedRequest, res: Response) {
         const { gameId } = req.params;
-        const { ownerId } = req.body;
-        if (!ownerId) return res.status(400).send({ message: "Missing ownerId" });
+        const userId = req.user.user_id;
         try {
-            await this.gameService.addOwner(gameId, ownerId);
-            res.status(200).send({ message: "Owner added" });
+            // L'utilisateur ne peut pas revendre le jeu, donc on ne retire jamais un owner
+            const game = await this.gameService.getGame(gameId);
+            if (!game) {
+                return res.status(404).send({ message: "Game not found" });
+            }
+            if (game.ownerId === userId) {
+                await this.gameService.addOwner(gameId, userId);
+                res.status(200).send({ message: "Game obtained" });
+            }
+            else {
+                const user = await this.userService.getUser(userId);
+                if (!user) {
+                    return res.status(404).send({ message: "User not found" });
+                }
+                if (user.balance < game.price) {
+                    return res.status(400).send({ message: "Not enough balance" });
+                }
+                await this.userService.updateUserBalance(userId, user.balance - game.price);
+                await this.gameService.addOwner(gameId, userId);
+                res.status(200).send({ message: "Game purchased" });
+            }
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error adding owner", error: message });
-        }
-    }
-
-    // Interne : retirer un owner secondaire
-    @httpDelete("/:gameId/owners/:ownerId", LoggedCheck.middleware)
-    public async removeOwner(req: AuthenticatedRequest, res: Response) {
-        const { gameId, ownerId } = req.params;
-        try {
-            await this.gameService.removeOwner(gameId, ownerId);
-            res.status(200).send({ message: "Owner removed" });
-        } catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error removing owner", error: message });
+            res.status(500).send({ message: "Error purchasing game", error: message });
         }
     }
 }

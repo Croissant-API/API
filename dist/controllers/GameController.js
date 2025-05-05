@@ -21,8 +21,9 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
 let Games = class Games {
-    constructor(gameService) {
+    constructor(gameService, userService) {
         this.gameService = gameService;
+        this.userService = userService;
     }
     // Publique : liste tous les jeux
     async listGames(req, res) {
@@ -134,31 +135,36 @@ let Games = class Games {
             res.status(500).send({ message: "Error deleting game", error: message });
         }
     }
-    // Interne : ajouter un owner secondaire
-    async addOwner(req, res) {
+    // Interne : acheter un jeu (buy)
+    async buyGame(req, res) {
         const { gameId } = req.params;
-        const { ownerId } = req.body;
-        if (!ownerId)
-            return res.status(400).send({ message: "Missing ownerId" });
+        const userId = req.user.user_id;
         try {
-            await this.gameService.addOwner(gameId, ownerId);
-            res.status(200).send({ message: "Owner added" });
+            // L'utilisateur ne peut pas revendre le jeu, donc on ne retire jamais un owner
+            const game = await this.gameService.getGame(gameId);
+            if (!game) {
+                return res.status(404).send({ message: "Game not found" });
+            }
+            if (game.ownerId === userId) {
+                await this.gameService.addOwner(gameId, userId);
+                res.status(200).send({ message: "Game obtained" });
+            }
+            else {
+                const user = await this.userService.getUser(userId);
+                if (!user) {
+                    return res.status(404).send({ message: "User not found" });
+                }
+                if (user.balance < game.price) {
+                    return res.status(400).send({ message: "Not enough balance" });
+                }
+                await this.userService.updateUserBalance(userId, user.balance - game.price);
+                await this.gameService.addOwner(gameId, userId);
+                res.status(200).send({ message: "Game purchased" });
+            }
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error adding owner", error: message });
-        }
-    }
-    // Interne : retirer un owner secondaire
-    async removeOwner(req, res) {
-        const { gameId, ownerId } = req.params;
-        try {
-            await this.gameService.removeOwner(gameId, ownerId);
-            res.status(200).send({ message: "Owner removed" });
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error removing owner", error: message });
+            res.status(500).send({ message: "Error purchasing game", error: message });
         }
     }
 };
@@ -228,20 +234,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "deleteGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:gameId/owners", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:gameId/buy", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Games.prototype, "addOwner", null);
-__decorate([
-    (0, inversify_express_utils_1.httpDelete)("/:gameId/owners/:ownerId", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Games.prototype, "removeOwner", null);
+], Games.prototype, "buyGame", null);
 Games = __decorate([
     (0, inversify_express_utils_1.controller)("/games"),
     __param(0, (0, inversify_1.inject)("GameService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("UserService")),
+    __metadata("design:paramtypes", [Object, Object])
 ], Games);
 exports.Games = Games;

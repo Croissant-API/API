@@ -30,11 +30,14 @@ export class GameService implements IGameService {
     }
 
     async getUserGames(userId: string): Promise<Game[]> {
+        const games = await this.listGames();
         const rows = await this.databaseService.read<Game[]>(
-            "SELECT g.* FROM games g INNER JOIN game_owners go ON g.gameId = go.gameId WHERE go.ownerId = ?",
+            "SELECT gameId FROM game_owners WHERE ownerId = ?",
             [userId]
         );
-        return rows.map((game) => ({ ...game }));
+        const gameIds = rows.map((row) => row.gameId);
+        const filteredGames = games.filter((game) => gameIds.includes(game.gameId));
+        return filteredGames;
     }
 
     async listGames(): Promise<Game[]> {
