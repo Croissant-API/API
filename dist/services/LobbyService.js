@@ -32,7 +32,7 @@ let LobbyService = class LobbyService {
         const users = JSON.parse(lobby.users);
         users.push(userId);
         const uniqueUsers = [...new Set(users)];
-        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(uniqueUsers), lobbyId]);
+        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(uniqueUsers), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
@@ -44,7 +44,7 @@ let LobbyService = class LobbyService {
             await this.deleteLobby(lobbyId);
         }
         else {
-            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE id = ?", [JSON.stringify(newUsers), lobbyId]);
+            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers), lobbyId]);
         }
     }
     async getUserLobby(userId) {

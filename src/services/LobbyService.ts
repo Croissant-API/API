@@ -34,7 +34,7 @@ export class LobbyService implements ILobbyService {
         users.push(userId);
         const uniqueUsers = [...new Set(users)];
         await this.databaseService.update(
-            "UPDATE lobbies SET users = ? WHERE id = ?",
+            "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
             [JSON.stringify(uniqueUsers), lobbyId]
         );
     }
@@ -48,7 +48,7 @@ export class LobbyService implements ILobbyService {
             await this.deleteLobby(lobbyId);
         } else {
             await this.databaseService.update(
-                "UPDATE lobbies SET users = ? WHERE id = ?",
+                "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
                 [JSON.stringify(newUsers), lobbyId]
             );
         }
