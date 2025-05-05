@@ -35,6 +35,28 @@ let Games = class Games {
             res.status(500).send({ message: "Error listing games", error: message });
         }
     }
+    async getUserGames(req, res) {
+        try {
+            const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
+            const games = await this.gameService.getUserGames(userId);
+            res.send(games);
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user games", error: message });
+        }
+    }
+    async getGamesByUserId(req, res) {
+        try {
+            const { userId } = req.params;
+            const games = await this.gameService.getUserGames(userId);
+            res.send(games);
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user games", error: message });
+        }
+    }
     // Publique : détail d'un jeu
     async getGame(req, res) {
         try {
@@ -77,17 +99,6 @@ let Games = class Games {
             }
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error creating game", error: message });
-        }
-    }
-    async getUserGames(req, res) {
-        try {
-            const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
-            const games = await this.gameService.getUserGames(userId);
-            res.send(games);
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user games", error: message });
         }
     }
     // Interne : update d'un jeu (authentifié)
@@ -165,6 +176,26 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "listGames", null);
 __decorate([
+    (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getUserGames", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/list/:userId",
+        method: "GET",
+        description: "List all games owned by a specific user",
+        params: { userId: "The id of the user" },
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
+        example: "GET /api/games/list/123"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/list/:userId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getGamesByUserId", null);
+__decorate([
     (0, describe_1.describe)({
         endpoint: "/games/:gameId",
         method: "GET",
@@ -184,12 +215,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "createGame", null);
-__decorate([
-    (0, inversify_express_utils_1.httpGet)("/list", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Games.prototype, "getUserGames", null);
 __decorate([
     (0, inversify_express_utils_1.httpPut)("/:gameId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

@@ -5,9 +5,10 @@ export declare class Games {
     private gameService;
     constructor(gameService: IGameService);
     listGames(req: Request, res: Response): Promise<void>;
+    getUserGames(req: AuthenticatedRequest, res: Response): Promise<void>;
+    getGamesByUserId(req: Request, res: Response): Promise<void>;
     getGame(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     createGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    getUserGames(req: AuthenticatedRequest, res: Response): Promise<void>;
     updateGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     deleteGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     addOwner(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
