@@ -6,7 +6,8 @@ exports.getAllDescriptions = exports.describe = void 0;
 const endpointDescriptions = [];
 function describe(info) {
     return function (target, propertyKey, descriptor) {
-        endpointDescriptions.push(info);
+        const category = target.constructor.name;
+        endpointDescriptions.push({ category, ...info });
     };
 }
 exports.describe = describe;

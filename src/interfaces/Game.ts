@@ -7,3 +7,8 @@ export interface Game {
     ownerId: string;
     showInStore: boolean;
 }
+
+export interface GameOwner {
+    gameId: string;
+    ownerId: string;
+}

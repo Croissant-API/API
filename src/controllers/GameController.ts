@@ -14,11 +14,12 @@ export class GameController {
         @inject("GameService") private gameService: IGameService,
     ) {}
 
+    // Publique : liste tous les jeux
     @describe({
         endpoint: "/games",
         method: "GET",
         description: "List all games",
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, ownerId: string, showInStore: boolean}]",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
         example: "GET /api/games"
     })
     @httpGet("/")
@@ -32,12 +33,13 @@ export class GameController {
         }
     }
 
+    // Publique : détail d'un jeu
     @describe({
         endpoint: "/games/:gameId",
         method: "GET",
         description: "Get a game by gameId",
         params: { gameId: "The id of the game" },
-        responseType: "object{gameId: string, name: string, description: string, price: number, ownerId: string, showInStore: boolean}",
+        responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}",
         example: "GET /api/games/123"
     })
     @httpGet("/:gameId")
@@ -59,6 +61,7 @@ export class GameController {
         }
     }
 
+    // Interne : création d'un jeu (authentifié)
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
         try {
@@ -86,22 +89,21 @@ export class GameController {
         }
     }
 
-    @describe({
-        endpoint: "/games/:gameId",
-        method: "PUT",
-        description: "Update a game",
-        params: { gameId: "The id of the game" },
-        body: {
-            name: "Name of the game",
-            description: "Description of the game",
-            price: "Price of the game",
-            showInStore: "Whether to show the game in the store"
-        },
-        responseType: "object{message: string}",
-        example: "PUT /api/games/123 {\"name\": \"Chess\", \"description\": \"A classic game\", \"price\": 0, \"showInStore\": true}"
-    })
-    @httpPut("/:gameId")
-    public async updateGame(req: Request, res: Response) {
+    @httpGet("/list", LoggedCheck.middleware)
+    public async getUserGames(req: AuthenticatedRequest, res: Response) {
+        try {
+            const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
+            const games = await this.gameService.getUserGames(userId);
+            res.send(games);
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user games", error: message });
+        }
+    }
+
+    // Interne : update d'un jeu (authentifié)
+    @httpPut("/:gameId", LoggedCheck.middleware)
+    public async updateGame(req: AuthenticatedRequest, res: Response) {
         try {
             await gameIdParamSchema.validate(req.params);
             await updateGameBodySchema.validate(req.body);
@@ -117,16 +119,9 @@ export class GameController {
         }
     }
 
-    @describe({
-        endpoint: "/games/:gameId",
-        method: "DELETE",
-        description: "Delete a game",
-        params: { gameId: "The id of the game" },
-        responseType: "object{message: string}",
-        example: "DELETE /api/games/123"
-    })
-    @httpDelete("/:gameId")
-    public async deleteGame(req: Request, res: Response) {
+    // Interne : suppression d'un jeu (authentifié)
+    @httpDelete("/:gameId", LoggedCheck.middleware)
+    public async deleteGame(req: AuthenticatedRequest, res: Response) {
         try {
             await gameIdParamSchema.validate(req.params);
             const { gameId } = req.params;
@@ -138,6 +133,34 @@ export class GameController {
             }
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error deleting game", error: message });
+        }
+    }
+
+    // Interne : ajouter un owner secondaire
+    @httpPost("/:gameId/owners", LoggedCheck.middleware)
+    public async addOwner(req: AuthenticatedRequest, res: Response) {
+        const { gameId } = req.params;
+        const { ownerId } = req.body;
+        if (!ownerId) return res.status(400).send({ message: "Missing ownerId" });
+        try {
+            await this.gameService.addOwner(gameId, ownerId);
+            res.status(200).send({ message: "Owner added" });
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error adding owner", error: message });
+        }
+    }
+
+    // Interne : retirer un owner secondaire
+    @httpDelete("/:gameId/owners/:ownerId", LoggedCheck.middleware)
+    public async removeOwner(req: AuthenticatedRequest, res: Response) {
+        const { gameId, ownerId } = req.params;
+        try {
+            await this.gameService.removeOwner(gameId, ownerId);
+            res.status(200).send({ message: "Owner removed" });
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error removing owner", error: message });
         }
     }
 }

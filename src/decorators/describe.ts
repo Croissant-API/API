@@ -14,7 +14,8 @@ export function describe(info: {
     example?: string
 }) {
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-        endpointDescriptions.push(info);
+        const category = target.constructor.name;
+        endpointDescriptions.push({category ,...info});
     };
 }
 
