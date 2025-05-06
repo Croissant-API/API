@@ -85,16 +85,20 @@ let Items = class Items {
             const message = (error instanceof Error) ? error.message : String(error);
             return res.status(400).send({ message: "Invalid item data", error: message });
         }
-        const itemId = (0, uuid_1.v4)(); // Generate a new UUID for the itemId
-        const { name, description, price } = req.body;
+        const itemId = (0, uuid_1.v4)();
+        const { name, description, price, iconHash, showInStore } = req.body;
         try {
-            await this.itemService.createItem(itemId, name, description, price, req.user.user_id).then(() => {
-                res.status(200).send({ message: "Item created" });
-            }).catch((error) => {
-                console.error("Error creating item", error);
-                const message = (error instanceof Error) ? error.message : String(error);
-                res.status(500).send({ message: "Error creating item", error: message });
+            await this.itemService.createItem({
+                itemId,
+                name: name ?? null,
+                description: description ?? null,
+                price: price ?? 0,
+                owner: req.user.user_id,
+                iconHash: iconHash ?? null,
+                showInStore: showInStore ?? false,
+                deleted: false
             });
+            res.status(200).send({ message: "Item created" });
         }
         catch (error) {
             console.error("Error creating item", error);
@@ -112,9 +116,15 @@ let Items = class Items {
             return res.status(400).send({ message: "Invalid update data", error: message });
         }
         const { itemId } = req.params;
-        const { name, description, price } = req.body;
+        const { name, description, price, iconHash, showInStore } = req.body;
         try {
-            await this.itemService.updateItem(itemId, name, description, price);
+            await this.itemService.updateItem(itemId, {
+                ...(name !== undefined && { name }),
+                ...(description !== undefined && { description }),
+                ...(price !== undefined && { price }),
+                ...(iconHash !== undefined && { iconHash }),
+                ...(showInStore !== undefined && { showInStore })
+            });
             res.status(200).send({ message: "Item updated" });
         }
         catch (error) {
@@ -316,14 +326,16 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",
         method: "POST",
-        description: "Create a new item",
+        description: "Create a new item. Requires authentication via header \"Authorization: Bearer <token>\".",
         body: {
             name: "Name of the item",
             description: "Description of the item",
-            price: "Price of the item"
+            price: "Price of the item",
+            iconHash: "Hash of the icon (optional)",
+            showInStore: "Show in store (optional, boolean)"
         },
         responseType: "object{message: string}",
-        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100}"
+        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     }),
     (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -334,15 +346,17 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/update/:itemId",
         method: "PUT",
-        description: "Update an existing item",
+        description: "Update an existing item.  Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: {
             name: "Name of the item",
             description: "Description of the item",
-            price: "Price of the item"
+            price: "Price of the item",
+            iconHash: "Hash of the icon (optional)",
+            showInStore: "Show in store (optional, boolean)"
         },
         responseType: "object{message: string}",
-        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100}"
+        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     }),
     (0, inversify_express_utils_1.httpPut)("/update/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -353,7 +367,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/delete/:itemId",
         method: "DELETE",
-        description: "Delete an item",
+        description: "Delete an item.  Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "DELETE /api/items/delete/123"
@@ -379,7 +393,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/give/:itemId",
         method: "POST",
-        description: "Give an item to a user (owner only)",
+        description: "Give an item to a user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
         body: {
             amount: "The amount of the item to give"
         },
@@ -396,7 +410,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/consume/:itemId",
         method: "POST",
-        description: "Consume an item from a user (owner only)",
+        description: "Consume an item from a user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
         body: {
             amount: "The amount of the item to consume"
         },

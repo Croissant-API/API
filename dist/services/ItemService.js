@@ -18,13 +18,23 @@ let ItemService = class ItemService {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
-    async createItem(itemId, name, description, price, owner) {
+    async createItem(item) {
         // Check if itemId already exists (even if deleted)
-        const existingItems = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [itemId]);
+        const existingItems = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [item.itemId]);
         if (existingItems.length > 0) {
             throw new Error("ItemId already exists");
         }
-        await this.databaseService.create("INSERT INTO items (itemId, name, description, price, owner) VALUES (?, ?, ?, ?, ?)", [itemId, name, description, price, owner]);
+        await this.databaseService.create(`INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+            item.itemId,
+            item.name ?? null,
+            item.description ?? null,
+            item.price ?? 0,
+            item.owner,
+            item.iconHash ?? null,
+            item.showInStore ? 1 : 0,
+            item.deleted ? 1 : 0
+        ]);
     }
     getItem(itemId) {
         return new Promise((resolve, reject) => {
@@ -43,10 +53,17 @@ let ItemService = class ItemService {
                 .catch(reject);
         });
     }
-    updateItem(itemId, name, description, price) {
-        return new Promise((resolve, reject) => {
-            this.databaseService.update("UPDATE items SET name = ?, description = ?, price = ? WHERE itemId = ?", [name, description, price, itemId]).then(resolve).catch(reject);
-        });
+    async updateItem(itemId, item) {
+        const fields = [];
+        const values = [];
+        for (const key in item) {
+            fields.push(`${key} = ?`);
+            values.push(item[key]);
+        }
+        if (fields.length === 0)
+            return;
+        values.push(itemId);
+        await this.databaseService.update(`UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`, values);
     }
     deleteItem(itemId) {
         return new Promise((resolve, reject) => {

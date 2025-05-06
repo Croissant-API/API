@@ -6,5 +6,6 @@ export interface Item {
     price: number;
     owner: string;
     showInStore: boolean;
+    iconHash: string;
     deleted: boolean;
 }
