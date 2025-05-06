@@ -36,6 +36,7 @@ export class Inventories {
                             name: itemDetails.name,
                             description: itemDetails.description,
                             amount: item.amount,
+                            iconHash: itemDetails.iconHash
                         };
                     })
                 )
