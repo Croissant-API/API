@@ -11,7 +11,7 @@ import { IUserService } from '../services/UserService';
 import { Game } from '../interfaces/Game';
 
 // Utility to filter game fields based on the user
-function filterGame(game: Game, userId?: string): Omit<Game, 'id'> & { download_link?: string | null } {
+function filterGame(game: Game, userId?: string) {
     return {
         gameId: game.gameId,
         name: game.name,
@@ -53,7 +53,7 @@ export class Games {
     public async listGames(req: Request, res: Response) {
         try {
             const games = await this.gameService.listGames();
-            const filteredGames = games.map(game => filterGame(game));
+            const filteredGames = games.filter(game => game.showInStore).map(game => filterGame(game));
             res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);

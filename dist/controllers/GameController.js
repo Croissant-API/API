@@ -20,12 +20,28 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-// Utilitaire pour filtrer les champs selon l'utilisateur
+// Utility to filter game fields based on the user
 function filterGame(game, userId) {
-    const { owner_id, download_link, ...rest } = game;
     return {
-        ...rest,
-        ...(userId && owner_id === userId ? { download_link } : {}),
+        gameId: game.gameId,
+        name: game.name,
+        description: game.description,
+        price: game.price,
+        owner_id: game.owner_id,
+        showInStore: game.showInStore,
+        iconHash: game.iconHash,
+        splashHash: game.splashHash,
+        bannerHash: game.bannerHash,
+        genre: game.genre,
+        release_date: game.release_date,
+        developer: game.developer,
+        publisher: game.publisher,
+        platforms: game.platforms,
+        rating: game.rating,
+        website: game.website,
+        trailer_link: game.trailer_link,
+        multiplayer: game.multiplayer,
+        ...(userId && game.owner_id === userId ? { download_link: game.download_link } : {}),
     };
 }
 let Games = class Games {
@@ -36,7 +52,7 @@ let Games = class Games {
     async listGames(req, res) {
         try {
             const games = await this.gameService.listGames();
-            const filteredGames = games.map(game => filterGame(game));
+            const filteredGames = games.filter(game => game.showInStore).map(game => filterGame(game));
             res.send(filteredGames);
         }
         catch (error) {
