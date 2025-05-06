@@ -10,12 +10,28 @@ import { describe } from '../decorators/describe';
 import { IUserService } from '../services/UserService';
 import { Game } from '../interfaces/Game';
 
-// Utilitaire pour filtrer les champs selon l'utilisateur
-function filterGame(game: Game, userId?: string): Omit<Game, 'id' | 'owner_id'> & { download_link?: string | null } {
-    const { owner_id, download_link, ...rest } = game;
+// Utility to filter game fields based on the user
+function filterGame(game: Game, userId?: string): Omit<Game, 'id'> & { download_link?: string | null } {
     return {
-        ...rest,
-        ...(userId && owner_id === userId ? { download_link } : {}),
+        gameId: game.gameId,
+        name: game.name,
+        description: game.description,
+        price: game.price,
+        owner_id: game.owner_id,
+        showInStore: game.showInStore,
+        iconHash: game.iconHash,
+        splashHash: game.splashHash,
+        bannerHash: game.bannerHash,
+        genre: game.genre,
+        release_date: game.release_date,
+        developer: game.developer,
+        publisher: game.publisher,
+        platforms: game.platforms,
+        rating: game.rating,
+        website: game.website,
+        trailer_link: game.trailer_link,
+        multiplayer: game.multiplayer,
+        ...(userId && game.owner_id === userId ? { download_link: game.download_link } : {}),
     };
 }
 
@@ -163,7 +179,7 @@ export class Games {
             res.status(500).send({ message: "Error creating game", error: message });
         }
     }
-    
+
     @httpPut("/:gameId", LoggedCheck.middleware)
     public async updateGame(req: AuthenticatedRequest, res: Response) {
         try {
