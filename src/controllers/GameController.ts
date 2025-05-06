@@ -169,6 +169,9 @@ export class Games {
                 trailer_link: trailer_link ?? null,
                 multiplayer: multiplayer ?? false
             });
+            // Ajoute automatiquement le créateur comme propriétaire
+            await this.gameService.addOwner(gameId, ownerId);
+
             const game = await this.gameService.getGame(gameId);
             res.status(201).send({message: "Game created", game: game});
         } catch (error) {
