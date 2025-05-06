@@ -35,7 +35,8 @@ let Items = class Items {
                 "name": item.name,
                 "description": item.description,
                 "owner": item.owner,
-                "price": item.price
+                "price": item.price,
+                "iconHash": item.iconHash,
             };
         });
         res.send(filteredItemsMap);
@@ -52,7 +53,8 @@ let Items = class Items {
             name: item.name,
             description: item.description,
             owner: item.owner,
-            price: item.price
+            price: item.price,
+            iconHash: item.iconHash,
         }));
         res.send(myItemsMap);
     }
@@ -73,7 +75,9 @@ let Items = class Items {
             name: item.name,
             description: item.description,
             owner: item.owner,
-            price: item.price
+            price: item.price,
+            showInStore: item.showInStore,
+            iconHash: item.iconHash,
         };
         res.send(filteredItem);
     }
