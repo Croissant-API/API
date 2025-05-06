@@ -37,14 +37,30 @@ let GameService = class GameService {
         return games;
     }
     async createGame(game) {
-        await this.databaseService.update("INSERT INTO games (gameId, name, description, price, owner_id, showInStore, download_link) VALUES (?, ?, ?, ?, ?, ?, ?)", [
+        await this.databaseService.update(`INSERT INTO games (
+                gameId, name, description, price, owner_id, showInStore, download_link,
+                iconHash, splashHash, bannerHash, genre, release_date, developer,
+                publisher, platforms, rating, website, trailer_link, multiplayer
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             game.gameId,
             game.name,
             game.description,
             game.price,
-            game.ownerId,
+            game.owner_id,
+            game.showInStore ? 1 : 0,
             game.download_link,
-            game.showInStore ? 1 : 0
+            game.iconHash ?? null,
+            game.splashHash ?? null,
+            game.bannerHash ?? null,
+            game.genre ?? null,
+            game.release_date ?? null,
+            game.developer ?? null,
+            game.publisher ?? null,
+            game.platforms ?? null,
+            game.rating ?? 0,
+            game.website ?? null,
+            game.trailer_link ?? null,
+            game.multiplayer ? 1 : 0
         ]);
     }
     async updateGame(gameId, game) {

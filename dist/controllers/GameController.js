@@ -20,24 +20,23 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
+// Utilitaire pour filtrer les champs selon l'utilisateur
+function filterGame(game, userId) {
+    const { owner_id, download_link, ...rest } = game;
+    return {
+        ...rest,
+        ...(userId && owner_id === userId ? { download_link } : {}),
+    };
+}
 let Games = class Games {
     constructor(gameService, userService) {
         this.gameService = gameService;
         this.userService = userService;
     }
-    // Publique : liste tous les jeux
     async listGames(req, res) {
         try {
             const games = await this.gameService.listGames();
-            const filteredGames = games.map((game) => {
-                return {
-                    gameId: game.gameId,
-                    name: game.name,
-                    description: game.description,
-                    price: game.price,
-                    ownerId: game.ownerId
-                };
-            });
+            const filteredGames = games.map(game => filterGame(game));
             res.send(filteredGames);
         }
         catch (error) {
@@ -47,18 +46,9 @@ let Games = class Games {
     }
     async getUserGames(req, res) {
         try {
-            const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
+            const userId = req.user.user_id;
             const games = await this.gameService.getUserGames(userId);
-            const filteredGames = games.map((game) => {
-                return {
-                    gameId: game.gameId,
-                    name: game.name,
-                    description: game.description,
-                    price: game.price,
-                    ownerId: game.ownerId,
-                    download_link: game.download_link
-                };
-            });
+            const filteredGames = games.map(game => filterGame(game, userId));
             res.send(filteredGames);
         }
         catch (error) {
@@ -70,15 +60,7 @@ let Games = class Games {
         try {
             const { userId } = req.params;
             const games = await this.gameService.getUserGames(userId);
-            const filteredGames = games.map((game) => {
-                return {
-                    gameId: game.gameId,
-                    name: game.name,
-                    description: game.description,
-                    price: game.price,
-                    ownerId: game.ownerId
-                };
-            });
+            const filteredGames = games.map(game => filterGame(game, userId));
             res.send(filteredGames);
         }
         catch (error) {
@@ -86,7 +68,6 @@ let Games = class Games {
             res.status(500).send({ message: "Error fetching user games", error: message });
         }
     }
-    // Publique : détail d'un jeu
     async getGame(req, res) {
         try {
             await GameValidator_1.gameIdParamSchema.validate(req.params);
@@ -95,14 +76,7 @@ let Games = class Games {
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            const filteredGame = {
-                gameId: game.gameId,
-                name: game.name,
-                description: game.description,
-                price: game.price,
-                ownerId: game.ownerId
-            };
-            res.send(filteredGame);
+            res.send(filterGame(game));
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
@@ -112,11 +86,10 @@ let Games = class Games {
             res.status(500).send({ message: "Error fetching game", error: message });
         }
     }
-    // Interne : création d'un jeu (authentifié)
     async createGame(req, res) {
         try {
             await GameValidator_1.createGameBodySchema.validate(req.body);
-            const { name, description, price, downloadLink, image, showInStore } = req.body;
+            const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer } = req.body;
             const gameId = (0, uuid_1.v4)();
             const ownerId = req.user.user_id;
             await this.gameService.createGame({
@@ -124,12 +97,24 @@ let Games = class Games {
                 name,
                 description,
                 price,
-                download_link: downloadLink,
-                image,
-                showInStore: showInStore || false,
-                ownerId
+                download_link: download_link ?? null,
+                showInStore: showInStore ?? false,
+                owner_id: ownerId,
+                iconHash: iconHash ?? null,
+                splashHash: splashHash ?? null,
+                bannerHash: bannerHash ?? null,
+                genre: genre ?? null,
+                release_date: release_date ?? null,
+                developer: developer ?? null,
+                publisher: publisher ?? null,
+                platforms: platforms ?? null,
+                rating: rating ?? 0,
+                website: website ?? null,
+                trailer_link: trailer_link ?? null,
+                multiplayer: multiplayer ?? false
             });
-            res.status(201).send({ message: "Game created" });
+            const game = await this.gameService.getGame(gameId);
+            res.status(201).send({ message: "Game created", game: game });
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
@@ -139,14 +124,14 @@ let Games = class Games {
             res.status(500).send({ message: "Error creating game", error: message });
         }
     }
-    // Interne : update d'un jeu (authentifié)
     async updateGame(req, res) {
         try {
             await GameValidator_1.gameIdParamSchema.validate(req.params);
             await GameValidator_1.updateGameBodySchema.validate(req.body);
             const { gameId } = req.params;
             await this.gameService.updateGame(gameId, req.body);
-            res.status(200).send({ message: "Game updated" });
+            const updatedGame = await this.gameService.getGame(gameId);
+            res.status(200).send(filterGame(updatedGame, req.user.user_id));
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
@@ -156,7 +141,6 @@ let Games = class Games {
             res.status(500).send({ message: "Error updating game", error: message });
         }
     }
-    // Interne : suppression d'un jeu (authentifié)
     async deleteGame(req, res) {
         try {
             await GameValidator_1.gameIdParamSchema.validate(req.params);
@@ -172,17 +156,15 @@ let Games = class Games {
             res.status(500).send({ message: "Error deleting game", error: message });
         }
     }
-    // Interne : acheter un jeu (buy)
     async buyGame(req, res) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
         try {
-            // L'utilisateur ne peut pas revendre le jeu, donc on ne retire jamais un owner
             const game = await this.gameService.getGame(gameId);
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            if (game.ownerId === userId) {
+            if (game.owner_id === userId) {
                 await this.gameService.addOwner(gameId, userId);
                 res.status(200).send({ message: "Game obtained" });
             }

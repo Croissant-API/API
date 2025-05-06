@@ -8,6 +8,16 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { v4 } from 'uuid';
 import { describe } from '../decorators/describe';
 import { IUserService } from '../services/UserService';
+import { Game } from '../interfaces/Game';
+
+// Utilitaire pour filtrer les champs selon l'utilisateur
+function filterGame(game: Game, userId?: string): Omit<Game, 'id' | 'owner_id'> & { download_link?: string | null } {
+    const { owner_id, download_link, ...rest } = game;
+    return {
+        ...rest,
+        ...(userId && owner_id === userId ? { download_link } : {}),
+    };
+}
 
 @controller("/games")
 export class Games {
@@ -16,7 +26,6 @@ export class Games {
         @inject("UserService") private userService: IUserService,
     ) {}
 
-    // Publique : liste tous les jeux
     @describe({
         endpoint: "/games",
         method: "GET",
@@ -28,13 +37,7 @@ export class Games {
     public async listGames(req: Request, res: Response) {
         try {
             const games = await this.gameService.listGames();
-            const filteredGames = games.map((game) => {return {
-                gameId: game.gameId,
-                name: game.name,
-                description: game.description,
-                price: game.price,
-                ownerId: game.ownerId
-            }})
+            const filteredGames = games.map(game => filterGame(game));
             res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -45,16 +48,9 @@ export class Games {
     @httpGet("/list/@me", LoggedCheck.middleware)
     public async getUserGames(req: AuthenticatedRequest, res: Response) {
         try {
-            const userId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
+            const userId = req.user.user_id;
             const games = await this.gameService.getUserGames(userId);
-            const filteredGames = games.map((game) => {return {
-                gameId: game.gameId,
-                name: game.name,
-                description: game.description,
-                price: game.price,
-                ownerId: game.ownerId,
-                download_link: game.download_link
-            }})
+            const filteredGames = games.map(game => filterGame(game, userId));
             res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -75,14 +71,7 @@ export class Games {
         try {
             const { userId } = req.params;
             const games = await this.gameService.getUserGames(userId);
-
-            const filteredGames = games.map((game) => {return {
-                gameId: game.gameId,
-                name: game.name,
-                description: game.description,
-                price: game.price,
-                ownerId: game.ownerId
-            }})
+            const filteredGames = games.map(game => filterGame(game, userId));
             res.send(filteredGames);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -90,7 +79,6 @@ export class Games {
         }
     }
 
-    // Publique : détail d'un jeu
     @describe({
         endpoint: "/games/:gameId",
         method: "GET",
@@ -108,14 +96,7 @@ export class Games {
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            const filteredGame = {
-                gameId: game.gameId,
-                name: game.name,
-                description: game.description,
-                price: game.price,
-                ownerId: game.ownerId
-            }
-            res.send(filteredGame);
+            res.send(filterGame(game));
         } catch (error) {
             if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
@@ -125,13 +106,29 @@ export class Games {
         }
     }
 
-    // Interne : création d'un jeu (authentifié)
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
         try {
             await createGameBodySchema.validate(req.body);
-
-            const { name, description, price, downloadLink, image, showInStore } = req.body;
+            const {
+                name,
+                description,
+                price,
+                download_link,
+                showInStore,
+                iconHash,
+                splashHash,
+                bannerHash,
+                genre,
+                release_date,
+                developer,
+                publisher,
+                platforms,
+                rating,
+                website,
+                trailer_link,
+                multiplayer
+            } = req.body;
             const gameId = v4();
             const ownerId = req.user.user_id;
 
@@ -140,12 +137,24 @@ export class Games {
                 name,
                 description,
                 price,
-                download_link: downloadLink,
-                image,
-                showInStore: showInStore || false,
-                ownerId
+                download_link: download_link ?? null,
+                showInStore: showInStore ?? false,
+                owner_id: ownerId,
+                iconHash: iconHash ?? null,
+                splashHash: splashHash ?? null,
+                bannerHash: bannerHash ?? null,
+                genre: genre ?? null,
+                release_date: release_date ?? null,
+                developer: developer ?? null,
+                publisher: publisher ?? null,
+                platforms: platforms ?? null,
+                rating: rating ?? 0,
+                website: website ?? null,
+                trailer_link: trailer_link ?? null,
+                multiplayer: multiplayer ?? false
             });
-            res.status(201).send({ message: "Game created" });
+            const game = await this.gameService.getGame(gameId);
+            res.status(201).send({message: "Game created", game: game});
         } catch (error) {
             if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
@@ -154,8 +163,7 @@ export class Games {
             res.status(500).send({ message: "Error creating game", error: message });
         }
     }
-
-    // Interne : update d'un jeu (authentifié)
+    
     @httpPut("/:gameId", LoggedCheck.middleware)
     public async updateGame(req: AuthenticatedRequest, res: Response) {
         try {
@@ -163,7 +171,8 @@ export class Games {
             await updateGameBodySchema.validate(req.body);
             const { gameId } = req.params;
             await this.gameService.updateGame(gameId, req.body);
-            res.status(200).send({ message: "Game updated" });
+            const updatedGame = await this.gameService.getGame(gameId) as Game; 
+            res.status(200).send(filterGame(updatedGame, req.user.user_id));
         } catch (error) {
             if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
@@ -173,7 +182,6 @@ export class Games {
         }
     }
 
-    // Interne : suppression d'un jeu (authentifié)
     @httpDelete("/:gameId", LoggedCheck.middleware)
     public async deleteGame(req: AuthenticatedRequest, res: Response) {
         try {
@@ -190,18 +198,16 @@ export class Games {
         }
     }
 
-    // Interne : acheter un jeu (buy)
     @httpPost("/:gameId/buy", LoggedCheck.middleware)
     public async buyGame(req: AuthenticatedRequest, res: Response) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
         try {
-            // L'utilisateur ne peut pas revendre le jeu, donc on ne retire jamais un owner
             const game = await this.gameService.getGame(gameId);
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            if (game.ownerId === userId) {
+            if (game.owner_id === userId) {
                 await this.gameService.addOwner(gameId, userId);
                 res.status(200).send({ message: "Game obtained" });
             }
