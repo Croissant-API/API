@@ -77,8 +77,8 @@ let Games = class Games {
         try {
             const userId = req.user.user_id;
             const games = await this.gameService.getUserGames(userId);
-            const filteredGames = games.map(game => filterGame(game, userId));
-            res.send(filteredGames);
+            // const filteredGames = games.map(game => filterGame(game, userId));
+            res.send(games);
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
