@@ -188,6 +188,13 @@ export class Games {
         try {
             await gameIdParamSchema.validate(req.params);
             await updateGameBodySchema.validate(req.body);
+            const game = await this.gameService.getGame(req.params.gameId);
+            if (!game) {
+                return res.status(404).send({ message: "Game not found" });
+            }
+            if(req.user.user_id !== game.owner_id) {
+                return res.status(403).send({ message: "You are not the owner of this game" });
+            }
             const { gameId } = req.params;
             await this.gameService.updateGame(gameId, req.body);
             const updatedGame = await this.gameService.getGame(gameId) as Game; 
@@ -205,6 +212,13 @@ export class Games {
     public async deleteGame(req: AuthenticatedRequest, res: Response) {
         try {
             await gameIdParamSchema.validate(req.params);
+            const game = await this.gameService.getGame(req.params.gameId);
+            if (!game) {
+                return res.status(404).send({ message: "Game not found" });
+            }
+            if(req.user.user_id !== game.owner_id) {
+                return res.status(403).send({ message: "You are not the owner of this game" });
+            }
             const { gameId } = req.params;
             await this.gameService.deleteGame(gameId);
             res.status(200).send({ message: "Game deleted" });

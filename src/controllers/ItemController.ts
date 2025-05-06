@@ -42,6 +42,31 @@ export class Items {
     }
 
     @describe({
+        endpoint: "/items/@mine",
+        method: "GET",
+        description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{id: string, name: string, price: number, description: string, emoji: string, owner: string}]",
+        example: "GET /api/items/@mine"
+    })
+    @httpGet("/@mine", LoggedCheck.middleware)
+    public async getMyItems(req: AuthenticatedRequest, res: Response) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const items = await this.itemService.getAllItems();
+        const myItems = items.filter(item => !item.deleted && item.owner === userId);
+        const myItemsMap = myItems.map(item => ({
+            itemId: item.itemId,
+            name: item.name,
+            description: item.description,
+            owner: item.owner,
+            price: item.price
+        }));
+        res.send(myItemsMap);
+    }
+
+    @describe({
         endpoint: "/items/:itemId",
         method: "GET",
         description: "Get a single item by itemId",

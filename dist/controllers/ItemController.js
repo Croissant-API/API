@@ -40,6 +40,22 @@ let Items = class Items {
         });
         res.send(filteredItemsMap);
     }
+    async getMyItems(req, res) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const items = await this.itemService.getAllItems();
+        const myItems = items.filter(item => !item.deleted && item.owner === userId);
+        const myItemsMap = myItems.map(item => ({
+            itemId: item.itemId,
+            name: item.name,
+            description: item.description,
+            owner: item.owner,
+            price: item.price
+        }));
+        res.send(myItemsMap);
+    }
     async healthCheck(req, res) {
         try {
             await ItemValidator_1.itemIdParamValidator.validate(req.params);
@@ -269,6 +285,19 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "getAllItems", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/@mine",
+        method: "GET",
+        description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{id: string, name: string, price: number, description: string, emoji: string, owner: string}]",
+        example: "GET /api/items/@mine"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "getMyItems", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/:itemId",
