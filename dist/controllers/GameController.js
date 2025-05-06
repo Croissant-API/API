@@ -102,6 +102,19 @@ let Games = class Games {
             res.status(500).send({ message: "Error fetching game", error: message });
         }
     }
+    async getMyCreatedGames(req, res) {
+        try {
+            const userId = req.user.user_id;
+            const games = await this.gameService.listGames();
+            const myGames = games.filter(game => game.owner_id === userId);
+            const filteredGames = myGames.map(game => filterGame(game, userId));
+            res.send(filteredGames);
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching your created games", error: message });
+        }
+    }
     async createGame(req, res) {
         try {
             await GameValidator_1.createGameBodySchema.validate(req.body);
@@ -266,6 +279,19 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGame", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/@mine",
+        method: "GET",
+        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean}]",
+        example: "GET /api/games/@mine"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getMyCreatedGames", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

@@ -10,6 +10,7 @@ export declare class Games {
     getUserGames(req: AuthenticatedRequest, res: Response): Promise<void>;
     getGamesByUserId(req: Request, res: Response): Promise<void>;
     getGame(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getMyCreatedGames(req: AuthenticatedRequest, res: Response): Promise<void>;
     createGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     updateGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     deleteGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
