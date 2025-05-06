@@ -61,6 +61,20 @@ export class Games {
         }
     }
 
+    @httpGet("/@mine", LoggedCheck.middleware)
+    public async getMyCreatedGames(req: AuthenticatedRequest, res: Response) {
+        try {
+            const userId = req.user.user_id;
+            const games = await this.gameService.listGames();
+            const myGames = games.filter(game => game.owner_id === userId);
+            const filteredGames = myGames.map(game => filterGame(game, userId));
+            res.send(filteredGames);
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching your created games", error: message });
+        }
+    }
+
     @httpGet("/list/@me", LoggedCheck.middleware)
     public async getUserGames(req: AuthenticatedRequest, res: Response) {
         try {
@@ -129,19 +143,6 @@ export class Games {
         responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean}]",
         example: "GET /api/games/@mine"
     })
-    @httpGet("/@mine", LoggedCheck.middleware)
-    public async getMyCreatedGames(req: AuthenticatedRequest, res: Response) {
-        try {
-            const userId = req.user.user_id;
-            const games = await this.gameService.listGames();
-            const myGames = games.filter(game => game.owner_id === userId);
-            const filteredGames = myGames.map(game => filterGame(game, userId));
-            res.send(filteredGames);
-        } catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching your created games", error: message });
-        }
-    }
 
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
