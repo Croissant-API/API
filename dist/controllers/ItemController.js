@@ -55,6 +55,7 @@ let Items = class Items {
             owner: item.owner,
             price: item.price,
             iconHash: item.iconHash,
+            showInStore: item.showInStore,
         }));
         res.send(myItemsMap);
     }
