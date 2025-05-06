@@ -32,9 +32,12 @@ exports.gameIdParamSchema = yup.object({
 // Schema for creating a game (adjust fields as per your Game model)
 exports.createGameBodySchema = yup.object({
     name: yup.string().required("Game name is required"),
-    genre: yup.string().required("Genre is required"),
-    releaseDate: yup.date().required("Release date is required"),
-    // Add other fields as needed
+    description: yup.string().required("Description is required"),
+    price: yup.number().required("Price is required"),
+    downloadLink: yup.string().url("Download link must be a valid URL").required("Download link is required"),
+    image: yup.string().required("Image is required"), // base64 string
+    // genre: yup.string(), // Ajoutez si besoin
+    // releaseDate: yup.date(), // Ajoutez si besoin
 });
 // Schema for updating a game (fields can be optional)
 exports.updateGameBodySchema = yup.object({

@@ -7,6 +7,7 @@ export interface Game {
     ownerId: string;
     download_link: string;
     showInStore: boolean;
+    image: string; // base64 string
 }
 
 export interface GameOwner {

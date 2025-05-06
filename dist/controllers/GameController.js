@@ -116,17 +116,18 @@ let Games = class Games {
     async createGame(req, res) {
         try {
             await GameValidator_1.createGameBodySchema.validate(req.body);
-            const { name, description, price, showInStore, download_link } = req.body;
-            const gameId = (0, uuid_1.v4)(); // Generate a new UUID for the gameId
-            const ownerId = req.user.user_id; // Assuming req.user is set by the LoggedCheck middleware
+            const { name, description, price, downloadLink, image, showInStore } = req.body;
+            const gameId = (0, uuid_1.v4)();
+            const ownerId = req.user.user_id;
             await this.gameService.createGame({
                 gameId,
                 name,
                 description,
                 price,
-                ownerId,
-                showInStore,
-                download_link
+                download_link: downloadLink,
+                image,
+                showInStore: showInStore || false,
+                ownerId
             });
             res.status(201).send({ message: "Game created" });
         }

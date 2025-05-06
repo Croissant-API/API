@@ -6,12 +6,16 @@ export declare const gameIdParamSchema: yup.ObjectSchema<{
 }, "">;
 export declare const createGameBodySchema: yup.ObjectSchema<{
     name: string;
-    genre: string;
-    releaseDate: Date;
+    description: string;
+    price: number;
+    downloadLink: string;
+    image: string;
 }, yup.AnyObject, {
     name: undefined;
-    genre: undefined;
-    releaseDate: undefined;
+    description: undefined;
+    price: undefined;
+    downloadLink: undefined;
+    image: undefined;
 }, "">;
 export declare const updateGameBodySchema: yup.ObjectSchema<{
     name: string | undefined;
