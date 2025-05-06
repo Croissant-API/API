@@ -44,8 +44,8 @@ require("./controllers/TradeController");
 require("./controllers/UserController");
 const server = new inversify_express_utils_1.InversifyExpressServer(container_1.default);
 server.setConfig((app) => {
-    app.use(express_1.default.json());
-    app.use(express_1.default.urlencoded({ extended: true }));
+    app.use(express_1.default.json({ limit: "50mb" }));
+    app.use(express_1.default.urlencoded({ limit: "50mb", extended: true }));
     app.use((0, cors_1.default)());
     app.use(express_1.default.static(path.join(__dirname, "public")));
 });
