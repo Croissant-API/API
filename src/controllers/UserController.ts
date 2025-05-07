@@ -29,9 +29,10 @@ export class Users {
         } catch (err) {
             return res.status(400).send({ message: "Invalid user data", error: err });
         }
-        const { userId, username, balance } = req.body;
+        const { id, username } = req.body;
+        const balance = req.body.balance || 0; // Default balance to 0 if not provided
         try {
-            await this.userService.createUser(userId, username, balance);
+            await this.userService.createUser(id, username, balance);
             res.status(201).send({ message: "User added" });
         } catch (error) {
             console.error("Error adding user", error);
