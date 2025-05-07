@@ -236,8 +236,12 @@ export class Items {
             }
 
             const user = req.user;
+            const owner = await this.userService.getUser(item.owner);
             if (!user) {
                 return res.status(404).send({ message: "User not found" });
+            }
+            if (!owner) {
+                return res.status(404).send({ message: "Owner not found" });
             }
 
             // Only check and update balance if the user is NOT the owner
@@ -246,6 +250,7 @@ export class Items {
                     return res.status(400).send({ message: "Insufficient balance" });
                 }
                 await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
+                await this.userService.updateUserBalance(owner.user_id, owner.balance + (item.price * amount) * 0.75);
             }
             // If user is owner, skip balance check and update
 
