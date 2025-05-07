@@ -1,13 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var _a;
-import container from '../container';
-export class OwnerCheck {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.OwnerCheck = void 0;
+const container_1 = __importDefault(require("../container"));
+class OwnerCheck {
 }
+exports.OwnerCheck = OwnerCheck;
 _a = OwnerCheck;
 OwnerCheck.middleware = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const userService = container.get("UserService");
-    const itemService = container.get("ItemService");
+    const userService = container_1.default.get("UserService");
+    const itemService = container_1.default.get("ItemService");
     if (!token) {
         return res.status(401).send({ message: "Unauthorized" });
     }

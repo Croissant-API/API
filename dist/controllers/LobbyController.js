@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -10,20 +11,22 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from "inversify-express-utils";
-import { lobbyIdParamSchema, userIdParamSchema } from '../validators/LobbyValidator';
-import { ValidationError } from 'yup';
-import { v4 } from 'uuid';
-import { describe } from '../decorators/describe';
-import { LoggedCheck } from '../middlewares/LoggedCheck';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Lobbies = void 0;
+const inversify_1 = require("inversify");
+const inversify_express_utils_1 = require("inversify-express-utils");
+const LobbyValidator_1 = require("../validators/LobbyValidator");
+const yup_1 = require("yup");
+const uuid_1 = require("uuid");
+const describe_1 = require("../decorators/describe");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let Lobbies = class Lobbies {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;
     }
     async getLobby(req, res) {
         try {
-            await lobbyIdParamSchema.validate(req.params);
+            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
             const lobbyId = req.params.lobbyId;
             const lobby = await this.lobbyService.getLobby(lobbyId);
             if (!lobby) {
@@ -32,7 +35,7 @@ let Lobbies = class Lobbies {
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -41,13 +44,13 @@ let Lobbies = class Lobbies {
     }
     async joinLobby(req, res) {
         try {
-            await lobbyIdParamSchema.validate(req.params);
+            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
             const lobbyId = req.params.lobbyId;
             await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Joined lobby" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -56,13 +59,13 @@ let Lobbies = class Lobbies {
     }
     async leaveLobby(req, res) {
         try {
-            await lobbyIdParamSchema.validate(req.params);
+            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
             const lobbyId = req.params.lobbyId;
             await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
             res.status(200).send({ message: "Left lobby" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -79,7 +82,7 @@ let Lobbies = class Lobbies {
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -88,7 +91,7 @@ let Lobbies = class Lobbies {
     }
     async getUserLobby(req, res) {
         try {
-            await userIdParamSchema.validate(req.params);
+            await LobbyValidator_1.userIdParamSchema.validate(req.params);
             const { userId } = req.params;
             const lobby = await this.lobbyService.getUserLobby(userId);
             if (!lobby) {
@@ -97,7 +100,7 @@ let Lobbies = class Lobbies {
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -106,7 +109,7 @@ let Lobbies = class Lobbies {
     }
     async createLobby(req, res) {
         try {
-            const lobbyId = v4(); // Generate a new UUID for the lobbyId
+            const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
             await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
             await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             res.status(201).send({ message: "Lobby created" });
@@ -118,7 +121,7 @@ let Lobbies = class Lobbies {
     }
 };
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId",
         method: "GET",
         description: "Get a lobby by lobbyId",
@@ -126,13 +129,13 @@ __decorate([
         responseType: "object{lobbyId: string, users: array[string]}",
         example: "GET /api/lobbies/123"
     }),
-    httpGet("/:lobbyId"),
+    (0, inversify_express_utils_1.httpGet)("/:lobbyId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "getLobby", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/join",
         method: "POST",
         description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -140,13 +143,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/lobbies/123/join"
     }),
-    httpPost("/:lobbyId/join", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "joinLobby", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/leave",
         method: "POST",
         description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -154,26 +157,26 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/lobbies/123/leave"
     }),
-    httpPost("/:lobbyId/leave", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "leaveLobby", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies/user/@me",
         method: "GET",
         description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
         responseType: "object{lobbyId: string, users: array[string]}",
         example: "GET /api/lobbies/user/@me"
     }),
-    httpGet("/user/@me", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "getMyLobby", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies/user/:userId",
         method: "GET",
         description: "Get the lobby a user is in",
@@ -181,27 +184,27 @@ __decorate([
         responseType: "object{lobbyId: string, users: array[string]}",
         example: "GET /api/lobbies/user/123"
     }),
-    httpGet("/user/:userId"),
+    (0, inversify_express_utils_1.httpGet)("/user/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "getUserLobby", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/lobbies",
         method: "POST",
         description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
         responseType: "object{message: string}",
         example: "POST /api/lobbies"
     }),
-    httpPost("/", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "createLobby", null);
 Lobbies = __decorate([
-    controller("/lobbies"),
-    __param(0, inject("LobbyService")),
+    (0, inversify_express_utils_1.controller)("/lobbies"),
+    __param(0, (0, inversify_1.inject)("LobbyService")),
     __metadata("design:paramtypes", [Object])
 ], Lobbies);
-export { Lobbies };
+exports.Lobbies = Lobbies;

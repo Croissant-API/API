@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -10,8 +11,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { inject, injectable } from "inversify";
-import { v4 } from "uuid";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TradeService = void 0;
+const inversify_1 = require("inversify");
+const uuid_1 = require("uuid");
 let TradeService = class TradeService {
     constructor(databaseService, inventoryService) {
         this.databaseService = databaseService;
@@ -26,7 +29,7 @@ let TradeService = class TradeService {
         });
     }
     async createTrade(trade) {
-        const uniqueId = v4(); // Generate a unique ID for the trade
+        const uniqueId = (0, uuid_1.v4)(); // Generate a unique ID for the trade
         this.databaseService.create(`INSERT INTO trades 
                 (fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, uniqueId, status)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
@@ -132,9 +135,9 @@ let TradeService = class TradeService {
     }
 };
 TradeService = __decorate([
-    injectable(),
-    __param(0, inject("DatabaseService")),
-    __param(1, inject("InventoryService")),
+    (0, inversify_1.injectable)(),
+    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(1, (0, inversify_1.inject)("InventoryService")),
     __metadata("design:paramtypes", [Object, Object])
 ], TradeService);
-export { TradeService };
+exports.TradeService = TradeService;

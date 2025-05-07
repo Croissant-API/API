@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -10,11 +11,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut, httpDelete } from "inversify-express-utils";
-import { LoggedCheck } from '../middlewares/LoggedCheck';
-import { tradeSchema, tradeStatusSchema, tradeApproveSchema, tradeItemActionSchema } from '../validators/TradeValidator';
-import { ValidationError } from 'yup';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Trades = void 0;
+const inversify_1 = require("inversify");
+const inversify_express_utils_1 = require("inversify-express-utils");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+const TradeValidator_1 = require("../validators/TradeValidator");
+const yup_1 = require("yup");
 let Trades = class Trades {
     constructor(tradeService) {
         this.tradeService = tradeService;
@@ -22,12 +25,12 @@ let Trades = class Trades {
     async createTrade(req, res) {
         try {
             const trade = req.body;
-            await tradeSchema.validate(trade, { abortEarly: false });
+            await TradeValidator_1.tradeSchema.validate(trade, { abortEarly: false });
             const createdTrade = await this.tradeService.createTrade(trade);
             res.status(201).send(createdTrade);
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -61,14 +64,14 @@ let Trades = class Trades {
     }
     async updateTradeStatus(req, res) {
         try {
-            await tradeStatusSchema.validate(req.body, { abortEarly: false });
+            await TradeValidator_1.tradeStatusSchema.validate(req.body, { abortEarly: false });
             const id = req.params.id;
             const { status } = req.body;
             await this.tradeService.updateTradeStatus(id, status);
             res.status(200).send({ message: "Trade status updated" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -77,14 +80,14 @@ let Trades = class Trades {
     }
     async approveTrade(req, res) {
         try {
-            await tradeApproveSchema.validate(req.body, { abortEarly: false });
+            await TradeValidator_1.tradeApproveSchema.validate(req.body, { abortEarly: false });
             const id = req.params.id;
             const userId = req.user.user_id;
             await this.tradeService.approveTrade(id, userId);
             res.status(200).send({ message: "Trade approved" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -104,14 +107,14 @@ let Trades = class Trades {
     }
     async addItemToTrade(req, res) {
         try {
-            await tradeItemActionSchema.validate(req.body, { abortEarly: false });
+            await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
             const { userKey, tradeItem } = req.body;
             await this.tradeService.addItemToTrade(tradeId, userKey, tradeItem);
             res.status(200).send({ message: "Item added to trade" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -120,14 +123,14 @@ let Trades = class Trades {
     }
     async removeItemToTrade(req, res) {
         try {
-            await tradeItemActionSchema.validate(req.body, { abortEarly: false });
+            await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
             const { userKey, tradeItem } = req.body;
             await this.tradeService.removeItemToTrade(tradeId, userKey, tradeItem);
             res.status(200).send({ message: "Item removed from trade" });
         }
         catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof yup_1.ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -136,56 +139,56 @@ let Trades = class Trades {
     }
 };
 __decorate([
-    httpPost("/", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "createTrade", null);
 __decorate([
-    httpGet("/:id", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "getTradeById", null);
 __decorate([
-    httpGet("/user/:userId", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "getTradesByUser", null);
 __decorate([
-    httpPut("/:id/status", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPut)("/:id/status", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "updateTradeStatus", null);
 __decorate([
-    httpPut("/:id/approve", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "approveTrade", null);
 __decorate([
-    httpDelete("/:id", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpDelete)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "deleteTrade", null);
 __decorate([
-    httpPost("/:id/add-item", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "addItemToTrade", null);
 __decorate([
-    httpPost("/:id/remove-item", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "removeItemToTrade", null);
 Trades = __decorate([
-    controller("/trades"),
-    __param(0, inject("TradeService")),
+    (0, inversify_express_utils_1.controller)("/trades"),
+    __param(0, (0, inversify_1.inject)("TradeService")),
     __metadata("design:paramtypes", [Object])
 ], Trades);
-export { Trades };
+exports.Trades = Trades;

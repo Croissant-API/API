@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -7,18 +8,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import { injectable } from 'inversify';
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DatabaseService = void 0;
+const sqlite3_1 = __importDefault(require("sqlite3"));
+const sqlite_1 = require("sqlite");
+const inversify_1 = require("inversify");
 let DatabaseService = class DatabaseService {
     constructor() {
         this.init().then(db => this.db = db);
     }
     async init() {
         try {
-            this.db = await open({
+            this.db = await (0, sqlite_1.open)({
                 filename: __dirname + '/../../database.db',
-                driver: sqlite3.Database
+                driver: sqlite3_1.default.Database
             });
             return this.db;
         }
@@ -101,8 +107,8 @@ let DatabaseService = class DatabaseService {
     }
 };
 DatabaseService = __decorate([
-    injectable(),
+    (0, inversify_1.injectable)(),
     __metadata("design:paramtypes", [])
 ], DatabaseService);
-export { DatabaseService };
-export default DatabaseService;
+exports.DatabaseService = DatabaseService;
+exports.default = DatabaseService;

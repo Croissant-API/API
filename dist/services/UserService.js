@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -10,12 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { inject, injectable } from "inversify";
-import { genKey } from "../utils/GenKey";
-import { getCachedUser, setCachedUser } from "../utils/UserCache";
-import { config } from "dotenv";
-import path from "path";
-config({ path: path.join(__dirname, "..", "..", ".env") });
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UserService = void 0;
+const inversify_1 = require("inversify");
+const GenKey_1 = require("../utils/GenKey");
+const UserCache_1 = require("../utils/UserCache");
+const dotenv_1 = require("dotenv");
+const path_1 = __importDefault(require("path"));
+(0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = class UserService {
     constructor(databaseService) {
@@ -24,7 +30,7 @@ let UserService = class UserService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getDiscordUser(userId) {
         try {
-            const cached = getCachedUser(userId);
+            const cached = (0, UserCache_1.getCachedUser)(userId);
             if (cached) {
                 return cached;
             }
@@ -39,7 +45,7 @@ let UserService = class UserService {
                 return null;
             }
             const user = await response.json();
-            setCachedUser(userId, user);
+            (0, UserCache_1.setCachedUser)(userId, user);
             return user;
         }
         catch (error) {
@@ -89,7 +95,7 @@ let UserService = class UserService {
             console.error("Error fetching users", users);
             return null;
         }
-        const user = users.find((user) => genKey(user.user_id) === api_key) || null;
+        const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === api_key) || null;
         if (!user) {
             console.error("User not found or API key mismatch", api_key);
             return null;
@@ -98,8 +104,8 @@ let UserService = class UserService {
     }
 };
 UserService = __decorate([
-    injectable(),
-    __param(0, inject("DatabaseService")),
+    (0, inversify_1.injectable)(),
+    __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], UserService);
-export { UserService };
+exports.UserService = UserService;

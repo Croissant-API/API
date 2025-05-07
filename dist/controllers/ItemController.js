@@ -1,3 +1,4 @@
+"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -10,13 +11,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { inject } from 'inversify';
-import { controller, httpDelete, httpGet, httpPost, httpPut } from "inversify-express-utils";
-import { createItemValidator, updateItemValidator, itemIdParamValidator } from '../validators/ItemValidator';
-import { LoggedCheck } from '../middlewares/LoggedCheck';
-import { OwnerCheck } from '../middlewares/OwnerCheck';
-import { v4 } from 'uuid';
-import { describe } from '../decorators/describe';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Items = void 0;
+const inversify_1 = require("inversify");
+const inversify_express_utils_1 = require("inversify-express-utils");
+const ItemValidator_1 = require("../validators/ItemValidator");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+const OwnerCheck_1 = require("../middlewares/OwnerCheck");
+const uuid_1 = require("uuid");
+const describe_1 = require("../decorators/describe");
 let Items = class Items {
     constructor(itemService, inventoryService, userService) {
         this.itemService = itemService;
@@ -58,7 +61,7 @@ let Items = class Items {
     }
     async healthCheck(req, res) {
         try {
-            await itemIdParamValidator.validate(req.params);
+            await ItemValidator_1.itemIdParamValidator.validate(req.params);
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -81,13 +84,13 @@ let Items = class Items {
     }
     async createItem(req, res) {
         try {
-            await createItemValidator.validate(req.body);
+            await ItemValidator_1.createItemValidator.validate(req.body);
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
             return res.status(400).send({ message: "Invalid item data", error: message });
         }
-        const itemId = v4();
+        const itemId = (0, uuid_1.v4)();
         const { name, description, price, iconHash, showInStore } = req.body;
         try {
             await this.itemService.createItem({
@@ -110,8 +113,8 @@ let Items = class Items {
     }
     async updateItem(req, res) {
         try {
-            await itemIdParamValidator.validate(req.params);
-            await updateItemValidator.validate(req.body);
+            await ItemValidator_1.itemIdParamValidator.validate(req.params);
+            await ItemValidator_1.updateItemValidator.validate(req.body);
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -137,7 +140,7 @@ let Items = class Items {
     }
     async deleteItem(req, res) {
         try {
-            await itemIdParamValidator.validate(req.params);
+            await ItemValidator_1.itemIdParamValidator.validate(req.params);
         }
         catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -332,33 +335,33 @@ let Items = class Items {
     }
 };
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items",
         method: "GET",
         description: "Get all non-deleted items",
         responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore?: boolean}]",
         example: "GET /api/items"
     }),
-    httpGet("/"),
+    (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "getAllItems", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/@mine",
         method: "GET",
         description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
         responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore: boolean}]",
         example: "GET /api/items/@mine"
     }),
-    httpGet("/@mine", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "getMyItems", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/:itemId",
         method: "GET",
         description: "Get a single item by itemId",
@@ -366,13 +369,13 @@ __decorate([
         responseType: "object{name: string, description: string, owner: string, price: number, showInStore: boolean, iconHash: string}",
         example: "GET /api/items/123"
     }),
-    httpGet("/:itemId"),
+    (0, inversify_express_utils_1.httpGet)("/:itemId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "healthCheck", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/create",
         method: "POST",
         description: "Create a new item. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -386,13 +389,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     }),
-    httpPost("/create", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "createItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/update/:itemId",
         method: "PUT",
         description: "Update an existing item. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -407,13 +410,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     }),
-    httpPut("/update/:itemId", OwnerCheck.middleware),
+    (0, inversify_express_utils_1.httpPut)("/update/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "updateItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/delete/:itemId",
         method: "DELETE",
         description: "Delete an item. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -421,13 +424,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "DELETE /api/items/delete/123"
     }),
-    httpDelete("/delete/:itemId", OwnerCheck.middleware),
+    (0, inversify_express_utils_1.httpDelete)("/delete/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "deleteItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/buy/:itemId",
         method: "POST",
         description: "Buy an item. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -436,13 +439,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/buy/item_1 {\"amount\": 2}"
     }),
-    httpPost("/buy/:itemId", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "buyItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/sell/:itemId",
         method: "POST",
         description: "Sell an item. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -451,13 +454,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/sell/item_1 {\"amount\": 1}"
     }),
-    httpPost("/sell/:itemId", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "sellItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/give/:itemId",
         method: "POST",
         description: "Give item occurrences to a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -466,13 +469,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/give/item_1 {\"amount\": 1}"
     }),
-    httpPost("/give/:itemId", OwnerCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "giveItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/consume/:itemId",
         method: "POST",
         description: "Consume item occurrences from a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -481,13 +484,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/consume/item_1 {\"amount\": 1}"
     }),
-    httpPost("/consume/:itemId", OwnerCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/consume/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "consumeItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/drop/:itemId",
         method: "POST",
         description: "Drop item occurrences from your inventory. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -496,13 +499,13 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/drop/item_1 {\"amount\": 1}"
     }),
-    httpPost("/drop/:itemId", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "dropItem", null);
 __decorate([
-    describe({
+    (0, describe_1.describe)({
         endpoint: "/items/transfer/:itemId",
         method: "POST",
         description: "Transfer item occurrences to another user. Requires authentication via header \"Authorization: Bearer <token>\".",
@@ -514,16 +517,16 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}"
     }),
-    httpPost("/transfer/:itemId", LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/transfer/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "transferItem", null);
 Items = __decorate([
-    controller("/items"),
-    __param(0, inject("ItemService")),
-    __param(1, inject("InventoryService")),
-    __param(2, inject("UserService")),
+    (0, inversify_express_utils_1.controller)("/items"),
+    __param(0, (0, inversify_1.inject)("ItemService")),
+    __param(1, (0, inversify_1.inject)("InventoryService")),
+    __param(2, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object, Object])
 ], Items);
-export { Items };
+exports.Items = Items;
