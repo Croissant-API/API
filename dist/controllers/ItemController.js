@@ -440,7 +440,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/give/:itemId",
         method: "POST",
-        description: "Give an item to a user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Give item occurences to an user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
         body: {
             amount: "The amount of the item to give"
         },
@@ -457,7 +457,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/consume/:itemId",
         method: "POST",
-        description: "Consume an item from a user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Consume item occurences from an user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
         body: {
             amount: "The amount of the item to consume"
         },
