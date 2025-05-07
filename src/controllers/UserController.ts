@@ -14,14 +14,6 @@ export class Users {
         @inject("UserService") private userService: IUserService,
     ) {}
 
-    @describe({
-        endpoint: "/users/",
-        method: "POST",
-        description: "Ajouter un nouvel utilisateur",
-        body: { userId: "ID de l'utilisateur", username: "Nom d'utilisateur", balance: "Solde initial" },
-        responseType: "object{message: string}",
-        example: "POST /api/users/ { userId: '123', username: 'Jean', balance: 100 }"
-    })
     @httpPost("/", LoggedCheck.middleware)
     public async addUser(req: AuthenticatedRequest, res: Response) {
         try {
