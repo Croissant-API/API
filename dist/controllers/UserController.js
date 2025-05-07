@@ -16,6 +16,7 @@ import { createUserValidator, userIdParamValidator } from '../validators/UserVal
 import { describe } from '../decorators/describe';
 import { LoggedCheck } from '../middlewares/LoggedCheck';
 import { genVerificationKey } from '../utils/GenKey';
+import { v4 } from 'uuid';
 let Users = class Users {
     constructor(userService) {
         this.userService = userService;
@@ -27,7 +28,8 @@ let Users = class Users {
         catch (err) {
             return res.status(400).send({ message: "Invalid user data", error: err });
         }
-        const { id, username } = req.body;
+        const { username } = req.body;
+        const id = req.body.userId || req.body.id || v4().split("-")[0]; // Use userId or id from the request body
         const balance = req.body.balance || 0; // Default balance to 0 if not provided
         try {
             await this.userService.createUser(id, username, balance);
