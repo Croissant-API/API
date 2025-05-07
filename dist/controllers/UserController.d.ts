@@ -9,4 +9,5 @@ export declare class Users {
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     createUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    transferCredits(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

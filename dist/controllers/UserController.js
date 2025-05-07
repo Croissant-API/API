@@ -120,6 +120,36 @@ let Users = class Users {
             res.status(500).send({ message: "Error creating user", error: message });
         }
     }
+    async transferCredits(req, res) {
+        const { targetUserId, amount } = req.body;
+        if (!targetUserId || isNaN(amount) || amount <= 0) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const sender = req.user;
+            if (!sender) {
+                return res.status(401).send({ message: "Unauthorized" });
+            }
+            if (sender.user_id === targetUserId) {
+                return res.status(400).send({ message: "Cannot transfer credits to yourself" });
+            }
+            const recipient = await this.userService.getUser(targetUserId);
+            if (!recipient) {
+                return res.status(404).send({ message: "Recipient not found" });
+            }
+            if (sender.balance < amount) {
+                return res.status(400).send({ message: "Insufficient balance" });
+            }
+            await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
+            await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
+            res.status(200).send({ message: "Credits transferred" });
+        }
+        catch (error) {
+            console.error("Error transferring credits", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error transferring credits", error: message });
+        }
+    }
 };
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
@@ -167,6 +197,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "createUser", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/transfer-credits", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "transferCredits", null);
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),

@@ -231,13 +231,15 @@ export class Items {
                 return res.status(404).send({ message: "User not found" });
             }
 
-            if (user.balance < item.price * amount) {
-                return res.status(400).send({ message: "Insufficient balance" });
-            }
-
-            if(user.user_id !== item.owner) {
+            // Only check and update balance if the user is NOT the owner
+            if (user.user_id !== item.owner) {
+                if (user.balance < item.price * amount) {
+                    return res.status(400).send({ message: "Insufficient balance" });
+                }
                 await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
             }
+            // If user is owner, skip balance check and update
+
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
             if (currentAmount) {
                 await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
@@ -271,7 +273,10 @@ export class Items {
                 return res.status(404).send({ message: "User not found" });
             }
 
-            await this.userService.updateUserBalance(user.user_id, user.balance + (item.price * amount * 0.75));
+            // Only increase balance if the user is NOT the owner
+            if (user.user_id !== item.owner) {
+                await this.userService.updateUserBalance(user.user_id, user.balance + (item.price * amount * 0.75));
+            }
             await this.inventoryService.removeItem(user.user_id, itemId, amount);
 
             res.status(200).send({ message: "Item sold" });
@@ -375,6 +380,47 @@ export class Items {
             console.error("Error dropping item", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error dropping item", error: message });
+        }
+    }
+
+    @httpPost("/transfer/:itemId", LoggedCheck.middleware)
+    public async transferItem(req: AuthenticatedRequest, res: Response) {
+        const { itemId } = req.params;
+        const { amount, targetUserId } = req.body;
+        if (!itemId || isNaN(amount) || amount <= 0 || !targetUserId) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const user = req.user;
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            if (user.user_id === targetUserId) {
+                return res.status(400).send({ message: "Cannot transfer to yourself" });
+            }
+
+            // Check sender inventory
+            const senderAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
+            if (!senderAmount || senderAmount < amount) {
+                return res.status(400).send({ message: "Not enough items to transfer" });
+            }
+
+            // Remove from sender
+            await this.inventoryService.removeItem(user.user_id, itemId, amount);
+
+            // Add to recipient
+            const recipientAmount = await this.inventoryService.getItemAmount(targetUserId, itemId);
+            if (recipientAmount) {
+                await this.inventoryService.setItemAmount(targetUserId, itemId, recipientAmount + Number(amount));
+            } else {
+                await this.inventoryService.addItem(targetUserId, itemId, Number(amount));
+            }
+
+            res.status(200).send({ message: "Item transferred" });
+        } catch (error) {
+            console.error("Error transferring item", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error transferring item", error: message });
         }
     }
 }

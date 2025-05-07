@@ -136,6 +136,39 @@ export class Users {
         }
     }
 
+    @httpPost("/transfer-credits", LoggedCheck.middleware)
+    public async transferCredits(req: AuthenticatedRequest, res: Response) {
+        const { targetUserId, amount } = req.body;
+        if (!targetUserId || isNaN(amount) || amount <= 0) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const sender = req.user;
+            if (!sender) {
+                return res.status(401).send({ message: "Unauthorized" });
+            }
+            if (sender.user_id === targetUserId) {
+                return res.status(400).send({ message: "Cannot transfer credits to yourself" });
+            }
+            const recipient = await this.userService.getUser(targetUserId);
+            if (!recipient) {
+                return res.status(404).send({ message: "Recipient not found" });
+            }
+            if (sender.balance < amount) {
+                return res.status(400).send({ message: "Insufficient balance" });
+            }
+
+            await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
+            await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
+
+            res.status(200).send({ message: "Credits transferred" });
+        } catch (error) {
+            console.error("Error transferring credits", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error transferring credits", error: message });
+        }
+    }
+
     // @httpDelete("/delete/:userId")
     // public async deleteUser(req: Request, res: Response) {
     //     try {
