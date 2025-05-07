@@ -14,8 +14,16 @@ export class Users {
         @inject("UserService") private userService: IUserService,
     ) {}
 
-    @httpPost("/", LoggedCheck.middleware)
-    public async addUser(req: AuthenticatedRequest, res: Response) {
+    @describe({
+        endpoint: "/users",
+        method: "POST",
+        description: "Add a new user",
+        body: { userId: "The id of the user", username: "The username of the user", balance: "The balance of the user" },
+        responseType: "object{message: string}",
+        example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
+    })
+    @httpPost("/")
+    public async addUser(req: Request, res: Response) {
         try {
             await createUserValidator.validate(req.body);
         } catch (err) {

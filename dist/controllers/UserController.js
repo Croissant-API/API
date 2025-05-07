@@ -170,7 +170,15 @@ let Users = class Users {
     }
 };
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
+    (0, describe_1.describe)({
+        endpoint: "/users",
+        method: "POST",
+        description: "Add a new user",
+        body: { userId: "The id of the user", username: "The username of the user", balance: "The balance of the user" },
+        responseType: "object{message: string}",
+        example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
+    }),
+    (0, inversify_express_utils_1.httpPost)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

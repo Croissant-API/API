@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 export declare class Users {
     private userService;
     constructor(userService: IUserService);
-    addUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    addUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMe(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchUsers(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
