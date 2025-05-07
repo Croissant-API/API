@@ -44,6 +44,14 @@ export class Lobbies {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/:lobbyId/join",
+        method: "POST",
+        description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { lobbyId: "The id of the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/join"
+    })
     @httpPost("/:lobbyId/join", LoggedCheck.middleware)
     public async joinLobby(req: AuthenticatedRequest, res: Response) {
         try {
@@ -60,6 +68,14 @@ export class Lobbies {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/:lobbyId/leave",
+        method: "POST",
+        description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { lobbyId: "The id of the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/leave"
+    })
     @httpPost("/:lobbyId/leave", LoggedCheck.middleware)
     public async leaveLobby(req: AuthenticatedRequest, res: Response) {
         try {
@@ -76,6 +92,13 @@ export class Lobbies {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies/user/@me",
+        method: "GET",
+        description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "object{lobbyId: string, users: array[string]}",
+        example: "GET /api/lobbies/user/@me"
+    })
     @httpGet("/user/@me", LoggedCheck.middleware)
     public async getMyLobby(req: AuthenticatedRequest, res: Response) {
         try {
@@ -121,6 +144,13 @@ export class Lobbies {
         }
     }
 
+    @describe({
+        endpoint: "/lobbies",
+        method: "POST",
+        description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies"
+    })
     @httpPost("/", LoggedCheck.middleware)
     public async createLobby(req: AuthenticatedRequest, res: Response) {
         try {

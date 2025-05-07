@@ -135,18 +135,41 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "getLobby", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies/:lobbyId/join",
+        method: "POST",
+        description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { lobbyId: "The id of the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/join"
+    }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "joinLobby", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies/:lobbyId/leave",
+        method: "POST",
+        description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { lobbyId: "The id of the lobby" },
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies/123/leave"
+    }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "leaveLobby", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies/user/@me",
+        method: "GET",
+        description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "object{lobbyId: string, users: array[string]}",
+        example: "GET /api/lobbies/user/@me"
+    }),
     (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -167,6 +190,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "getUserLobby", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies",
+        method: "POST",
+        description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "object{message: string}",
+        example: "POST /api/lobbies"
+    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

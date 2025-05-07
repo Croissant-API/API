@@ -77,7 +77,6 @@ let Games = class Games {
         try {
             const userId = req.user.user_id;
             const games = await this.gameService.getUserGames(userId);
-            // const filteredGames = games.map(game => filterGame(game, userId));
             res.send(games);
         }
         catch (error) {
@@ -179,28 +178,28 @@ let Games = class Games {
             res.status(500).send({ message: "Error updating game", error: message });
         }
     }
-    async deleteGame(req, res) {
-        try {
-            await GameValidator_1.gameIdParamSchema.validate(req.params);
-            const game = await this.gameService.getGame(req.params.gameId);
-            if (!game) {
-                return res.status(404).send({ message: "Game not found" });
-            }
-            if (req.user.user_id !== game.owner_id) {
-                return res.status(403).send({ message: "You are not the owner of this game" });
-            }
-            const { gameId } = req.params;
-            await this.gameService.deleteGame(gameId);
-            res.status(200).send({ message: "Game deleted" });
-        }
-        catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error deleting game", error: message });
-        }
-    }
+    // @httpDelete("/:gameId", LoggedCheck.middleware)
+    // public async deleteGame(req: AuthenticatedRequest, res: Response) {
+    //     try {
+    //         await gameIdParamSchema.validate(req.params);
+    //         const game = await this.gameService.getGame(req.params.gameId);
+    //         if (!game) {
+    //             return res.status(404).send({ message: "Game not found" });
+    //         }
+    //         if(req.user.user_id !== game.owner_id) {
+    //             return res.status(403).send({ message: "You are not the owner of this game" });
+    //         }
+    //         const { gameId } = req.params;
+    //         await this.gameService.deleteGame(gameId);
+    //         res.status(200).send({ message: "Game deleted" });
+    //     } catch (error) {
+    //         if (error instanceof ValidationError) {
+    //             return res.status(400).send({ message: "Validation failed", errors: error.errors });
+    //         }
+    //         const message = (error instanceof Error) ? error.message : String(error);
+    //         res.status(500).send({ message: "Error deleting game", error: message });
+    //     }
+    // }
     async buyGame(req, res) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
@@ -236,8 +235,8 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/games",
         method: "GET",
-        description: "List all games",
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
+        description: "List all games visible in the store.",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}]",
         example: "GET /api/games"
     }),
     (0, inversify_express_utils_1.httpGet)("/"),
@@ -246,12 +245,26 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "listGames", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/@mine",
+        method: "GET",
+        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
+        example: "GET /api/games/@mine"
+    }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getMyCreatedGames", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/list/@me",
+        method: "GET",
+        description: "Get all games owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
+        example: "GET /api/games/list/@me"
+    }),
     (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -261,9 +274,9 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/games/list/:userId",
         method: "GET",
-        description: "List all games owned by a specific user",
+        description: "List all games owned by a specific user.",
         params: { userId: "The id of the user" },
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
         example: "GET /api/games/list/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/list/:userId"),
@@ -275,9 +288,9 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/games/:gameId",
         method: "GET",
-        description: "Get a game by gameId",
+        description: "Get a game by gameId.",
         params: { gameId: "The id of the game" },
-        responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}",
+        responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}",
         example: "GET /api/games/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/:gameId"),
@@ -286,13 +299,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGame", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/@mine",
-        method: "GET",
-        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean}]",
-        example: "GET /api/games/@mine"
-    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -304,12 +310,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "updateGame", null);
-__decorate([
-    (0, inversify_express_utils_1.httpDelete)("/:gameId", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Games.prototype, "deleteGame", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:gameId/buy", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

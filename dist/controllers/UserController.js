@@ -23,6 +23,24 @@ let Users = class Users {
     constructor(userService) {
         this.userService = userService;
     }
+    async addUser(req, res) {
+        try {
+            await UserValidator_1.createUserValidator.validate(req.body);
+        }
+        catch (err) {
+            return res.status(400).send({ message: "Invalid user data", error: err });
+        }
+        const { userId, username, balance } = req.body;
+        try {
+            await this.userService.createUser(userId, username, balance);
+            res.status(201).send({ message: "User added" });
+        }
+        catch (error) {
+            console.error("Error adding user", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error adding user", error: message });
+        }
+    }
     async getMe(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
@@ -152,12 +170,41 @@ let Users = class Users {
     }
 };
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/",
+        method: "POST",
+        description: "Ajouter un nouvel utilisateur",
+        body: { userId: "ID de l'utilisateur", username: "Nom d'utilisateur", balance: "Solde initial" },
+        responseType: "object{message: string}",
+        example: "POST /api/users/ { userId: '123', username: 'Jean', balance: 100 }"
+    }),
+    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "addUser", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/@me",
+        method: "GET",
+        description: "Get the authenticated user's information",
+        responseType: "object{userId: string, balance: number, username: string}",
+        example: "GET /api/users/@me"
+    }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "getMe", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/search",
+        method: "GET",
+        description: "Search for users by username",
+        query: { q: "The search query" },
+        responseType: "array[object{userId: string, balance: number, username: string}]",
+        example: "GET /api/users/search?q=John"
+    }),
     (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -198,6 +245,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "createUser", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/transfer-credits",
+        method: "POST",
+        description: "Transfer credits from one user to another",
+        body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
+        responseType: "object{message: string}",
+        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
+    }),
     (0, inversify_express_utils_1.httpPost)("/transfer-credits", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

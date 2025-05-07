@@ -19,6 +19,13 @@ export class Inventories {
         res.send({ message: "Please specify /api/inventory/<userId>" });
     }
 
+    @describe({
+        endpoint: "/inventory/",
+        method: "GET",
+        description: "Prompt to specify a userId for inventory lookup",
+        responseType: "object{message: string}",
+        example: "GET /api/inventory/"
+    })
     @httpGet("/@me", LoggedCheck.middleware)
     public async getMyInventory(req: AuthenticatedRequest, res: Response) {
         const userId = req.user.user_id; // Assuming you have middleware that sets req.userId

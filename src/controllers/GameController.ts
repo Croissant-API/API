@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut, httpDelete } from "inversify-express-utils";
+import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
 import { IGameService } from '../services/GameService';
 import { ValidationError } from 'yup';
 import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from '../validators/GameValidator';
@@ -45,8 +45,8 @@ export class Games {
     @describe({
         endpoint: "/games",
         method: "GET",
-        description: "List all games",
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
+        description: "List all games visible in the store.",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}]",
         example: "GET /api/games"
     })
     @httpGet("/")
@@ -61,6 +61,13 @@ export class Games {
         }
     }
 
+    @describe({
+        endpoint: "/games/@mine",
+        method: "GET",
+        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
+        example: "GET /api/games/@mine"
+    })
     @httpGet("/@mine", LoggedCheck.middleware)
     public async getMyCreatedGames(req: AuthenticatedRequest, res: Response) {
         try {
@@ -75,12 +82,18 @@ export class Games {
         }
     }
 
+    @describe({
+        endpoint: "/games/list/@me",
+        method: "GET",
+        description: "Get all games owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
+        example: "GET /api/games/list/@me"
+    })
     @httpGet("/list/@me", LoggedCheck.middleware)
     public async getUserGames(req: AuthenticatedRequest, res: Response) {
         try {
             const userId = req.user.user_id;
             const games = await this.gameService.getUserGames(userId);
-            // const filteredGames = games.map(game => filterGame(game, userId));
             res.send(games);
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
@@ -91,9 +104,9 @@ export class Games {
     @describe({
         endpoint: "/games/list/:userId",
         method: "GET",
-        description: "List all games owned by a specific user",
+        description: "List all games owned by a specific user.",
         params: { userId: "The id of the user" },
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}]",
+        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
         example: "GET /api/games/list/123"
     })
     @httpGet("/list/:userId")
@@ -112,9 +125,9 @@ export class Games {
     @describe({
         endpoint: "/games/:gameId",
         method: "GET",
-        description: "Get a game by gameId",
+        description: "Get a game by gameId.",
         params: { gameId: "The id of the game" },
-        responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, owners: array[string]}",
+        responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}",
         example: "GET /api/games/123"
     })
     @httpGet("/:gameId")
@@ -135,14 +148,6 @@ export class Games {
             res.status(500).send({ message: "Error fetching game", error: message });
         }
     }
-
-    @describe({
-        endpoint: "/games/@mine",
-        method: "GET",
-        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean}]",
-        example: "GET /api/games/@mine"
-    })
 
     @httpPost("/", LoggedCheck.middleware)
     public async createGame(req: AuthenticatedRequest, res: Response) {
@@ -230,28 +235,29 @@ export class Games {
         }
     }
 
-    @httpDelete("/:gameId", LoggedCheck.middleware)
-    public async deleteGame(req: AuthenticatedRequest, res: Response) {
-        try {
-            await gameIdParamSchema.validate(req.params);
-            const game = await this.gameService.getGame(req.params.gameId);
-            if (!game) {
-                return res.status(404).send({ message: "Game not found" });
-            }
-            if(req.user.user_id !== game.owner_id) {
-                return res.status(403).send({ message: "You are not the owner of this game" });
-            }
-            const { gameId } = req.params;
-            await this.gameService.deleteGame(gameId);
-            res.status(200).send({ message: "Game deleted" });
-        } catch (error) {
-            if (error instanceof ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error deleting game", error: message });
-        }
-    }
+    // @httpDelete("/:gameId", LoggedCheck.middleware)
+    // public async deleteGame(req: AuthenticatedRequest, res: Response) {
+    //     try {
+    //         await gameIdParamSchema.validate(req.params);
+    //         const game = await this.gameService.getGame(req.params.gameId);
+    //         if (!game) {
+    //             return res.status(404).send({ message: "Game not found" });
+    //         }
+    //         if(req.user.user_id !== game.owner_id) {
+    //             return res.status(403).send({ message: "You are not the owner of this game" });
+    //         }
+    //         const { gameId } = req.params;
+    //         await this.gameService.deleteGame(gameId);
+    //         res.status(200).send({ message: "Game deleted" });
+    //     } catch (error) {
+    //         if (error instanceof ValidationError) {
+    //             return res.status(400).send({ message: "Validation failed", errors: error.errors });
+    //         }
+    //         const message = (error instanceof Error) ? error.message : String(error);
+    //         res.status(500).send({ message: "Error deleting game", error: message });
+    //     }
+    // }
+
 
     @httpPost("/:gameId/buy", LoggedCheck.middleware)
     public async buyGame(req: AuthenticatedRequest, res: Response) {

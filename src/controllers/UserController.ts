@@ -14,6 +14,40 @@ export class Users {
         @inject("UserService") private userService: IUserService,
     ) {}
 
+    @describe({
+        endpoint: "/users/",
+        method: "POST",
+        description: "Ajouter un nouvel utilisateur",
+        body: { userId: "ID de l'utilisateur", username: "Nom d'utilisateur", balance: "Solde initial" },
+        responseType: "object{message: string}",
+        example: "POST /api/users/ { userId: '123', username: 'Jean', balance: 100 }"
+    })
+    @httpPost("/", LoggedCheck.middleware)
+    public async addUser(req: AuthenticatedRequest, res: Response) {
+        try {
+            await createUserValidator.validate(req.body);
+        } catch (err) {
+            return res.status(400).send({ message: "Invalid user data", error: err });
+        }
+        const { userId, username, balance } = req.body;
+        try {
+            await this.userService.createUser(userId, username, balance);
+            res.status(201).send({ message: "User added" });
+        } catch (error) {
+            console.error("Error adding user", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error adding user", error: message });
+        }
+    }
+
+
+    @describe({
+        endpoint: "/users/@me",
+        method: "GET",
+        description: "Get the authenticated user's information",
+        responseType: "object{userId: string, balance: number, username: string}",
+        example: "GET /api/users/@me"
+    })
     @httpGet("/@me", LoggedCheck.middleware)
     async getMe(req: AuthenticatedRequest, res: Response) {
         const userId = req.user?.user_id;
@@ -36,7 +70,14 @@ export class Users {
         res.send(filteredUser);
     }
 
-    
+    @describe({
+        endpoint: "/users/search",
+        method: "GET",
+        description: "Search for users by username",
+        query: { q: "The search query" },
+        responseType: "array[object{userId: string, balance: number, username: string}]",
+        example: "GET /api/users/search?q=John"
+    })
     @httpGet("/search", LoggedCheck.middleware)
     public async searchUsers(req: AuthenticatedRequest, res: Response) {
         const query = (req.query.q as string)?.trim();
@@ -136,6 +177,14 @@ export class Users {
         }
     }
 
+    @describe({
+        endpoint: "/users/transfer-credits",
+        method: "POST",
+        description: "Transfer credits from one user to another",
+        body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
+        responseType: "object{message: string}",
+        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
+    })
     @httpPost("/transfer-credits", LoggedCheck.middleware)
     public async transferCredits(req: AuthenticatedRequest, res: Response) {
         const { targetUserId, amount } = req.body;
@@ -168,22 +217,4 @@ export class Users {
             res.status(500).send({ message: "Error transferring credits", error: message });
         }
     }
-
-    // @httpDelete("/delete/:userId")
-    // public async deleteUser(req: Request, res: Response) {
-    //     try {
-    //         await userIdParamValidator.validate(req.params);
-    //     } catch (err) {
-    //         return res.status(400).send({ message: "Invalid userId", error: err });
-    //     }
-    //     const { userId } = req.params;
-    //     try {
-    //         await this.userService.deleteUser(userId);
-    //         res.status(200).send({ message: "User deleted" });
-    //     } catch (error) {
-    //         console.error("Error deleting user", error);
-    //         const message = (error instanceof Error) ? error.message : String(error);
-    //         res.status(500).send({ message: "Error deleting user", error: message });
-    //     }
-    // }
 }

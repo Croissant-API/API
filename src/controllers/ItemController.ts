@@ -22,7 +22,7 @@ export class Items {
         endpoint: "/items",
         method: "GET",
         description: "Get all non-deleted items",
-        responseType: "array[object{id: string, name: string, price: number, description: string, emoji: string, owner: string}]",
+        responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore?: boolean}]",
         example: "GET /api/items"
     })
     @httpGet("/")
@@ -46,7 +46,7 @@ export class Items {
         endpoint: "/items/@mine",
         method: "GET",
         description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "array[object{id: string, name: string, price: number, description: string, emoji: string, owner: string}]",
+        responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore: boolean}]",
         example: "GET /api/items/@mine"
     })
     @httpGet("/@mine", LoggedCheck.middleware)
@@ -74,7 +74,7 @@ export class Items {
         method: "GET",
         description: "Get a single item by itemId",
         params: { itemId: "The id of the item" },
-        responseType: "object{name: string, description: string, owner: string, price: number, showInStore: number}",
+        responseType: "object{name: string, description: string, owner: string, price: number, showInStore: boolean, iconHash: string}",
         example: "GET /api/items/123"
     })
     @httpGet("/:itemId")
@@ -147,7 +147,7 @@ export class Items {
     @describe({
         endpoint: "/items/update/:itemId",
         method: "PUT",
-        description: "Update an existing item.  Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Update an existing item. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: {
             name: "Name of the item",
@@ -189,7 +189,7 @@ export class Items {
     @describe({
         endpoint: "/items/delete/:itemId",
         method: "DELETE",
-        description: "Delete an item.  Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Delete an item. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         responseType: "object{message: string}",
         example: "DELETE /api/items/delete/123"
@@ -213,6 +213,15 @@ export class Items {
         }
     }
 
+    @describe({
+        endpoint: "/items/buy/:itemId",
+        method: "POST",
+        description: "Buy an item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { itemId: "The id of the item" },
+        body: { amount: "The amount of the item to buy" },
+        responseType: "object{message: string}",
+        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
+    })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
     public async buyItem(req: AuthenticatedRequest, res: Response) {
         const { itemId } = req.params;
@@ -255,6 +264,15 @@ export class Items {
         }
     }
 
+    @describe({
+        endpoint: "/items/sell/:itemId",
+        method: "POST",
+        description: "Sell an item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { itemId: "The id of the item" },
+        body: { amount: "The amount of the item to sell" },
+        responseType: "object{message: string}",
+        example: "POST /api/items/sell/item_1 {\"amount\": 1}"
+    })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
     public async sellItem(req: AuthenticatedRequest, res: Response) {
         const {itemId} = req.params;
@@ -290,11 +308,9 @@ export class Items {
     @describe({
         endpoint: "/items/give/:itemId",
         method: "POST",
-        description: "Give item occurences to an user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
-        body: {
-            amount: "The amount of the item to give"
-        },
+        description: "Give item occurrences to a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
+        body: { amount: "The amount of the item to give" },
         responseType: "object{message: string}",
         example: "POST /api/items/give/item_1 {\"amount\": 1}"
     })
@@ -331,13 +347,11 @@ export class Items {
     @describe({
         endpoint: "/items/consume/:itemId",
         method: "POST",
-        description: "Consume item occurences from an user (owner only).  Requires authentication via header \"Authorization: Bearer <token>\".",
-        body: {
-            amount: "The amount of the item to consume"
-        },
+        description: "Consume item occurrences from a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
+        body: { amount: "The amount of the item to consume" },
         responseType: "object{message: string}",
-        example: "POST /api/items/consume/item_1 {\"itemId\": \"item_1\", \"amount\": 1}"
+        example: "POST /api/items/consume/item_1 {\"amount\": 1}"
     })
     @httpPost("/consume/:itemId", OwnerCheck.middleware)
     public async consumeItem(req: AuthenticatedRequestWithOwner, res: Response) {
@@ -362,6 +376,15 @@ export class Items {
         }
     }
 
+    @describe({
+        endpoint: "/items/drop/:itemId",
+        method: "POST",
+        description: "Drop item occurrences from your inventory. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { itemId: "The id of the item" },
+        body: { amount: "The amount of the item to drop" },
+        responseType: "object{message: string}",
+        example: "POST /api/items/drop/item_1 {\"amount\": 1}"
+    })
     @httpPost("/drop/:itemId", LoggedCheck.middleware)
     public async dropItem(req: AuthenticatedRequest, res: Response) {
         const { itemId } = req.params;
@@ -383,6 +406,18 @@ export class Items {
         }
     }
 
+    @describe({
+        endpoint: "/items/transfer/:itemId",
+        method: "POST",
+        description: "Transfer item occurrences to another user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        params: { itemId: "The id of the item" },
+        body: {
+            amount: "The amount of the item to transfer",
+            targetUserId: "The user ID of the recipient"
+        },
+        responseType: "object{message: string}",
+        example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}"
+    })
     @httpPost("/transfer/:itemId", LoggedCheck.middleware)
     public async transferItem(req: AuthenticatedRequest, res: Response) {
         const { itemId } = req.params;

@@ -88,6 +88,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getAllInventories", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/inventory/",
+        method: "GET",
+        description: "Prompt to specify a userId for inventory lookup",
+        responseType: "object{message: string}",
+        example: "GET /api/inventory/"
+    }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
