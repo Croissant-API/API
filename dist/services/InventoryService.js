@@ -1,4 +1,3 @@
-"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -11,9 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.InventoryService = void 0;
-const inversify_1 = require("inversify");
+import { inject, injectable } from "inversify";
 let InventoryService = class InventoryService {
     constructor(databaseService) {
         this.databaseService = databaseService;
@@ -54,8 +51,8 @@ let InventoryService = class InventoryService {
     }
 };
 InventoryService = __decorate([
-    (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    injectable(),
+    __param(0, inject("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], InventoryService);
-exports.InventoryService = InventoryService;
+export { InventoryService };

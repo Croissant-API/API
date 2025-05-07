@@ -1,4 +1,3 @@
-"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -11,13 +10,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Inventories = void 0;
-const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
-const InventoryValidator_1 = require("../validators/InventoryValidator");
-const describe_1 = require("../decorators/describe");
-const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+import { inject } from 'inversify';
+import { controller, httpGet } from "inversify-express-utils";
+import { userIdParamSchema } from '../validators/InventoryValidator';
+import { describe } from '../decorators/describe';
+import { LoggedCheck } from '../middlewares/LoggedCheck';
 let Inventories = class Inventories {
     constructor(inventoryService, itemService) {
         this.inventoryService = inventoryService;
@@ -52,7 +49,7 @@ let Inventories = class Inventories {
     }
     async getInventory(req, res) {
         try {
-            await InventoryValidator_1.userIdParamSchema.validate({ userId: req.params.userId });
+            await userIdParamSchema.validate({ userId: req.params.userId });
         }
         catch (err) {
             return res.status(400).send({ message: err instanceof Error ? err.message : String(err) });
@@ -82,26 +79,26 @@ let Inventories = class Inventories {
     }
 };
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/"),
+    httpGet("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getAllInventories", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/inventory/",
         method: "GET",
         description: "Prompt to specify a userId for inventory lookup",
         responseType: "object{message: string}",
         example: "GET /api/inventory/"
     }),
-    (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
+    httpGet("/@me", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getMyInventory", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/inventory/:userId",
         method: "GET",
         description: "Get the inventory of a user",
@@ -109,15 +106,15 @@ __decorate([
         responseType: "array[object{itemId: string, name: string, description: string, amount: number}]",
         example: "GET /api/inventory/123"
     }),
-    (0, inversify_express_utils_1.httpGet)("/:userId"),
+    httpGet("/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getInventory", null);
 Inventories = __decorate([
-    (0, inversify_express_utils_1.controller)("/inventory"),
-    __param(0, (0, inversify_1.inject)("InventoryService")),
-    __param(1, (0, inversify_1.inject)("ItemService")),
+    controller("/inventory"),
+    __param(0, inject("InventoryService")),
+    __param(1, inject("ItemService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Inventories);
-exports.Inventories = Inventories;
+export { Inventories };

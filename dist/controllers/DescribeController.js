@@ -1,4 +1,3 @@
-"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -8,22 +7,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DescribeController = void 0;
-const inversify_express_utils_1 = require("inversify-express-utils");
-const describe_1 = require("../decorators/describe");
+import { controller, httpGet } from "inversify-express-utils";
+import { getAllDescriptions } from '../decorators/describe';
 let DescribeController = class DescribeController {
     async getDescriptions(req, res) {
-        res.json((0, describe_1.getAllDescriptions)());
+        res.json(getAllDescriptions());
     }
 };
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/"),
+    httpGet("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], DescribeController.prototype, "getDescriptions", null);
 DescribeController = __decorate([
-    (0, inversify_express_utils_1.controller)("/describe")
+    controller("/describe")
 ], DescribeController);
-exports.DescribeController = DescribeController;
+export { DescribeController };

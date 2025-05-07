@@ -18,7 +18,7 @@ export class Users {
         endpoint: "/users",
         method: "POST",
         description: "Add a new user",
-        body: { userId: "The id of the user", username: "The username of the user", balance: "The balance of the user" },
+        body: { id: "The id of the user", username: "The username of the user" },
         responseType: "object{message: string}",
         example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
     })

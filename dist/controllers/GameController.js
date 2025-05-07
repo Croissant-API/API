@@ -1,4 +1,3 @@
-"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -11,15 +10,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Games = void 0;
-const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
-const yup_1 = require("yup");
-const GameValidator_1 = require("../validators/GameValidator");
-const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const uuid_1 = require("uuid");
-const describe_1 = require("../decorators/describe");
+import { inject } from 'inversify';
+import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
+import { ValidationError } from 'yup';
+import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from '../validators/GameValidator';
+import { LoggedCheck } from '../middlewares/LoggedCheck';
+import { v4 } from 'uuid';
+import { describe } from '../decorators/describe';
 // Utility to filter game fields based on the user
 function filterGame(game, userId) {
     return {
@@ -98,7 +95,7 @@ let Games = class Games {
     }
     async getGame(req, res) {
         try {
-            await GameValidator_1.gameIdParamSchema.validate(req.params);
+            await gameIdParamSchema.validate(req.params);
             const { gameId } = req.params;
             const game = await this.gameService.getGame(gameId);
             if (!game) {
@@ -107,7 +104,7 @@ let Games = class Games {
             res.send(filterGame(game));
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
+            if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -116,9 +113,9 @@ let Games = class Games {
     }
     async createGame(req, res) {
         try {
-            await GameValidator_1.createGameBodySchema.validate(req.body);
+            await createGameBodySchema.validate(req.body);
             const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer } = req.body;
-            const gameId = (0, uuid_1.v4)();
+            const gameId = v4();
             const ownerId = req.user.user_id;
             await this.gameService.createGame({
                 gameId,
@@ -147,7 +144,7 @@ let Games = class Games {
             res.status(201).send({ message: "Game created", game: game });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
+            if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -156,8 +153,8 @@ let Games = class Games {
     }
     async updateGame(req, res) {
         try {
-            await GameValidator_1.gameIdParamSchema.validate(req.params);
-            await GameValidator_1.updateGameBodySchema.validate(req.body);
+            await gameIdParamSchema.validate(req.params);
+            await updateGameBodySchema.validate(req.body);
             const game = await this.gameService.getGame(req.params.gameId);
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
@@ -171,7 +168,7 @@ let Games = class Games {
             res.status(200).send(filterGame(updatedGame, req.user.user_id));
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
+            if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
             }
             const message = (error instanceof Error) ? error.message : String(error);
@@ -232,46 +229,46 @@ let Games = class Games {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/games",
         method: "GET",
         description: "List all games visible in the store.",
         responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}]",
         example: "GET /api/games"
     }),
-    (0, inversify_express_utils_1.httpGet)("/"),
+    httpGet("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "listGames", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/games/@mine",
         method: "GET",
         description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
         responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
         example: "GET /api/games/@mine"
     }),
-    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
+    httpGet("/@mine", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getMyCreatedGames", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/games/list/@me",
         method: "GET",
         description: "Get all games owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
         responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
         example: "GET /api/games/list/@me"
     }),
-    (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
+    httpGet("/list/@me", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getUserGames", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/games/list/:userId",
         method: "GET",
         description: "List all games owned by a specific user.",
@@ -279,13 +276,13 @@ __decorate([
         responseType: "array[object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean, download_link: string}]",
         example: "GET /api/games/list/123"
     }),
-    (0, inversify_express_utils_1.httpGet)("/list/:userId"),
+    httpGet("/list/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGamesByUserId", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/games/:gameId",
         method: "GET",
         description: "Get a game by gameId.",
@@ -293,33 +290,33 @@ __decorate([
         responseType: "object{gameId: string, name: string, description: string, price: number, owner_id: string, showInStore: boolean, iconHash: string, splashHash: string, bannerHash: string, genre: string, release_date: string, developer: string, publisher: string, platforms: array[string], rating: number, website: string, trailer_link: string, multiplayer: boolean}",
         example: "GET /api/games/123"
     }),
-    (0, inversify_express_utils_1.httpGet)("/:gameId"),
+    httpGet("/:gameId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
+    httpPost("/", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "createGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPut)("/:gameId", LoggedCheck_1.LoggedCheck.middleware),
+    httpPut("/:gameId", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "updateGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:gameId/buy", LoggedCheck_1.LoggedCheck.middleware),
+    httpPost("/:gameId/buy", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "buyGame", null);
 Games = __decorate([
-    (0, inversify_express_utils_1.controller)("/games"),
-    __param(0, (0, inversify_1.inject)("GameService")),
-    __param(1, (0, inversify_1.inject)("UserService")),
+    controller("/games"),
+    __param(0, inject("GameService")),
+    __param(1, inject("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Games);
-exports.Games = Games;
+export { Games };

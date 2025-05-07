@@ -1,4 +1,3 @@
-"use strict";
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -11,21 +10,19 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Users = void 0;
-const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
-const UserValidator_1 = require("../validators/UserValidator");
-const describe_1 = require("../decorators/describe");
-const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const GenKey_1 = require("../utils/GenKey");
+import { inject } from 'inversify';
+import { controller, httpGet, httpPost } from "inversify-express-utils";
+import { createUserValidator, userIdParamValidator } from '../validators/UserValidator';
+import { describe } from '../decorators/describe';
+import { LoggedCheck } from '../middlewares/LoggedCheck';
+import { genVerificationKey } from '../utils/GenKey';
 let Users = class Users {
     constructor(userService) {
         this.userService = userService;
     }
     async addUser(req, res) {
         try {
-            await UserValidator_1.createUserValidator.validate(req.body);
+            await createUserValidator.validate(req.body);
         }
         catch (err) {
             return res.status(400).send({ message: "Invalid user data", error: err });
@@ -58,7 +55,7 @@ let Users = class Users {
             userId: user.user_id,
             balance: user.balance,
             username: user.username,
-            verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id)
+            verificationKey: genVerificationKey(user.user_id)
         };
         res.send(filteredUser);
     }
@@ -96,12 +93,12 @@ let Users = class Users {
         if (!user) {
             return res.status(404).send({ message: "User not found" });
         }
-        const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
+        const expectedKey = genVerificationKey(user.user_id);
         res.send({ success: verificationKey !== expectedKey });
     }
     async getUser(req, res) {
         try {
-            await UserValidator_1.userIdParamValidator.validate(req.params);
+            await userIdParamValidator.validate(req.params);
         }
         catch (err) {
             return res.status(400).send({ message: "Invalid userId", error: err });
@@ -123,7 +120,7 @@ let Users = class Users {
     }
     async createUser(req, res) {
         try {
-            await UserValidator_1.createUserValidator.validate(req.body);
+            await createUserValidator.validate(req.body);
         }
         catch (err) {
             return res.status(400).send({ message: "Invalid user data", error: err });
@@ -171,34 +168,34 @@ let Users = class Users {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users",
         method: "POST",
         description: "Add a new user",
-        body: { userId: "The id of the user", username: "The username of the user", balance: "The balance of the user" },
+        body: { id: "The id of the user", username: "The username of the user" },
         responseType: "object{message: string}",
         example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
     }),
-    (0, inversify_express_utils_1.httpPost)("/"),
+    httpPost("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "addUser", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users/@me",
         method: "GET",
         description: "Get the authenticated user's information",
         responseType: "object{userId: string, balance: number, username: string}",
         example: "GET /api/users/@me"
     }),
-    (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
+    httpGet("/@me", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "getMe", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users/search",
         method: "GET",
         description: "Search for users by username",
@@ -206,13 +203,13 @@ __decorate([
         responseType: "array[object{userId: string, balance: number, username: string}]",
         example: "GET /api/users/search?q=John"
     }),
-    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
+    httpGet("/search", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "searchUsers", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users/auth-verification",
         method: "GET",
         description: "Check the verification key for the user",
@@ -220,13 +217,13 @@ __decorate([
         query: { userId: "The id of the user", verificationKey: "The verification key" },
         example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
     }),
-    (0, inversify_express_utils_1.httpPost)("/auth-verification"),
+    httpPost("/auth-verification"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "checkVerificationKey", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users/:userId",
         method: "GET",
         description: "Get a user by userId",
@@ -234,19 +231,19 @@ __decorate([
         responseType: "object{userId: string, balance: number, username: string}",
         example: "GET /api/users/123"
     }),
-    (0, inversify_express_utils_1.httpGet)("/:userId"),
+    httpGet("/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "getUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/create"),
+    httpPost("/create"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "createUser", null);
 __decorate([
-    (0, describe_1.describe)({
+    describe({
         endpoint: "/users/transfer-credits",
         method: "POST",
         description: "Transfer credits from one user to another",
@@ -254,14 +251,14 @@ __decorate([
         responseType: "object{message: string}",
         example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
     }),
-    (0, inversify_express_utils_1.httpPost)("/transfer-credits", LoggedCheck_1.LoggedCheck.middleware),
+    httpPost("/transfer-credits", LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "transferCredits", null);
 Users = __decorate([
-    (0, inversify_express_utils_1.controller)("/users"),
-    __param(0, (0, inversify_1.inject)("UserService")),
+    controller("/users"),
+    __param(0, inject("UserService")),
     __metadata("design:paramtypes", [Object])
 ], Users);
-exports.Users = Users;
+export { Users };
