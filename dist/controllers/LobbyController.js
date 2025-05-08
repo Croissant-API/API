@@ -126,7 +126,7 @@ __decorate([
         method: "GET",
         description: "Get a lobby by lobbyId",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/:lobbyId"),
@@ -140,7 +140,7 @@ __decorate([
         method: "POST",
         description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies/123/join"
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
@@ -154,7 +154,7 @@ __decorate([
         method: "POST",
         description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies/123/leave"
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
@@ -167,7 +167,7 @@ __decorate([
         endpoint: "/lobbies/user/@me",
         method: "GET",
         description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/user/@me"
     }),
     (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
@@ -181,7 +181,7 @@ __decorate([
         method: "GET",
         description: "Get the lobby a user is in",
         params: { userId: "The id of the user" },
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/user/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId"),
@@ -194,7 +194,7 @@ __decorate([
         endpoint: "/lobbies",
         method: "POST",
         description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies"
     }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),

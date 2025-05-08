@@ -22,7 +22,7 @@ export class Items {
         endpoint: "/items",
         method: "GET",
         description: "Get all non-deleted items",
-        responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore?: boolean}]",
+        responseType: { items: [{itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string"}]},
         example: "GET /api/items"
     })
     @httpGet("/")
@@ -46,7 +46,7 @@ export class Items {
         endpoint: "/items/@mine",
         method: "GET",
         description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "array[object{itemId: string, name: string, description: string, owner: string, price: number, iconHash: string, showInStore: boolean}]",
+        responseType: { items: [{itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean"}]},
         example: "GET /api/items/@mine"
     })
     @httpGet("/@mine", LoggedCheck.middleware)
@@ -74,7 +74,7 @@ export class Items {
         method: "GET",
         description: "Get a single item by itemId",
         params: { itemId: "The id of the item" },
-        responseType: "object{name: string, description: string, owner: string, price: number, showInStore: boolean, iconHash: string}",
+        responseType: {name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string"},
         example: "GET /api/items/123"
     })
     @httpGet("/:itemId")
@@ -112,7 +112,7 @@ export class Items {
             iconHash: "Hash of the icon (optional)",
             showInStore: "Show in store (optional, boolean)"
         },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     })
     @httpPost("/create", LoggedCheck.middleware)
@@ -156,7 +156,7 @@ export class Items {
             iconHash: "Hash of the icon (optional)",
             showInStore: "Show in store (optional, boolean)"
         },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
     })
     @httpPut("/update/:itemId", OwnerCheck.middleware)
@@ -191,7 +191,7 @@ export class Items {
         method: "DELETE",
         description: "Delete an item. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "DELETE /api/items/delete/123"
     })
     @httpDelete("/delete/:itemId", OwnerCheck.middleware)
@@ -219,7 +219,7 @@ export class Items {
         description: "Buy an item. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to buy" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/buy/item_1 {\"amount\": 2}"
     })
     @httpPost("/buy/:itemId", LoggedCheck.middleware)
@@ -275,7 +275,7 @@ export class Items {
         description: "Sell an item. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to sell" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/sell/item_1 {\"amount\": 1}"
     })
     @httpPost("/sell/:itemId", LoggedCheck.middleware)
@@ -316,7 +316,7 @@ export class Items {
         description: "Give item occurrences to a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to give" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/give/item_1 {\"amount\": 1}"
     })
     @httpPost("/give/:itemId", OwnerCheck.middleware)
@@ -355,7 +355,7 @@ export class Items {
         description: "Consume item occurrences from a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to consume" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/consume/item_1 {\"amount\": 1}"
     })
     @httpPost("/consume/:itemId", OwnerCheck.middleware)
@@ -387,7 +387,7 @@ export class Items {
         description: "Drop item occurrences from your inventory. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to drop" },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/drop/item_1 {\"amount\": 1}"
     })
     @httpPost("/drop/:itemId", LoggedCheck.middleware)
@@ -420,7 +420,7 @@ export class Items {
             amount: "The amount of the item to transfer",
             targetUserId: "The user ID of the recipient"
         },
-        responseType: "object{message: string}",
+        responseType: {message: "string"},
         example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}"
     })
     @httpPost("/transfer/:itemId", LoggedCheck.middleware)

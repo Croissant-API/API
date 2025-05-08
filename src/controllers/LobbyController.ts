@@ -22,7 +22,7 @@ export class Lobbies {
         method: "GET",
         description: "Get a lobby by lobbyId",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/123"
     })
     @httpGet("/:lobbyId")
@@ -49,7 +49,7 @@ export class Lobbies {
         method: "POST",
         description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies/123/join"
     })
     @httpPost("/:lobbyId/join", LoggedCheck.middleware)
@@ -73,7 +73,7 @@ export class Lobbies {
         method: "POST",
         description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
         params: { lobbyId: "The id of the lobby" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies/123/leave"
     })
     @httpPost("/:lobbyId/leave", LoggedCheck.middleware)
@@ -96,7 +96,7 @@ export class Lobbies {
         endpoint: "/lobbies/user/@me",
         method: "GET",
         description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/user/@me"
     })
     @httpGet("/user/@me", LoggedCheck.middleware)
@@ -122,7 +122,7 @@ export class Lobbies {
         method: "GET",
         description: "Get the lobby a user is in",
         params: { userId: "The id of the user" },
-        responseType: "object{lobbyId: string, users: array[string]}",
+        responseType: { lobbyId: "string", users: ["string"] },
         example: "GET /api/lobbies/user/123"
     })
     @httpGet("/user/:userId")
@@ -148,7 +148,7 @@ export class Lobbies {
         endpoint: "/lobbies",
         method: "POST",
         description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/lobbies"
     })
     @httpPost("/", LoggedCheck.middleware)

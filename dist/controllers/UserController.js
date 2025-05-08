@@ -178,7 +178,7 @@ __decorate([
         method: "POST",
         description: "Add a new user",
         body: { id: "The id of the user", username: "The username of the user" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
     }),
     (0, inversify_express_utils_1.httpPost)("/"),
@@ -191,7 +191,7 @@ __decorate([
         endpoint: "/users/@me",
         method: "GET",
         description: "Get the authenticated user's information",
-        responseType: "object{userId: string, balance: number, username: string}",
+        responseType: { userId: "string", balance: "number", username: "string" },
         example: "GET /api/users/@me"
     }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
@@ -205,7 +205,7 @@ __decorate([
         method: "GET",
         description: "Search for users by username",
         query: { q: "The search query" },
-        responseType: "array[object{userId: string, balance: number, username: string}]",
+        responseType: { users: [{ userId: "string", balance: "number", username: "string" }] },
         example: "GET /api/users/search?q=John"
     }),
     (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
@@ -218,7 +218,7 @@ __decorate([
         endpoint: "/users/auth-verification",
         method: "GET",
         description: "Check the verification key for the user",
-        responseType: "object{success: boolean}",
+        responseType: { success: "boolean" },
         query: { userId: "The id of the user", verificationKey: "The verification key" },
         example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
     }),
@@ -233,7 +233,7 @@ __decorate([
         method: "GET",
         description: "Get a user by userId",
         params: { userId: "The id of the user" },
-        responseType: "object{userId: string, balance: number, username: string}",
+        responseType: { userId: "string", balance: "number", username: "string" },
         example: "GET /api/users/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/:userId"),
@@ -253,7 +253,7 @@ __decorate([
         method: "POST",
         description: "Transfer credits from one user to another",
         body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
     }),
     (0, inversify_express_utils_1.httpPost)("/transfer-credits", LoggedCheck_1.LoggedCheck.middleware),

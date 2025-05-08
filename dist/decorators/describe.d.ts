@@ -5,7 +5,7 @@ export declare function describe(info: {
     params?: any;
     body?: any;
     query?: any;
-    responseType?: string;
+    responseType?: object;
     exampleResponse?: any;
     example?: string;
 }): (target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;

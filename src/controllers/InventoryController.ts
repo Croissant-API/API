@@ -23,7 +23,7 @@ export class Inventories {
         endpoint: "/inventory/",
         method: "GET",
         description: "Prompt to specify a userId for inventory lookup",
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "GET /api/inventory/"
     })
     @httpGet("/@me", LoggedCheck.middleware)
@@ -60,7 +60,7 @@ export class Inventories {
         method: "GET",
         description: "Get the inventory of a user",
         params: { userId: "The id of the user" },
-        responseType: "array[object{itemId: string, name: string, description: string, amount: number}]",
+        responseType: { inventory: [{ itemId: "string", name: "string", description: "string", amount: "number" }] },
         example: "GET /api/inventory/123"
     })
     @httpGet("/:userId")

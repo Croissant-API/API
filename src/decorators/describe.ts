@@ -9,7 +9,7 @@ export function describe(info: {
     params?: any,
     body?: any,
     query?: any,
-    responseType?: string,
+    responseType?: object,
     exampleResponse?: any,
     example?: string
 }) {

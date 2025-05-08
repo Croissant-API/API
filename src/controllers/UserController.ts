@@ -20,7 +20,7 @@ export class Users {
         method: "POST",
         description: "Add a new user",
         body: { id: "The id of the user", username: "The username of the user" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
     })
     @httpPost("/")
@@ -48,7 +48,7 @@ export class Users {
         endpoint: "/users/@me",
         method: "GET",
         description: "Get the authenticated user's information",
-        responseType: "object{userId: string, balance: number, username: string}",
+        responseType: { userId: "string", balance: "number", username: "string" },
         example: "GET /api/users/@me"
     })
     @httpGet("/@me", LoggedCheck.middleware)
@@ -78,7 +78,7 @@ export class Users {
         method: "GET",
         description: "Search for users by username",
         query: { q: "The search query" },
-        responseType: "array[object{userId: string, balance: number, username: string}]",
+        responseType: { users: [{ userId: "string", balance: "number", username: "string" }] },
         example: "GET /api/users/search?q=John"
     })
     @httpGet("/search", LoggedCheck.middleware)
@@ -112,7 +112,7 @@ export class Users {
         endpoint: "/users/auth-verification",
         method: "GET",
         description: "Check the verification key for the user",
-        responseType: "object{success: boolean}",
+        responseType: { success: "boolean" },
         query: { userId: "The id of the user", verificationKey: "The verification key" },
         example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
     })
@@ -136,7 +136,7 @@ export class Users {
         method: "GET",
         description: "Get a user by userId",
         params: { userId: "The id of the user" },
-        responseType: "object{userId: string, balance: number, username: string}",
+        responseType: { userId: "string", balance: "number", username: "string" },
         example: "GET /api/users/123"
     })
     @httpGet("/:userId")
@@ -185,7 +185,7 @@ export class Users {
         method: "POST",
         description: "Transfer credits from one user to another",
         body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
-        responseType: "object{message: string}",
+        responseType: { message: "string" },
         example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
     })
     @httpPost("/transfer-credits", LoggedCheck.middleware)
