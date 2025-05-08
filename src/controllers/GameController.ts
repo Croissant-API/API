@@ -356,6 +356,11 @@ export class Games {
                     return res.status(400).send({ message: "Not enough balance" });
                 }
                 await this.userService.updateUserBalance(userId, user.balance - game.price);
+                const owner = await this.userService.getUser(game.owner_id);
+                if (!owner) {
+                    return res.status(404).send({ message: "Owner not found" });
+                }
+                await this.userService.updateUserBalance(game.owner_id, owner.balance + (game.price * 0.75));
                 await this.gameService.addOwner(gameId, userId);
                 res.status(200).send({ message: "Game purchased" });
             }
