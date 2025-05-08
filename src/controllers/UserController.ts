@@ -78,7 +78,7 @@ export class Users {
         method: "GET",
         description: "Search for users by username",
         query: { q: "The search query" },
-        responseType: { users: [{ userId: "string", balance: "number", username: "string" }] },
+        responseType: [{ userId: "string", balance: "number", username: "string" }],
         example: "GET /api/users/search?q=John"
     })
     @httpGet("/search", LoggedCheck.middleware)

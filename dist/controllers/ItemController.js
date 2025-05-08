@@ -339,7 +339,7 @@ __decorate([
         endpoint: "/items",
         method: "GET",
         description: "Get all non-deleted items",
-        responseType: { items: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string" }] },
+        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string" }],
         example: "GET /api/items"
     }),
     (0, inversify_express_utils_1.httpGet)("/"),
@@ -352,7 +352,7 @@ __decorate([
         endpoint: "/items/@mine",
         method: "GET",
         description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: { items: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }] },
+        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
         example: "GET /api/items/@mine"
     }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),

@@ -46,28 +46,26 @@ export class Games {
         endpoint: "/games",
         method: "GET",
         description: "List all games visible in the store.",
-        responseType: {
-            games: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean"
-            }]
-        },
+        responseType: [{
+            gameId: "string",
+            name: "string",
+            description: "string",
+            price: "number",
+            owner_id: "string",
+            showInStore: "boolean",
+            iconHash: "string",
+            splashHash: "string",
+            bannerHash: "string",
+            genre: "string",
+            release_date: "string",
+            developer: "string",
+            publisher: "string",
+            platforms: ["string"],
+            rating: "number",
+            website: "string",
+            trailer_link: "string",
+            multiplayer: "boolean"
+        }],
         example: "GET /api/games"
     })
     @httpGet("/")
@@ -86,29 +84,27 @@ export class Games {
         endpoint: "/games/@mine",
         method: "GET",
         description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: {
-            games: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean",
-                download_link: "string"
-            }]
-        },
+        responseType: [{
+            gameId: "string",
+            name: "string",
+            description: "string",
+            price: "number",
+            owner_id: "string",
+            showInStore: "boolean",
+            iconHash: "string",
+            splashHash: "string",
+            bannerHash: "string",
+            genre: "string",
+            release_date: "string",
+            developer: "string",
+            publisher: "string",
+            platforms: ["string"],
+            rating: "number",
+            website: "string",
+            trailer_link: "string",
+            multiplayer: "boolean",
+            download_link: "string"
+        }],
         example: "GET /api/games/@mine"
     })
     @httpGet("/@mine", LoggedCheck.middleware)
@@ -129,29 +125,27 @@ export class Games {
         endpoint: "/games/list/@me",
         method: "GET",
         description: "Get all games owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: {
-            games: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean",
-                download_link: "string"
-            }]
-        },
+        responseType: [{
+            gameId: "string",
+            name: "string",
+            description: "string",
+            price: "number",
+            owner_id: "string",
+            showInStore: "boolean",
+            iconHash: "string",
+            splashHash: "string",
+            bannerHash: "string",
+            genre: "string",
+            release_date: "string",
+            developer: "string",
+            publisher: "string",
+            platforms: ["string"],
+            rating: "number",
+            website: "string",
+            trailer_link: "string",
+            multiplayer: "boolean",
+            download_link: "string"
+        }],
         example: "GET /api/games/list/@me"
     })
     @httpGet("/list/@me", LoggedCheck.middleware)
@@ -171,29 +165,26 @@ export class Games {
         method: "GET",
         description: "List all games owned by a specific user.",
         params: { userId: "The id of the user" },
-        responseType: {
-            games: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean",
-                download_link: "string"
-            }]
-        },
+        responseType: [{
+            gameId: "string",
+            name: "string",
+            description: "string",
+            price: "number",
+            owner_id: "string",
+            showInStore: "boolean",
+            iconHash: "string",
+            splashHash: "string",
+            bannerHash: "string",
+            genre: "string",
+            release_date: "string",
+            developer: "string",
+            publisher: "string",
+            platforms: ["string"],
+            rating: "number",
+            website: "string",
+            trailer_link: "string",
+            multiplayer: "boolean"
+        }],
         example: "GET /api/games/list/123"
     })
     @httpGet("/list/:userId")

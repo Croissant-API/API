@@ -92,7 +92,7 @@ __decorate([
         endpoint: "/inventory/",
         method: "GET",
         description: "Prompt to specify a userId for inventory lookup",
-        responseType: { message: "string" },
+        responseType: [{ itemId: "string", name: "string", description: "string", amount: "number" }],
         example: "GET /api/inventory/"
     }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
@@ -106,7 +106,7 @@ __decorate([
         method: "GET",
         description: "Get the inventory of a user",
         params: { userId: "The id of the user" },
-        responseType: { inventory: [{ itemId: "string", name: "string", description: "string", amount: "number" }] },
+        responseType: [{ itemId: "string", name: "string", description: "string", amount: "number" }],
         example: "GET /api/inventory/123"
     }),
     (0, inversify_express_utils_1.httpGet)("/:userId"),

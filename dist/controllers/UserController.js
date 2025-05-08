@@ -205,7 +205,7 @@ __decorate([
         method: "GET",
         description: "Search for users by username",
         query: { q: "The search query" },
-        responseType: { users: [{ userId: "string", balance: "number", username: "string" }] },
+        responseType: [{ userId: "string", balance: "number", username: "string" }],
         example: "GET /api/users/search?q=John"
     }),
     (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
