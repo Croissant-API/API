@@ -138,10 +138,11 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/join",
         method: "POST",
-        description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Join a lobby.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
-        example: "POST /api/lobbies/123/join"
+        example: "POST /api/lobbies/123/join",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -152,10 +153,11 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/leave",
         method: "POST",
-        description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Leave a lobby.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
-        example: "POST /api/lobbies/123/leave"
+        example: "POST /api/lobbies/123/leave",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -166,9 +168,10 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/user/@me",
         method: "GET",
-        description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Get the lobby the authenticated user is in.",
         responseType: { lobbyId: "string", users: ["string"] },
-        example: "GET /api/lobbies/user/@me"
+        example: "GET /api/lobbies/user/@me",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -193,9 +196,10 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies",
         method: "POST",
-        description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Create a new lobby.",
         responseType: { message: "string" },
-        example: "POST /api/lobbies"
+        example: "POST /api/lobbies",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

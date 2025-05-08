@@ -83,7 +83,7 @@ export class Games {
     @describe({
         endpoint: "/games/@mine",
         method: "GET",
-        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Get all games created by the authenticated user.",
         responseType: [{
             gameId: "string",
             name: "string",
@@ -105,7 +105,8 @@ export class Games {
             multiplayer: "boolean",
             download_link: "string"
         }],
-        example: "GET /api/games/@mine"
+        example: "GET /api/games/@mine",
+        requiresAuth: true
     })
     @httpGet("/@mine", LoggedCheck.middleware)
     public async getMyCreatedGames(req: AuthenticatedRequest, res: Response) {
@@ -146,7 +147,8 @@ export class Games {
             multiplayer: "boolean",
             download_link: "string"
         }],
-        example: "GET /api/games/list/@me"
+        example: "GET /api/games/list/@me",
+        requiresAuth: true
     })
     @httpGet("/list/@me", LoggedCheck.middleware)
     public async getUserGames(req: AuthenticatedRequest, res: Response) {
@@ -331,30 +333,6 @@ export class Games {
             res.status(500).send({ message: "Error updating game", error: message });
         }
     }
-
-    // @httpDelete("/:gameId", LoggedCheck.middleware)
-    // public async deleteGame(req: AuthenticatedRequest, res: Response) {
-    //     try {
-    //         await gameIdParamSchema.validate(req.params);
-    //         const game = await this.gameService.getGame(req.params.gameId);
-    //         if (!game) {
-    //             return res.status(404).send({ message: "Game not found" });
-    //         }
-    //         if(req.user.user_id !== game.owner_id) {
-    //             return res.status(403).send({ message: "You are not the owner of this game" });
-    //         }
-    //         const { gameId } = req.params;
-    //         await this.gameService.deleteGame(gameId);
-    //         res.status(200).send({ message: "Game deleted" });
-    //     } catch (error) {
-    //         if (error instanceof ValidationError) {
-    //             return res.status(400).send({ message: "Validation failed", errors: error.errors });
-    //         }
-    //         const message = (error instanceof Error) ? error.message : String(error);
-    //         res.status(500).send({ message: "Error deleting game", error: message });
-    //     }
-    // }
-
 
     @httpPost("/:gameId/buy", LoggedCheck.middleware)
     public async buyGame(req: AuthenticatedRequest, res: Response) {

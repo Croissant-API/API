@@ -192,7 +192,8 @@ __decorate([
         method: "GET",
         description: "Get the authenticated user's information",
         responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/@me"
+        example: "GET /api/users/@me",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -206,7 +207,8 @@ __decorate([
         description: "Search for users by username",
         query: { q: "The search query" },
         responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/search?q=John"
+        example: "GET /api/users/search?q=John",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -254,7 +256,8 @@ __decorate([
         description: "Transfer credits from one user to another",
         body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
         responseType: { message: "string" },
-        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
+        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/transfer-credits", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

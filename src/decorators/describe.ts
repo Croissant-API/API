@@ -11,7 +11,8 @@ export function describe(info: {
     query?: any,
     responseType?: object,
     exampleResponse?: any,
-    example?: string
+    example?: string,
+    requiresAuth?: boolean,
 }) {
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
         const category = target.constructor.name;

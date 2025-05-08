@@ -351,9 +351,10 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/@mine",
         method: "GET",
-        description: "Get all items owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Get all items owned by the authenticated user.",
         responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
-        example: "GET /api/items/@mine"
+        example: "GET /api/items/@mine",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -378,7 +379,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",
         method: "POST",
-        description: "Create a new item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Create a new item.",
         body: {
             name: "Name of the item",
             description: "Description of the item",
@@ -387,7 +388,8 @@ __decorate([
             showInStore: "Show in store (optional, boolean)"
         },
         responseType: { message: "string" },
-        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
+        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -398,7 +400,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/update/:itemId",
         method: "PUT",
-        description: "Update an existing item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Update an existing item.",
         params: { itemId: "The id of the item" },
         body: {
             name: "Name of the item",
@@ -408,7 +410,8 @@ __decorate([
             showInStore: "Show in store (optional, boolean)"
         },
         responseType: { message: "string" },
-        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}"
+        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPut)("/update/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -419,10 +422,11 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/delete/:itemId",
         method: "DELETE",
-        description: "Delete an item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Delete an item.",
         params: { itemId: "The id of the item" },
         responseType: { message: "string" },
-        example: "DELETE /api/items/delete/123"
+        example: "DELETE /api/items/delete/123",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpDelete)("/delete/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -433,11 +437,12 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/buy/:itemId",
         method: "POST",
-        description: "Buy an item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Buy an item.",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to buy" },
         responseType: { message: "string" },
-        example: "POST /api/items/buy/item_1 {\"amount\": 2}"
+        example: "POST /api/items/buy/item_1 {\"amount\": 2}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -448,11 +453,12 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/sell/:itemId",
         method: "POST",
-        description: "Sell an item. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Sell an item.",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to sell" },
         responseType: { message: "string" },
-        example: "POST /api/items/sell/item_1 {\"amount\": 1}"
+        example: "POST /api/items/sell/item_1 {\"amount\": 1}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -463,11 +469,12 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/give/:itemId",
         method: "POST",
-        description: "Give item occurrences to a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Give item occurrences to a user (owner only).",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to give" },
         responseType: { message: "string" },
-        example: "POST /api/items/give/item_1 {\"amount\": 1}"
+        example: "POST /api/items/give/item_1 {\"amount\": 1}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -478,11 +485,12 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/consume/:itemId",
         method: "POST",
-        description: "Consume item occurrences from a user (owner only). Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Consume item occurrences from a user (owner only).",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to consume" },
         responseType: { message: "string" },
-        example: "POST /api/items/consume/item_1 {\"amount\": 1}"
+        example: "POST /api/items/consume/item_1 {\"amount\": 1}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/consume/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -493,11 +501,12 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/drop/:itemId",
         method: "POST",
-        description: "Drop item occurrences from your inventory. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Drop item occurrences from your inventory.",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to drop" },
         responseType: { message: "string" },
-        example: "POST /api/items/drop/item_1 {\"amount\": 1}"
+        example: "POST /api/items/drop/item_1 {\"amount\": 1}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -508,14 +517,15 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/transfer/:itemId",
         method: "POST",
-        description: "Transfer item occurrences to another user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Transfer item occurrences to another user.",
         params: { itemId: "The id of the item" },
         body: {
             amount: "The amount of the item to transfer",
             targetUserId: "The user ID of the recipient"
         },
         responseType: { message: "string" },
-        example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}"
+        example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/transfer/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

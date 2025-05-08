@@ -8,5 +8,6 @@ export declare function describe(info: {
     responseType?: object;
     exampleResponse?: any;
     example?: string;
+    requiresAuth?: boolean;
 }): (target: any, propertyKey: string, descriptor: PropertyDescriptor) => void;
 export declare function getAllDescriptions(): any[];

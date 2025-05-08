@@ -49,7 +49,8 @@ export class Users {
         method: "GET",
         description: "Get the authenticated user's information",
         responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/@me"
+        example: "GET /api/users/@me",
+        requiresAuth: true
     })
     @httpGet("/@me", LoggedCheck.middleware)
     async getMe(req: AuthenticatedRequest, res: Response) {
@@ -79,7 +80,8 @@ export class Users {
         description: "Search for users by username",
         query: { q: "The search query" },
         responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/search?q=John"
+        example: "GET /api/users/search?q=John",
+        requiresAuth: true
     })
     @httpGet("/search", LoggedCheck.middleware)
     public async searchUsers(req: AuthenticatedRequest, res: Response) {
@@ -186,7 +188,8 @@ export class Users {
         description: "Transfer credits from one user to another",
         body: { targetUserId: "The id of the recipient", amount: "The amount to transfer" },
         responseType: { message: "string" },
-        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }"
+        example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }",
+        requiresAuth: true
     })
     @httpPost("/transfer-credits", LoggedCheck.middleware)
     public async transferCredits(req: AuthenticatedRequest, res: Response) {

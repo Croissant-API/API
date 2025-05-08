@@ -178,28 +178,6 @@ let Games = class Games {
             res.status(500).send({ message: "Error updating game", error: message });
         }
     }
-    // @httpDelete("/:gameId", LoggedCheck.middleware)
-    // public async deleteGame(req: AuthenticatedRequest, res: Response) {
-    //     try {
-    //         await gameIdParamSchema.validate(req.params);
-    //         const game = await this.gameService.getGame(req.params.gameId);
-    //         if (!game) {
-    //             return res.status(404).send({ message: "Game not found" });
-    //         }
-    //         if(req.user.user_id !== game.owner_id) {
-    //             return res.status(403).send({ message: "You are not the owner of this game" });
-    //         }
-    //         const { gameId } = req.params;
-    //         await this.gameService.deleteGame(gameId);
-    //         res.status(200).send({ message: "Game deleted" });
-    //     } catch (error) {
-    //         if (error instanceof ValidationError) {
-    //             return res.status(400).send({ message: "Validation failed", errors: error.errors });
-    //         }
-    //         const message = (error instanceof Error) ? error.message : String(error);
-    //         res.status(500).send({ message: "Error deleting game", error: message });
-    //     }
-    // }
     async buyGame(req, res) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
@@ -267,7 +245,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/games/@mine",
         method: "GET",
-        description: "Get all games created by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Get all games created by the authenticated user.",
         responseType: [{
                 gameId: "string",
                 name: "string",
@@ -289,7 +267,8 @@ __decorate([
                 multiplayer: "boolean",
                 download_link: "string"
             }],
-        example: "GET /api/games/@mine"
+        example: "GET /api/games/@mine",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -322,7 +301,8 @@ __decorate([
                 multiplayer: "boolean",
                 download_link: "string"
             }],
-        example: "GET /api/games/list/@me"
+        example: "GET /api/games/list/@me",
+        requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

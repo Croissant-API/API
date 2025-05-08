@@ -47,10 +47,11 @@ export class Lobbies {
     @describe({
         endpoint: "/lobbies/:lobbyId/join",
         method: "POST",
-        description: "Join a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Join a lobby.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
-        example: "POST /api/lobbies/123/join"
+        example: "POST /api/lobbies/123/join",
+        requiresAuth: true
     })
     @httpPost("/:lobbyId/join", LoggedCheck.middleware)
     public async joinLobby(req: AuthenticatedRequest, res: Response) {
@@ -71,10 +72,11 @@ export class Lobbies {
     @describe({
         endpoint: "/lobbies/:lobbyId/leave",
         method: "POST",
-        description: "Leave a lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Leave a lobby.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
-        example: "POST /api/lobbies/123/leave"
+        example: "POST /api/lobbies/123/leave",
+        requiresAuth: true
     })
     @httpPost("/:lobbyId/leave", LoggedCheck.middleware)
     public async leaveLobby(req: AuthenticatedRequest, res: Response) {
@@ -95,9 +97,10 @@ export class Lobbies {
     @describe({
         endpoint: "/lobbies/user/@me",
         method: "GET",
-        description: "Get the lobby the authenticated user is in. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Get the lobby the authenticated user is in.",
         responseType: { lobbyId: "string", users: ["string"] },
-        example: "GET /api/lobbies/user/@me"
+        example: "GET /api/lobbies/user/@me",
+        requiresAuth: true
     })
     @httpGet("/user/@me", LoggedCheck.middleware)
     public async getMyLobby(req: AuthenticatedRequest, res: Response) {
@@ -147,9 +150,10 @@ export class Lobbies {
     @describe({
         endpoint: "/lobbies",
         method: "POST",
-        description: "Create a new lobby. Requires authentication via header \"Authorization: Bearer <token>\".",
+        description: "Create a new lobby.",
         responseType: { message: "string" },
-        example: "POST /api/lobbies"
+        example: "POST /api/lobbies",
+        requiresAuth: true
     })
     @httpPost("/", LoggedCheck.middleware)
     public async createLobby(req: AuthenticatedRequest, res: Response) {
