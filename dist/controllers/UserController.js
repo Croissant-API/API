@@ -130,7 +130,8 @@ let Users = class Users {
         catch (err) {
             return res.status(400).send({ message: "Invalid user data", error: err });
         }
-        const { userId, username, balance } = req.body;
+        const { userId, username } = req.body;
+        const balance = 0;
         try {
             await this.userService.createUser(userId, username, balance);
             res.status(201).send({ message: "User created" });
