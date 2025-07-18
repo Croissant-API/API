@@ -14,6 +14,7 @@ import "./controllers/ItemController";
 import "./controllers/LobbyController";
 import "./controllers/TradeController";
 import "./controllers/UserController";
+import "./controllers/OAuth2Controller";
 
 const server = new InversifyExpressServer(container);
 
