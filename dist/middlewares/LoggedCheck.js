@@ -15,7 +15,7 @@ LoggedCheck.middleware = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).send({ message: "Unauthorized" });
     }
-    const token = authHeader.slice(7).trim();
+    const token = authHeader.split(" ")[1];
     if (!token) {
         return res.status(401).send({ message: "Unauthorized" });
     }

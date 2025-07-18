@@ -7,4 +7,5 @@ import "./controllers/ItemController";
 import "./controllers/LobbyController";
 import "./controllers/TradeController";
 import "./controllers/UserController";
+import "./controllers/OAuth2Controller";
 export declare const app: express.Application;

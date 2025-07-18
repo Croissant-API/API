@@ -76,20 +76,39 @@ export class OAuth2 {
         res.send({ code });
     }
 
+    // Get user by code
     @describe({
-        endpoint: "/oauth2/token",
-        method: "POST",
-        description: "Échanger un code contre un token",
-        body: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
-        responseType: { access_token: "string" }
+        endpoint: "/oauth2/user",
+        method: "GET",
+        description: "Get user by code",
+        query: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
+        responseType: { user: "object" }
     })
-    @httpPost("/token")
-    async token(req: Request, res: Response) {
-        const { code, client_id, client_secret, redirect_uri } = req.body;
-        const token = await this.oauth2Service.exchangeCodeForToken(code, client_id, client_secret, redirect_uri);
-        if (!token) return res.status(400).send({ message: "Invalid code or credentials" });
-        res.send({ access_token: token });
+    @httpGet("/user", LoggedCheck.middleware)
+    async getUserByCode(req: AuthenticatedRequest, res: Response) {
+        const { code, client_id, client_secret } = req.query as any;
+        if (!code || !client_id || !client_secret) {
+            return res.status(400).send({ message: "Missing params" });
+        }
+        const user = await this.oauth2Service.getUserByCode(code, client_id, client_secret);
+        if (!user) return res.status(404).send({ message: "User not found" });
+        res.send(user);
     }
+
+    // @describe({
+    //     endpoint: "/oauth2/token",
+    //     method: "POST",
+    //     description: "Échanger un code contre un token",
+    //     body: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
+    //     responseType: { access_token: "string" }
+    // })
+    // @httpPost("/token")
+    // async token(req: Request, res: Response) {
+    //     const { code, client_id, client_secret, redirect_uri } = req.body;
+    //     const token = await this.oauth2Service.exchangeCodeForToken(code, client_id, client_secret, redirect_uri);
+    //     if (!token) return res.status(400).send({ message: "Invalid code or credentials" });
+    //     res.send({ access_token: token });
+    // }
 
     @httpDelete("/app/:client_id", LoggedCheck.middleware)
     async deleteApp(req: AuthenticatedRequest, res: Response) {
