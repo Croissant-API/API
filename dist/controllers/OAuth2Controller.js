@@ -92,20 +92,6 @@ let OAuth2 = class OAuth2 {
             return res.status(404).send({ message: "User not found" });
         res.send(user);
     }
-    // @describe({
-    //     endpoint: "/oauth2/token",
-    //     method: "POST",
-    //     description: "Échanger un code contre un token",
-    //     body: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
-    //     responseType: { access_token: "string" }
-    // })
-    // @httpPost("/token")
-    // async token(req: Request, res: Response) {
-    //     const { code, client_id, client_secret, redirect_uri } = req.body;
-    //     const token = await this.oauth2Service.exchangeCodeForToken(code, client_id, client_secret, redirect_uri);
-    //     if (!token) return res.status(400).send({ message: "Invalid code or credentials" });
-    //     res.send({ access_token: token });
-    // }
     async deleteApp(req, res) {
         const { client_id } = req.params;
         const userId = req.user.user_id;
@@ -152,7 +138,7 @@ __decorate([
         query: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
         responseType: { user: "object" }
     }),
-    (0, inversify_express_utils_1.httpGet)("/user", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/user"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
