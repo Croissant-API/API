@@ -12,7 +12,7 @@ export class Inventories {
     constructor(
         @inject("InventoryService") private inventoryService: IInventoryService,
         @inject("ItemService") private itemService: IItemService,
-    ) {}
+    ) { }
 
     @httpGet("/")
     public async getAllInventories(req: Request, res: Response) {
@@ -31,9 +31,15 @@ export class Inventories {
         const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
+            const seen = new Set<string>();
+            const uniqueInventory = inventory.filter(item => {
+                if (seen.has(item.item_id)) return false;
+                seen.add(item.item_id);
+                return true;
+            });
             const filteredInventory = (
                 await Promise.all(
-                    inventory.map(async (item) => {
+                    uniqueInventory.map(async (item) => {
                         const itemDetails = await this.itemService.getItem(item.item_id);
                         if (!itemDetails || itemDetails.deleted) {
                             return null; // Skip deleted items
