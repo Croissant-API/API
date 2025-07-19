@@ -1,12 +1,14 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
+import { User } from "interfaces/User";
+import { IUserService } from "./UserService";
 
 export interface ILobbyService {
     getLobby(lobbyId: string): Promise<Lobby | null>;
     joinLobby(lobbyId: string, userId: string): Promise<void>;
     leaveLobby(lobbyId: string, userId: string): Promise<void>;
-    getUserLobby(userId: string): Promise<Lobby | null>;
+    getUserLobby(userId: string): Promise<{ lobbyId: string, users: (User | null)[] } | null>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;
 }
@@ -14,8 +16,9 @@ export interface ILobbyService {
 @injectable()
 export class LobbyService implements ILobbyService {
     constructor(
-        @inject("DatabaseService") private databaseService: IDatabaseService
-    ) {}
+        @inject("DatabaseService") private databaseService: IDatabaseService,
+        @inject("UserService") private userService: IUserService
+    ) { }
 
     async getLobby(lobbyId: string): Promise<Lobby | null> {
         const rows = await this.databaseService.read<Lobby[]>(
@@ -54,14 +57,15 @@ export class LobbyService implements ILobbyService {
         }
     }
 
-    async getUserLobby(userId: string): Promise<Lobby | null> {
-        const rows = await this.databaseService.read<{ lobbyId: string,  users: string }[]>(
+    async getUserLobby(userId: string): Promise<{ lobbyId: string, users: (User | null)[] } | null> {
+        const rows = await this.databaseService.read<{ lobbyId: string, users: string }[]>(
             "SELECT lobbyId, users FROM lobbies"
         );
         for (const row of rows) {
-            const users: string[] = JSON.parse(row.users);
-            if (users.includes(userId)) {
-                return { lobbyId: row.lobbyId, users: row.users };
+            const users: (User | null)[] = await Promise.all(JSON.parse(row.users).map((u: string) => this.userService.getUser(u)));
+            if (users.find(user => user?.user_id === userId)) {
+                // Retourne les utilisateurs déjà parsés, pas la string JSON
+                return { lobbyId: row.lobbyId, users };
             }
         }
         return null;

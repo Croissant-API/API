@@ -15,8 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
 const inversify_1 = require("inversify");
 let LobbyService = class LobbyService {
-    constructor(databaseService) {
+    constructor(databaseService, userService) {
         this.databaseService = databaseService;
+        this.userService = userService;
     }
     async getLobby(lobbyId) {
         const rows = await this.databaseService.read("SELECT users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
@@ -50,9 +51,10 @@ let LobbyService = class LobbyService {
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const users = JSON.parse(row.users);
-            if (users.includes(userId)) {
-                return { lobbyId: row.lobbyId, users: row.users };
+            const users = await Promise.all(JSON.parse(row.users).map((u) => this.userService.getUser(u)));
+            if (users.find(user => user?.user_id === userId)) {
+                // Retourne les utilisateurs déjà parsés, pas la string JSON
+                return { lobbyId: row.lobbyId, users };
             }
         }
         return null;
@@ -67,6 +69,7 @@ let LobbyService = class LobbyService {
 LobbyService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("UserService")),
+    __metadata("design:paramtypes", [Object, Object])
 ], LobbyService);
 exports.LobbyService = LobbyService;

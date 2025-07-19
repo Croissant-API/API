@@ -97,7 +97,7 @@ let UserService = class UserService {
         }
         const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === api_key) || null;
         if (!user) {
-            console.error("User not found or API key mismatch", api_key);
+            // console.error("User not found or API key mismatch", api_key);
             return null;
         }
         return user;
