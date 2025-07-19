@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Trade, TradeItem } from "../interfaces/Trade";
@@ -5,23 +6,13 @@ import { v4 } from "uuid";
 import { IInventoryService } from "./InventoryService";
 
 export interface ITradeService {
-    createTrade(trade: Omit<Trade, "id">): Promise<Omit<Trade, "id">>;
+    startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
     getTradeById(id: string): Promise<Trade | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
-    updateTradeStatus(id: string, status: string): Promise<void>;
-    approveTrade(id: string, userId: string): Promise<void>;
-    deleteTrade(id: string): Promise<void>;
-    addItemToTrade(
-        tradeId: string,
-        userKey: "fromUserItems" | "toUserItems",
-        tradeItem: TradeItem
-    ): Promise<void>;
-    removeItemToTrade(
-        tradeId: string,
-        userKey: "fromUserItems" | "toUserItems",
-        tradeItem: TradeItem
-    ): Promise<void>;
-
+    addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
+    removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
+    approveTrade(tradeId: string, userId: string): Promise<void>;
+    cancelTrade(tradeId: string, userId: string): Promise<void>;
 }
 
 @injectable()
@@ -31,28 +22,51 @@ export class TradeService implements ITradeService {
         @inject("InventoryService") private inventoryService: IInventoryService
     ) {}
 
-    async createTrade(trade: Omit<Trade, "id">): Promise<Omit<Trade, "id">> {
-        const uniqueId = v4(); // Generate a unique ID for the trade
-        this.databaseService.create(
-            `INSERT INTO trades 
-                (fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, uniqueId, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    async startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade> {
+        // Cherche une trade pending entre ces deux users (dans les deux sens)
+        const trades = await this.databaseService.read<any[]>(
+            `SELECT * FROM trades WHERE status = 'pending' AND ((fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?)) ORDER BY createdAt DESC LIMIT 1`,
+            [fromUserId, toUserId, toUserId, fromUserId]
+        );
+        if (trades.length > 0) {
+            return this.deserializeTrade(trades[0]);
+        }
+        // Sinon, crée une nouvelle trade
+        const now = new Date().toISOString();
+        const id = v4();
+        const newTrade: Trade = {
+            id,
+            fromUserId,
+            toUserId,
+            fromUserItems: [],
+            toUserItems: [],
+            approvedFromUser: false,
+            approvedToUser: false,
+            status: "pending",
+            createdAt: now,
+            updatedAt: now
+        };
+        await this.databaseService.create(
+            `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                trade.fromUserId,
-                trade.toUserId,
-                JSON.stringify(trade.fromUserItems),
-                JSON.stringify(trade.toUserItems),
-                trade.approvedFromUser,
-                trade.approvedToUser,
-                uniqueId,
-                'pending',
+                newTrade.id,
+                newTrade.fromUserId,
+                newTrade.toUserId,
+                JSON.stringify(newTrade.fromUserItems),
+                JSON.stringify(newTrade.toUserItems),
+                0,
+                0,
+                newTrade.status,
+                newTrade.createdAt,
+                newTrade.updatedAt
             ]
         );
-        return trade;
+        return newTrade;
     }
 
     async getTradeById(id: string): Promise<Trade | null> {
-        const trades = await this.databaseService.read<Trade[]>(
+        const trades = await this.databaseService.read<any[]>(
             "SELECT * FROM trades WHERE id = ?",
             [id]
         );
@@ -61,129 +75,124 @@ export class TradeService implements ITradeService {
     }
 
     async getTradesByUser(userId: string): Promise<Trade[]> {
-        const trades = await this.databaseService.read<Trade[]>(
-            "SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ?",
+        const trades = await this.databaseService.read<any[]>(
+            "SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC",
             [userId, userId]
         );
         return trades.map(this.deserializeTrade);
     }
 
-    async updateTradeStatus(id: string, status: string): Promise<void> {
-        await this.databaseService.update(
-            "UPDATE trades SET status = ? WHERE id = ?",
-            [status, id]
-        );
-    }
-
-    async approveTrade(id: string, userId: string): Promise<void> {
-        const trade = await this.getTradeById(id);
-        if (!trade) return;
-        if (trade.fromUserId === userId) {
-            await this.databaseService.update(
-                "UPDATE trades SET approvedFromUser = ? WHERE id = ?",
-                [true, id]
-            );
-        } else if (trade.toUserId === userId) {
-            await this.databaseService.update(
-                "UPDATE trades SET approvedToUser = ? WHERE id = ?",
-                [true, id]
-            );
-        }
-    }
-
-    async deleteTrade(id: string): Promise<void> {
-        await this.databaseService.delete(
-            "DELETE FROM trades WHERE id = ?",
-            [id]
-        );
-    }
-
-    async addItemToTrade(
-        tradeId: string,
-        userKey: "fromUserItems" | "toUserItems",
-        tradeItem: TradeItem
-    ): Promise<void> {
+    async addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void> {
         const trade = await this.getTradeById(tradeId);
-        if (!trade) return;
+        if (!trade) throw new Error("Trade not found");
+        if (trade.status !== "pending") throw new Error("Trade is not pending");
+        let userKey: "fromUserItems" | "toUserItems";
+        if (trade.fromUserId === userId) userKey = "fromUserItems";
+        else if (trade.toUserId === userId) userKey = "toUserItems";
+        else throw new Error("User not part of this trade");
 
-        // Determine which user is adding the item
-        const userId = userKey === "fromUserItems" ? trade.fromUserId : trade.toUserId;
-
-        // Check if user has the item in their inventory
+        // Check if user has enough items
         const hasItem = await this.inventoryService.hasItem(userId, tradeItem.itemId, tradeItem.amount);
-        if (!hasItem) {
-            throw new Error("User does not have enough of the item to add to trade");
-        }
+        if (!hasItem) throw new Error("User does not have enough of the item");
 
-        const items = [...trade[userKey], tradeItem];
-        await this.databaseService.update(
-            `UPDATE trades SET ${userKey} = ? WHERE id = ?`,
-            [JSON.stringify(items), tradeId]
-        );
-    }
-    async removeItemToTrade(
-        tradeId: string,
-        userKey: "fromUserItems" | "toUserItems",
-        tradePredicate: TradeItem
-    ): Promise<void> {
-        const trade = await this.getTradeById(tradeId);
-        if (!trade) return;
-        if(!trade[userKey]) return;
-
-        const tradeItems = trade[userKey];
-        const item: TradeItem | null = tradeItems.find(item => item.itemId === tradePredicate.itemId) || null;
-        if(!item) return;
-        
-        item.amount -= tradePredicate.amount;
-        const items = tradeItems
-            .filter(
-                (item: TradeItem) => item.amount > 0
-            );
+        // Ajoute ou update l'item dans la liste
+        const items = [...trade[userKey]];
+        const idx = items.findIndex(i => i.itemId === tradeItem.itemId);
+        if (idx >= 0) items[idx].amount += tradeItem.amount;
+        else items.push({ ...tradeItem });
         trade[userKey] = items;
-
+        trade.updatedAt = new Date().toISOString();
+        trade.approvedFromUser = false;
+        trade.approvedToUser = false;
         await this.databaseService.update(
-            `UPDATE trades SET ${userKey} = ? WHERE id = ?`,
-            [JSON.stringify(trade[userKey]), tradeId]
+            `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
+            [JSON.stringify(items), trade.updatedAt, tradeId]
         );
     }
 
-    async exchangeTradeItems(
-        tradeId: string,
-        fromUserId: string,
-        toUserId: string
-    ): Promise<void> {
+    async removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void> {
         const trade = await this.getTradeById(tradeId);
-        if (!trade) return;
-        if (trade.fromUserId !== fromUserId || trade.toUserId !== toUserId) {
-            throw new Error("Trade does not belong to the user");
-        }
-        if (!trade.approvedFromUser || !trade.approvedToUser) {
-            throw new Error("Trade not approved by both users");
-        }
-        if (trade.status !== "pending") {
-            throw new Error("Trade is not pending");
-        }
+        if (!trade) throw new Error("Trade not found");
+        if (trade.status !== "pending") throw new Error("Trade is not pending");
+        let userKey: "fromUserItems" | "toUserItems";
+        if (trade.fromUserId === userId) userKey = "fromUserItems";
+        else if (trade.toUserId === userId) userKey = "toUserItems";
+        else throw new Error("User not part of this trade");
 
-        const fromUserItems = trade.fromUserItems;
-        const toUserItems = trade.toUserItems;
+        const items = [...trade[userKey]];
+        const idx = items.findIndex(i => i.itemId === tradeItem.itemId);
+        if (idx === -1) throw new Error("Item not found in trade");
+        if (items[idx].amount < tradeItem.amount) throw new Error("Not enough amount to remove");
+        items[idx].amount -= tradeItem.amount;
+        if (items[idx].amount <= 0) items.splice(idx, 1);
+        trade[userKey] = items;
+        trade.updatedAt = new Date().toISOString();
+        trade.approvedFromUser = false;
+        trade.approvedToUser = false;
+        await this.databaseService.update(
+            `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
+            [JSON.stringify(items), trade.updatedAt, tradeId]
+        );
+    }
 
-        // Remove items from the inventories of both users
-        for (const item of fromUserItems) {
-            await this.inventoryService.removeItem(fromUserId, item.itemId, item.amount);
-        }
-        for (const item of toUserItems) {
-            await this.inventoryService.removeItem(toUserId, item.itemId, item.amount);
-        }
-        // Add items to the inventories of both users
-        for (const item of fromUserItems) {
-            await this.inventoryService.addItem(toUserId, item.itemId, item.amount);
-        }
-        for (const item of toUserItems) {
-            await this.inventoryService.addItem(fromUserId, item.itemId, item.amount);
-        }
+    async approveTrade(tradeId: string, userId: string): Promise<void> {
+        const trade = await this.getTradeById(tradeId);
+        if (!trade) throw new Error("Trade not found");
+        if (trade.status !== "pending") throw new Error("Trade is not pending");
+        let updateField = "";
+        if (trade.fromUserId === userId) updateField = "approvedFromUser";
+        else if (trade.toUserId === userId) updateField = "approvedToUser";
+        else throw new Error("User not part of this trade");
 
-        // After the exchange, you might want to update the trade status
-        await this.updateTradeStatus(tradeId, "completed");
+        trade[updateField as "approvedFromUser" | "approvedToUser"] = true;
+        trade.updatedAt = new Date().toISOString();
+        await this.databaseService.update(
+            `UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`,
+            [trade.updatedAt, tradeId]
+        );
+
+        // Si les deux ont approuvé, on échange les items et on passe à completed
+        const refreshed = await this.getTradeById(tradeId);
+        if (refreshed && refreshed.approvedFromUser && refreshed.approvedToUser) {
+            await this.exchangeTradeItems(refreshed);
+        }
+    }
+
+    async cancelTrade(tradeId: string, userId: string): Promise<void> {
+        const trade = await this.getTradeById(tradeId);
+        if (!trade) throw new Error("Trade not found");
+        if (trade.status !== "pending") throw new Error("Trade is not pending");
+        if (trade.fromUserId !== userId && trade.toUserId !== userId) throw new Error("User not part of this trade");
+        trade.status = "canceled";
+        trade.updatedAt = new Date().toISOString();
+        await this.databaseService.update(
+            `UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`,
+            [trade.status, trade.updatedAt, tradeId]
+        );
+    }
+
+    // Échange les items et passe la trade à completed
+    private async exchangeTradeItems(trade: Trade): Promise<void> {
+        // Retire les items des inventaires
+        for (const item of trade.fromUserItems) {
+            await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
+        }
+        for (const item of trade.toUserItems) {
+            await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
+        }
+        // Ajoute les items à l'autre user
+        for (const item of trade.fromUserItems) {
+            await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount);
+        }
+        for (const item of trade.toUserItems) {
+            await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount);
+        }
+        // Met à jour la trade
+        const now = new Date().toISOString();
+        await this.databaseService.update(
+            `UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`,
+            [now, trade.id]
+        );
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
