@@ -90,7 +90,7 @@ let Users = class Users {
         }
     }
     async checkVerificationKey(req, res) {
-        const { userId, verificationKey } = req.query;
+        const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey) {
             return res.status(400).send({ message: "Missing userId or verificationKey" });
         }
@@ -219,11 +219,11 @@ __decorate([
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/auth-verification",
-        method: "GET",
+        method: "POST",
         description: "Check the verification key for the user",
         responseType: { success: "boolean" },
         query: { userId: "The id of the user", verificationKey: "The verification key" },
-        example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
+        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
     }),
     (0, inversify_express_utils_1.httpPost)("/auth-verification"),
     __metadata("design:type", Function),

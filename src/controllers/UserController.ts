@@ -112,15 +112,15 @@ export class Users {
 
     @describe({
         endpoint: "/users/auth-verification",
-        method: "GET",
+        method: "POST",
         description: "Check the verification key for the user",
         responseType: { success: "boolean" },
         query: { userId: "The id of the user", verificationKey: "The verification key" },
-        example: "GET /api/users/auth-verification?userId=123&verificationKey=abc123"
+        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
     })
     @httpPost("/auth-verification")
     async checkVerificationKey(req: Request, res: Response) {
-        const { userId, verificationKey } = req.query as { userId: string, verificationKey: string };
+        const { userId, verificationKey } = req.body as { userId: string, verificationKey: string };
         if (!userId || !verificationKey) {
             return res.status(400).send({ message: "Missing userId or verificationKey" });
         }
