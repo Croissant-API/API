@@ -68,7 +68,7 @@ export class Users {
             ...discordUser,
             id: user.user_id,
             userId: user.user_id,
-            balance: user.balance,
+            balance: Math.floor(user.balance),
             username: user.username,
             verificationKey: genVerificationKey(user.user_id)
         };
@@ -101,7 +101,7 @@ export class Users {
                     id: user.user_id,
                     userId: user.user_id,
                     username: user.username,
-                    balance: user.balance,
+                    balance: Math.floor(user.balance),
                 });
             }
             res.send(filtered);
@@ -161,7 +161,7 @@ export class Users {
             ...discordUser,
             id: user.user_id,
             userId: user.user_id,
-            balance: user.balance,
+            balance: Math.floor(user.balance),
             username: user.username,
         };
         res.send(filteredUser);
