@@ -57,14 +57,20 @@ export class LobbyService implements ILobbyService {
         }
     }
 
-    async getUserLobby(userId: string): Promise<{ lobbyId: string, users: (User | null)[] } | null> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getUserLobby(userId: string): Promise<{ lobbyId: string, users: any[] } | null> {
         const rows = await this.databaseService.read<{ lobbyId: string, users: string }[]>(
             "SELECT lobbyId, users FROM lobbies"
         );
         for (const row of rows) {
-            const users: (User | null)[] = await Promise.all(JSON.parse(row.users).map((u: string) => this.userService.getUser(u)));
-            if (users.find(user => user?.user_id === userId)) {
-                // Retourne les utilisateurs déjà parsés, pas la string JSON
+            const fetchedUsers: (User | null)[] = await Promise
+                .all(JSON.parse(row.users).map((u: string) => this.userService.getUser(u)))
+                .catch(() => []);
+            const users = await Promise.all(
+                fetchedUsers.map(u => this.userService.getDiscordUser(u?.user_id || ""))
+            );
+            if (fetchedUsers.find(user => user?.user_id === userId)) {
+                // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
             }
         }

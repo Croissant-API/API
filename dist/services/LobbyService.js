@@ -48,12 +48,16 @@ let LobbyService = class LobbyService {
             await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers), lobbyId]);
         }
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const users = await Promise.all(JSON.parse(row.users).map((u) => this.userService.getUser(u)));
-            if (users.find(user => user?.user_id === userId)) {
-                // Retourne les utilisateurs déjà parsés, pas la string JSON
+            const fetchedUsers = await Promise
+                .all(JSON.parse(row.users).map((u) => this.userService.getUser(u)))
+                .catch(() => []);
+            const users = await Promise.all(fetchedUsers.map(u => this.userService.getDiscordUser(u?.user_id || "")));
+            if (fetchedUsers.find(user => user?.user_id === userId)) {
+                // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
             }
         }

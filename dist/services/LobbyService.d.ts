@@ -22,7 +22,7 @@ export declare class LobbyService implements ILobbyService {
     leaveLobby(lobbyId: string, userId: string): Promise<void>;
     getUserLobby(userId: string): Promise<{
         lobbyId: string;
-        users: (User | null)[];
+        users: any[];
     } | null>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;
