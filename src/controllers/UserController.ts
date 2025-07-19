@@ -120,7 +120,7 @@ export class Users {
     })
     @httpPost("/auth-verification")
     async checkVerificationKey(req: Request, res: Response) {
-        const { userId, verificationKey } = req.body as { userId: string, verificationKey: string };
+        const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey) {
             return res.status(400).send({ message: "Missing userId or verificationKey" });
         }
@@ -129,7 +129,7 @@ export class Users {
             return res.status(404).send({ message: "User not found" });
         }
         const expectedKey = genVerificationKey(user.user_id);
-        res.send({ success: verificationKey !== expectedKey });
+        res.send({ success: verificationKey === expectedKey });
     }
 
 

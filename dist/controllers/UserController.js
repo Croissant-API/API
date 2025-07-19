@@ -99,7 +99,7 @@ let Users = class Users {
             return res.status(404).send({ message: "User not found" });
         }
         const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
-        res.send({ success: verificationKey !== expectedKey });
+        res.send({ success: verificationKey === expectedKey });
     }
     async getUser(req, res) {
         try {
