@@ -2,14 +2,16 @@ export interface TradeItem {
     itemId: string;
     amount: number;
 }
+export type TradeStatus = "pending" | "approved" | "completed" | "canceled";
 export interface Trade {
-    id: number;
+    id: string;
     fromUserId: string;
     toUserId: string;
     fromUserItems: TradeItem[];
     toUserItems: TradeItem[];
     approvedFromUser: boolean;
     approvedToUser: boolean;
-    uniqueId: string;
-    status: string;
+    status: TradeStatus;
+    createdAt: string;
+    updatedAt: string;
 }

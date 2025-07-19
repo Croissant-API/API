@@ -31,11 +31,16 @@ let InventoryService = class InventoryService {
         return items[0].amount;
     }
     async addItem(userId, itemId, amount) {
-        // Try to update, if not exists, insert
-        await this.databaseService.update(`INSERT INTO inventories (user_id, item_id, amount)
-             VALUES (?, ?, ?)`, 
-        //  ON CONFLICT(user_id, item_id) DO UPDATE SET amount = amount + ?`,
-        [userId, itemId, amount]);
+        // Check if the item already exists
+        const items = await this.databaseService.read("SELECT * FROM inventories WHERE user_id = ? AND item_id = ?", [userId, itemId]);
+        if (items.length > 0) {
+            // Item exists, update the amount
+            await this.databaseService.update("UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ?", [amount, userId, itemId]);
+        }
+        else {
+            // Item does not exist, insert new row
+            await this.databaseService.update("INSERT INTO inventories (user_id, item_id, amount) VALUES (?, ?, ?)", [userId, itemId, amount]);
+        }
     }
     async removeItem(userId, itemId, amount) {
         // Decrease amount, but not below zero

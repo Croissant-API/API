@@ -57,6 +57,7 @@ let Users = class Users {
         const discordUser = await this.userService.getDiscordUser(user.user_id);
         const filteredUser = {
             ...discordUser,
+            id: user.user_id,
             userId: user.user_id,
             balance: user.balance,
             username: user.username,
@@ -76,6 +77,7 @@ let Users = class Users {
                 const discordUser = await this.userService.getDiscordUser(user.user_id);
                 filtered.push({
                     ...discordUser,
+                    id: user.user_id,
                     userId: user.user_id,
                     username: user.username,
                     balance: user.balance,
@@ -117,6 +119,7 @@ let Users = class Users {
         const discordUser = await this.userService.getDiscordUser(user.user_id);
         const filteredUser = {
             ...discordUser,
+            id: user.user_id,
             userId: user.user_id,
             balance: user.balance,
             username: user.username,

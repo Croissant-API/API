@@ -4,6 +4,7 @@ import { IDatabaseService } from "./DatabaseService";
 import { Trade, TradeItem } from "../interfaces/Trade";
 import { v4 } from "uuid";
 import { IInventoryService } from "./InventoryService";
+import { IItemService } from "./ItemService";
 
 export interface ITradeService {
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
@@ -19,7 +20,8 @@ export interface ITradeService {
 export class TradeService implements ITradeService {
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService,
-        @inject("InventoryService") private inventoryService: IInventoryService
+        @inject("InventoryService") private inventoryService: IInventoryService,
+        @inject("ItemService") private itemService: IItemService // <-- à injecter
     ) {}
 
     async startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade> {
@@ -65,13 +67,34 @@ export class TradeService implements ITradeService {
         return newTrade;
     }
 
+    private async enrichTradeItems(trade: Trade): Promise<Trade> {
+        // Remplace chaque itemId par l'objet complet
+        const enrich = async (tradeItems: TradeItem[]) => {
+            return Promise.all(
+                tradeItems.map(async ti => {
+                    const item = await this.itemService.getItem(ti.itemId);
+                    if (!item || !item.itemId) {
+                        throw new Error("Item not found or missing itemId");
+                    }
+                    return { ...item, itemId: item.itemId as string, amount: ti.amount };
+                })
+            ) as Promise<TradeItem[]>;
+        };
+        return {
+            ...trade,
+            fromUserItems: await enrich(trade.fromUserItems),
+            toUserItems: await enrich(trade.toUserItems),
+        };
+    }
+
     async getTradeById(id: string): Promise<Trade | null> {
         const trades = await this.databaseService.read<any[]>(
             "SELECT * FROM trades WHERE id = ?",
             [id]
         );
         if (trades.length === 0) return null;
-        return this.deserializeTrade(trades[0]);
+        const trade = this.deserializeTrade(trades[0]);
+        return await this.enrichTradeItems(trade);
     }
 
     async getTradesByUser(userId: string): Promise<Trade[]> {
@@ -79,7 +102,8 @@ export class TradeService implements ITradeService {
             "SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC",
             [userId, userId]
         );
-        return trades.map(this.deserializeTrade);
+        const deserialized = trades.map(this.deserializeTrade);
+        return Promise.all(deserialized.map(t => this.enrichTradeItems(t)));
     }
 
     async addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void> {
@@ -152,9 +176,8 @@ export class TradeService implements ITradeService {
         );
 
         // Si les deux ont approuvé, on échange les items et on passe à completed
-        const refreshed = await this.getTradeById(tradeId);
-        if (refreshed && refreshed.approvedFromUser && refreshed.approvedToUser) {
-            await this.exchangeTradeItems(refreshed);
+        if (trade.approvedFromUser && trade.approvedToUser) {
+            await this.exchangeTradeItems(trade);
         }
     }
 

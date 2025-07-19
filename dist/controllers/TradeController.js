@@ -22,19 +22,20 @@ let Trades = class Trades {
     constructor(tradeService) {
         this.tradeService = tradeService;
     }
-    async createTrade(req, res) {
+    // Commencer ou récupérer la dernière trade pending entre deux users
+    async startOrGetPendingTrade(req, res) {
         try {
-            const trade = req.body;
-            await TradeValidator_1.tradeSchema.validate(trade, { abortEarly: false });
-            const createdTrade = await this.tradeService.createTrade(trade);
-            res.status(201).send(createdTrade);
+            const fromUserId = req.user.user_id;
+            const toUserId = req.params.userId;
+            if (fromUserId === toUserId) {
+                return res.status(400).send({ message: "Cannot trade with yourself" });
+            }
+            const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId);
+            res.status(200).send(trade);
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
             const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error creating trade", error: message });
+            res.status(500).send({ message: "Error starting or getting trade", error: message });
         }
     }
     async getTradeById(req, res) {
@@ -43,6 +44,10 @@ let Trades = class Trades {
             const trade = await this.tradeService.getTradeById(id);
             if (!trade) {
                 return res.status(404).send({ message: "Trade not found" });
+            }
+            // Sécurité : seuls les users concernés peuvent voir la trade
+            if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
+                return res.status(403).send({ message: "Forbidden" });
             }
             res.send(trade);
         }
@@ -54,6 +59,10 @@ let Trades = class Trades {
     async getTradesByUser(req, res) {
         try {
             const userId = req.params.userId;
+            // Sécurité : un user ne peut voir que ses propres trades
+            if (userId !== req.user.user_id) {
+                return res.status(403).send({ message: "Forbidden" });
+            }
             const trades = await this.tradeService.getTradesByUser(userId);
             res.send(trades);
         }
@@ -62,55 +71,12 @@ let Trades = class Trades {
             res.status(500).send({ message: "Error fetching trades", error: message });
         }
     }
-    async updateTradeStatus(req, res) {
-        try {
-            await TradeValidator_1.tradeStatusSchema.validate(req.body, { abortEarly: false });
-            const id = req.params.id;
-            const { status } = req.body;
-            await this.tradeService.updateTradeStatus(id, status);
-            res.status(200).send({ message: "Trade status updated" });
-        }
-        catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error updating trade status", error: message });
-        }
-    }
-    async approveTrade(req, res) {
-        try {
-            await TradeValidator_1.tradeApproveSchema.validate(req.body, { abortEarly: false });
-            const id = req.params.id;
-            const userId = req.user.user_id;
-            await this.tradeService.approveTrade(id, userId);
-            res.status(200).send({ message: "Trade approved" });
-        }
-        catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error approving trade", error: message });
-        }
-    }
-    async deleteTrade(req, res) {
-        try {
-            const id = req.params.id;
-            await this.tradeService.deleteTrade(id);
-            res.status(200).send({ message: "Trade deleted" });
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error deleting trade", error: message });
-        }
-    }
     async addItemToTrade(req, res) {
         try {
             await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
-            const { userKey, tradeItem } = req.body;
-            await this.tradeService.addItemToTrade(tradeId, userKey, tradeItem);
+            const { tradeItem } = req.body;
+            await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item added to trade" });
         }
         catch (error) {
@@ -121,12 +87,12 @@ let Trades = class Trades {
             res.status(500).send({ message: "Error adding item to trade", error: message });
         }
     }
-    async removeItemToTrade(req, res) {
+    async removeItemFromTrade(req, res) {
         try {
             await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
-            const { userKey, tradeItem } = req.body;
-            await this.tradeService.removeItemToTrade(tradeId, userKey, tradeItem);
+            const { tradeItem } = req.body;
+            await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item removed from trade" });
         }
         catch (error) {
@@ -137,13 +103,35 @@ let Trades = class Trades {
             res.status(500).send({ message: "Error removing item from trade", error: message });
         }
     }
+    async approveTrade(req, res) {
+        try {
+            const tradeId = req.params.id;
+            await this.tradeService.approveTrade(tradeId, req.user.user_id);
+            res.status(200).send({ message: "Trade approved" });
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error approving trade", error: message });
+        }
+    }
+    async cancelTrade(req, res) {
+        try {
+            const tradeId = req.params.id;
+            await this.tradeService.cancelTrade(tradeId, req.user.user_id);
+            res.status(200).send({ message: "Trade canceled" });
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error canceling trade", error: message });
+        }
+    }
 };
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/start-or-latest/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Trades.prototype, "createTrade", null);
+], Trades.prototype, "startOrGetPendingTrade", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -157,24 +145,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "getTradesByUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPut)("/:id/status", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Trades.prototype, "updateTradeStatus", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Trades.prototype, "approveTrade", null);
-__decorate([
-    (0, inversify_express_utils_1.httpDelete)("/:id", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Trades.prototype, "deleteTrade", null);
-__decorate([
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -185,7 +155,19 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Trades.prototype, "removeItemToTrade", null);
+], Trades.prototype, "removeItemFromTrade", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Trades.prototype, "approveTrade", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPut)("/:id/cancel", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Trades.prototype, "cancelTrade", null);
 Trades = __decorate([
     (0, inversify_express_utils_1.controller)("/trades"),
     __param(0, (0, inversify_1.inject)("TradeService")),
