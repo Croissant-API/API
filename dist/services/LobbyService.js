@@ -37,7 +37,6 @@ let LobbyService = class LobbyService {
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
-        console.log(lobby);
         if (!lobby)
             throw new Error("Lobby not found");
         const newUsers = JSON.parse(lobby.users).filter((u) => u !== userId);

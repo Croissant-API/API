@@ -44,7 +44,6 @@ export class LobbyService implements ILobbyService {
 
     async leaveLobby(lobbyId: string, userId: string): Promise<void> {
         const lobby = await this.getLobby(lobbyId);
-        console.log(lobby);
         if (!lobby) throw new Error("Lobby not found");
         const newUsers = JSON.parse(lobby.users).filter((u: string) => u !== userId);
         if (newUsers.length === 0) {
