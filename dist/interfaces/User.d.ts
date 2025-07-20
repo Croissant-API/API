@@ -12,4 +12,5 @@ export interface User {
     steam_id?: string;
     steam_username?: string;
     steam_avatar_url?: string;
+    forgot_password_token?: string;
 }

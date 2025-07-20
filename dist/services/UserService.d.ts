@@ -20,6 +20,7 @@ export interface IUserService {
     findByEmail(email: string): Promise<User | null>;
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;
+    generatePasswordResetToken(user_id: string): Promise<string>;
 }
 export declare class UserService implements IUserService {
     private databaseService;
@@ -59,4 +60,5 @@ export declare class UserService implements IUserService {
      */
     getUserBySteamId(steamId: string): Promise<User | null>;
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
+    generatePasswordResetToken(email: string): Promise<string>;
 }

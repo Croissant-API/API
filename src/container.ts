@@ -9,6 +9,7 @@ import { ITradeService, TradeService } from "./services/TradeService";
 import { IGameService, GameService } from "./services/GameService";
 import { OAuth2Service, IOAuth2Service } from "./services/OAuth2Service";
 import { ISteamOAuthService, SteamOAuthService } from "./services/SteamOAuthService";
+import { IMailService, MailService } from "./services/MailService";
 
 const container = new Container();
 
@@ -21,5 +22,6 @@ container.bind<ITradeService>("TradeService").to(TradeService).inSingletonScope(
 container.bind<IGameService>("GameService").to(GameService).inSingletonScope();
 container.bind<IOAuth2Service>("OAuth2Service").to(OAuth2Service).inSingletonScope();
 container.bind<ISteamOAuthService>("SteamOAuthService").to(SteamOAuthService).inSingletonScope();
+container.bind<IMailService>("MailService").to(MailService).inSingletonScope();
 
 export default container;

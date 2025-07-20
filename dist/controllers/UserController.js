@@ -24,6 +24,7 @@ const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const SteamOAuthService_1 = require("../services/SteamOAuthService");
+const MailService_1 = require("../services/MailService");
 let Users = class Users {
     /**
      * Connexion via OAuth (Google/Discord)
@@ -40,6 +41,7 @@ let Users = class Users {
             // Création d'un nouvel utilisateur si non existant
             const userId = crypto.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
+            await this.mailService.sendAccountConfirmationMail(user.email);
         }
         else {
             // Si l'association n'existe pas, on l'ajoute
@@ -57,9 +59,10 @@ let Users = class Users {
         }
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
     }
-    constructor(userService, steamOAuthService) {
+    constructor(userService, steamOAuthService, mailService) {
         this.userService = userService;
         this.steamOAuthService = steamOAuthService;
+        this.mailService = mailService;
     }
     /**
  * Change le pseudo de l'utilisateur connecté
@@ -331,6 +334,18 @@ let Users = class Users {
         const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
         res.send({ success: verificationKey === expectedKey });
     }
+    async isValidResetToken(req, res) {
+        const { reset_token } = req.query;
+        if (!reset_token) {
+            return res.status(400).send({ message: "Missing required fields" });
+        }
+        const users = await this.userService.getAllUsersWithDisabled();
+        const user = users.find(u => u.forgot_password_token === reset_token);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid reset token" });
+        }
+        res.status(200).send({ message: "Valid reset token", user });
+    }
     async getUser(req, res) {
         try {
             await UserValidator_1.userIdParamValidator.validate(req.params);
@@ -377,6 +392,7 @@ let Users = class Users {
         try {
             // Crée ou associe l'utilisateur selon l'email et provider
             const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
+            await this.mailService.sendAccountConfirmationMail(user.email);
             res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
@@ -404,6 +420,9 @@ let Users = class Users {
         if (user.disabled) {
             return res.status(403).send({ message: "Account is disabled" });
         }
+        this.mailService.sendConnectionNotificationMail(user.email, user.username).catch(err => {
+            console.error("Error sending connection notification email", err);
+        });
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
     }
     async changePassword(req, res) {
@@ -468,6 +487,44 @@ let Users = class Users {
             console.error("Error transferring credits", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error transferring credits", error: message });
+        }
+    }
+    async forgotPassword(req, res) {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).send({ message: "Email is required" });
+        }
+        const user = await this.userService.findByEmail(email);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid email" });
+        }
+        // Here you would typically generate a password reset token and send it via email
+        const passwordResetToken = await this.userService.generatePasswordResetToken(email);
+        await this.mailService.sendPasswordResetMail(email, passwordResetToken);
+        res.status(200).send({ message: "Password reset email sent" });
+    }
+    async resetPassword(req, res) {
+        const { new_password, confirm_password, reset_token } = req.body;
+        if (!new_password || !reset_token || !confirm_password) {
+            return res.status(400).send({ message: "Missing required fields" });
+        }
+        if (new_password !== confirm_password) {
+            return res.status(400).send({ message: "New password and confirm password do not match" });
+        }
+        const allUsers = await this.userService.getAllUsersWithDisabled();
+        const user = allUsers.find(u => u.forgot_password_token === reset_token);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid user" });
+        }
+        const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
+        try {
+            await this.userService.updateUserPassword(user.user_id, hashedPassword);
+            res.status(200).send({ message: "Password reset successfully", token: (0, GenKey_1.genKey)(user.user_id) });
+        }
+        catch (error) {
+            console.error("Error resetting password", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error resetting password", error: message });
         }
     }
 };
@@ -582,6 +639,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "checkVerificationKey", null);
 __decorate([
+    (0, inversify_express_utils_1.httpGet)("/validate-reset-token"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "isValidResetToken", null);
+__decorate([
     (0, describe_1.describe)({
         endpoint: "/users/:userId",
         method: "GET",
@@ -628,10 +691,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "transferCredits", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/forgot-password"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "forgotPassword", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/reset-password"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "resetPassword", null);
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("SteamOAuthService")),
-    __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService])
+    __param(2, (0, inversify_1.inject)("MailService")),
+    __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService,
+        MailService_1.MailService])
 ], Users);
 exports.Users = Users;

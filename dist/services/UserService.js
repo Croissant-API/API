@@ -21,6 +21,7 @@ const GenKey_1 = require("../utils/GenKey");
 const UserCache_1 = require("../utils/UserCache");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
+const crypto_1 = __importDefault(require("crypto"));
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = class UserService {
@@ -174,6 +175,11 @@ let UserService = class UserService {
     }
     async updateUserPassword(user_id, hashedPassword) {
         await this.databaseService.update("UPDATE users SET password = ? WHERE user_id = ?", [hashedPassword, user_id]);
+    }
+    async generatePasswordResetToken(email) {
+        const token = crypto_1.default.randomBytes(32).toString('hex');
+        await this.databaseService.update("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
+        return token;
     }
 };
 UserService = __decorate([

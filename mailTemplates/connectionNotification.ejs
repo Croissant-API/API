@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Notification de connexion</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f6f8fa; margin:0; padding:0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background: #f6f8fa; padding: 40px 0;">
+        <tr>
+            <td align="center">
+                <table width="400" cellpadding="0" cellspacing="0" style="background: #fff; border-radius: 8px; box-shadow:0 2px 8px rgba(0,0,0,0.05); padding: 32px;">
+                    <tr>
+                        <td align="center" style="padding-bottom: 24px;">
+                            <img src="https://croissant-api.fr/favicon.png" alt="Logo" width="48" height="48" style="display:block;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="font-size: 22px; color: #333; font-weight: bold; padding-bottom: 12px;">
+                            New Login Detected
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="font-size: 16px; color: #555; padding-bottom: 24px;">
+                            Hello <%= username %>,<br>
+                            We have detected a new login to your account.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="font-size:12px; color:#aaa; padding-top:32px;">
+                            If you did not initiate this login, please secure your account immediately.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

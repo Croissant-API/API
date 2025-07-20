@@ -2,15 +2,17 @@ import { Request, Response } from 'express';
 import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { SteamOAuthService } from '../services/SteamOAuthService';
+import { MailService } from '../services/MailService';
 export declare class Users {
     private userService;
     private steamOAuthService;
+    private mailService;
     /**
      * Connexion via OAuth (Google/Discord)
      * Body attendu : { email, provider, providerId, username? }
      */
     loginOAuth(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    constructor(userService: IUserService, steamOAuthService: SteamOAuthService);
+    constructor(userService: IUserService, steamOAuthService: SteamOAuthService, mailService: MailService);
     /**
  * Change le pseudo de l'utilisateur connecté
  * POST /users/change-username
@@ -48,9 +50,12 @@ export declare class Users {
     reenableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     adminGetUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    isValidResetToken(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     register(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     login(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     changePassword(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     transferCredits(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    forgotPassword(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    resetPassword(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

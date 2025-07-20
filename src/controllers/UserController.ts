@@ -10,6 +10,7 @@ import { genKey, genVerificationKey } from '../utils/GenKey';
 
 import { User } from '../interfaces/User';
 import { SteamOAuthService } from '../services/SteamOAuthService';
+import { MailService } from '../services/MailService';
 
 
 @controller("/users")
@@ -30,6 +31,7 @@ export class Users {
             // Création d'un nouvel utilisateur si non existant
             const userId = crypto.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
+            await this.mailService.sendAccountConfirmationMail(user.email);
         } else {
             // Si l'association n'existe pas, on l'ajoute
             if ((provider === "discord" && !user.discord_id) || (provider === "google" && !user.google_id)) {
@@ -48,7 +50,8 @@ export class Users {
     }
     constructor(
         @inject("UserService") private userService: IUserService,
-        @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService
+        @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService,
+        @inject("MailService") private mailService: MailService
     ) {}
 
         /**
@@ -382,6 +385,20 @@ export class Users {
         res.send({ success: verificationKey === expectedKey });
     }
 
+    
+    @httpGet("/validate-reset-token")
+    public async isValidResetToken(req: Request, res: Response) {
+        const { reset_token } = req.query;
+        if (!reset_token) {
+            return res.status(400).send({ message: "Missing required fields" });
+        }
+        const users = await this.userService.getAllUsersWithDisabled();
+        const user = users.find(u => u.forgot_password_token === reset_token);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid reset token" });
+        }
+        res.status(200).send({ message: "Valid reset token", user });
+    }
 
     @describe({
         endpoint: "/users/:userId",
@@ -439,6 +456,7 @@ export class Users {
         try {
             // Crée ou associe l'utilisateur selon l'email et provider
             const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
+            await this.mailService.sendAccountConfirmationMail(user.email);
             res.status(201).send({ message: "User registered", token: genKey(user.user_id) });
         } catch (error) {
             console.error("Error registering user", error);
@@ -467,6 +485,9 @@ export class Users {
         if (user.disabled) {
             return res.status(403).send({ message: "Account is disabled" });
         }
+        this.mailService.sendConnectionNotificationMail(user.email, user.username).catch(err => {
+            console.error("Error sending connection notification email", err);
+        });
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: genKey(user.user_id) });
     }
 
@@ -544,6 +565,47 @@ export class Users {
             console.error("Error transferring credits", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error transferring credits", error: message });
+        }
+    }
+
+    @httpPost("/forgot-password")
+    public async forgotPassword(req: Request, res: Response) {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).send({ message: "Email is required" });
+        }
+        const user = await this.userService.findByEmail(email);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid email" });
+        }
+        // Here you would typically generate a password reset token and send it via email
+        const passwordResetToken = await this.userService.generatePasswordResetToken(email)
+        await this.mailService.sendPasswordResetMail(email, passwordResetToken);
+        res.status(200).send({ message: "Password reset email sent" });
+    }
+
+    @httpPost("/reset-password")
+    public async resetPassword(req: Request, res: Response) {
+        const { new_password, confirm_password,  reset_token } = req.body;
+        if (!new_password || !reset_token || !confirm_password) {
+            return res.status(400).send({ message: "Missing required fields" });
+        }
+        if (new_password !== confirm_password) {
+            return res.status(400).send({ message: "New password and confirm password do not match" });
+        }
+        const allUsers = await this.userService.getAllUsersWithDisabled();
+        const user = allUsers.find(u => u.forgot_password_token === reset_token);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid user" });
+        }
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        try {
+            await this.userService.updateUserPassword(user.user_id, hashedPassword);
+            res.status(200).send({ message: "Password reset successfully", token: genKey(user.user_id) });
+        } catch (error) {
+            console.error("Error resetting password", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error resetting password", error: message });
         }
     }
 }

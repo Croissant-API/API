@@ -12,4 +12,5 @@ export interface User {
     steam_id?: string; // UUID Steam associé
     steam_username?: string; // Nom d'utilisateur Steam
     steam_avatar_url?: string; // URL de l'avatar Steam
+    forgot_password_token?: string; // Token pour réinitialisation de mot de passe
 }

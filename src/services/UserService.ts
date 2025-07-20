@@ -5,6 +5,7 @@ import { genKey } from "../utils/GenKey";
 import { getCachedUser, setCachedUser } from "../utils/UserCache";
 import { config } from "dotenv";
 import path from "path";
+import crypto from "crypto";
 
 config({ path: path.join(__dirname, "..", "..", ".env") });
 
@@ -31,6 +32,7 @@ export interface IUserService {
     findByEmail(email: string): Promise<User | null>;
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;
+    generatePasswordResetToken(user_id: string): Promise<string>;
 }
 
 @injectable()
@@ -246,5 +248,14 @@ export class UserService implements IUserService {
             "UPDATE users SET password = ? WHERE user_id = ?",
             [hashedPassword, user_id]
         );
+    }
+
+    async generatePasswordResetToken(email: string): Promise<string> {
+        const token = crypto.randomBytes(32).toString('hex');
+        await this.databaseService.update(
+            "UPDATE users SET forgot_password_token = ? WHERE email = ?",
+            [token, email]
+        );
+        return token;
     }
 }
