@@ -191,8 +191,8 @@ export class Games {
         }],
         example: "GET /api/games/search?q=Minecraft"
     })
-    @httpGet("/search", LoggedCheck.middleware)
-    public async searchGames(req: AuthenticatedRequest, res: Response) {
+    @httpGet("/search")
+    public async searchGames(req: Request, res: Response) {
         const query = (req.query.q as string)?.trim();
         if (!query) {
             return res.status(400).send({ message: "Missing search query" });

@@ -360,7 +360,7 @@ __decorate([
             }],
         example: "GET /api/games/search?q=Minecraft"
     }),
-    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/search"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

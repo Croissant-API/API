@@ -111,20 +111,28 @@ let Users = class Users {
         res.send(filteredUser);
     }
     async register(req, res) {
-        const { userId, username, email, password } = req.body;
-        if (!userId || !username || !email || !password) {
+        const { username, email, password } = req.body;
+        let { userId } = req.body;
+        if (!username || !email || !password) {
             return res.status(400).send({ message: "Missing required fields" });
+        }
+        if (!userId) {
+            userId = crypto.randomUUID();
         }
         const allUsers = await this.userService.getAllUsers();
         if (allUsers.some(u => u.email === email)) {
             return res.status(409).send({ message: "Email already in use" });
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).send({ message: "Invalid email address" });
         }
         // Hash du mot de passe
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         try {
             // TODO: Adapter UserService.createUser pour gérer email et password
             await this.userService.createUser(userId, username, email, hashedPassword);
-            res.status(201).send({ message: "User registered" });
+            res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(userId) });
         }
         catch (error) {
             console.error("Error registering user", error);
@@ -236,9 +244,8 @@ __decorate([
         query: { q: "The search query" },
         responseType: [{ userId: "string", balance: "number", username: "string" }],
         example: "GET /api/users/search?q=John",
-        requiresAuth: true
     }),
-    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpGet)("/search"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

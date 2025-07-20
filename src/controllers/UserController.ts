@@ -54,10 +54,9 @@ export class Users {
         query: { q: "The search query" },
         responseType: [{ userId: "string", balance: "number", username: "string" }],
         example: "GET /api/users/search?q=John",
-        requiresAuth: true
     })
-    @httpGet("/search", LoggedCheck.middleware)
-    public async searchUsers(req: AuthenticatedRequest, res: Response) {
+    @httpGet("/search")
+    public async searchUsers(req: Request, res: Response) {
         const query = (req.query.q as string)?.trim();
         if (!query) {
             return res.status(400).send({ message: "Missing search query" });
@@ -141,20 +140,30 @@ export class Users {
 
     @httpPost("/register")
     public async register(req: Request, res: Response) {
-        const { userId, username, email, password } = req.body;
-        if (!userId || !username || !email || !password) {
+        const { username, email, password } = req.body;
+        let { userId } = req.body;
+        if (!username || !email || !password) {
             return res.status(400).send({ message: "Missing required fields" });
+        }
+        if(!userId) {
+            userId = crypto.randomUUID();
         }
         const allUsers = await this.userService.getAllUsers();
         if (allUsers.some(u => u.email === email)) {
             return res.status(409).send({ message: "Email already in use" });
         }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).send({ message: "Invalid email address" });
+        }
+
         // Hash du mot de passe
         const hashedPassword = await bcrypt.hash(password, 10);
         try {
             // TODO: Adapter UserService.createUser pour gérer email et password
             await this.userService.createUser(userId, username , email, hashedPassword );
-            res.status(201).send({ message: "User registered" });
+            res.status(201).send({ message: "User registered", token: genKey(userId) });
         } catch (error) {
             console.error("Error registering user", error);
             const message = (error instanceof Error) ? error.message : String(error);
