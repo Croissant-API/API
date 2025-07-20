@@ -100,47 +100,6 @@
     },
     "timestamp": 1752928410577
   },
-  "843808047042134026": {
-    "data": {
-      "id": "843808047042134026",
-      "username": "chichimeetsyoko",
-      "avatar": "0820f97f34ad065fb7d76637fb9ecfbc",
-      "discriminator": "0",
-      "public_flags": 4194560,
-      "flags": 4194560,
-      "banner": "563b2172746b99319c67f125bd4025fc",
-      "accent_color": 3149675,
-      "global_name": "(♡ω♡ ) ~♪ Chris ♪ ~(♡ω♡ )",
-      "avatar_decoration_data": {
-        "asset": "a_c48b135704ecb5c88f2f71f6c8bcce2f",
-        "sku_id": "1357589632581374042",
-        "expires_at": null
-      },
-      "collectibles": {
-        "nameplate": {
-          "sku_id": "1349849614286585866",
-          "asset": "nameplates/nameplates/cityscape/",
-          "label": "COLLECTIBLES_NAMEPLATES_CITYSCAPE_A11Y",
-          "palette": "violet"
-        }
-      },
-      "display_name_styles": null,
-      "banner_color": "#300f6b",
-      "clan": {
-        "identity_guild_id": "370472939054956546",
-        "identity_enabled": true,
-        "tag": "FICS",
-        "badge": "8e228078dc56d4ad8bdccb696d4e90be"
-      },
-      "primary_guild": {
-        "identity_guild_id": "370472939054956546",
-        "identity_enabled": true,
-        "tag": "FICS",
-        "badge": "8e228078dc56d4ad8bdccb696d4e90be"
-      }
-    },
-    "timestamp": 1753004191258
-  },
   "724847846897221642": {
     "data": {
       "id": "724847846897221642",
@@ -266,5 +225,46 @@
       "primary_guild": null
     },
     "timestamp": 1753006106522
+  },
+  "843808047042134026": {
+    "data": {
+      "id": "843808047042134026",
+      "username": "chichimeetsyoko",
+      "avatar": "0820f97f34ad065fb7d76637fb9ecfbc",
+      "discriminator": "0",
+      "public_flags": 4194560,
+      "flags": 4194560,
+      "banner": "563b2172746b99319c67f125bd4025fc",
+      "accent_color": 3149675,
+      "global_name": "(♡ω♡ ) ~♪ Chris ♪ ~(♡ω♡ )",
+      "avatar_decoration_data": {
+        "asset": "a_c48b135704ecb5c88f2f71f6c8bcce2f",
+        "sku_id": "1357589632581374042",
+        "expires_at": null
+      },
+      "collectibles": {
+        "nameplate": {
+          "sku_id": "1349849614286585866",
+          "asset": "nameplates/nameplates/cityscape/",
+          "label": "COLLECTIBLES_NAMEPLATES_CITYSCAPE_A11Y",
+          "palette": "violet"
+        }
+      },
+      "display_name_styles": null,
+      "banner_color": "#300f6b",
+      "clan": {
+        "identity_guild_id": "370472939054956546",
+        "identity_enabled": true,
+        "tag": "FICS",
+        "badge": "8e228078dc56d4ad8bdccb696d4e90be"
+      },
+      "primary_guild": {
+        "identity_guild_id": "370472939054956546",
+        "identity_enabled": true,
+        "tag": "FICS",
+        "badge": "8e228078dc56d4ad8bdccb696d4e90be"
+      }
+    },
+    "timestamp": 1753007856597
   }
 }

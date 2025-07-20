@@ -114,58 +114,58 @@ export class Users {
         }
     }
 
-    @describe({
-        endpoint: "/users/getAllUsers",
-        method: "GET",
-        description: "Get all users",
-        responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/getAllUsers",
-        requiresAuth: true
-    })
-    @httpGet("/getAllUsers")
-    public async getAllUsers(req: Request, res: Response) {
-        try {
-            const users = await this.userService.getAllUsers();
-            res.send(users.map(u=>{
-                return {
-                    id: u.id,
-                    user_id: u.user_id,
-                    balance: u.balance,
-                    username: u.username,
-                    email: u.email
-                };
-            }));
-        } catch (error) {
-            console.error("Error fetching all users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching all users", error: message });
-        }
-    }
+    // @describe({
+    //     endpoint: "/users/getAllUsers",
+    //     method: "GET",
+    //     description: "Get all users",
+    //     responseType: [{ userId: "string", balance: "number", username: "string" }],
+    //     example: "GET /api/users/getAllUsers",
+    //     requiresAuth: true
+    // })
+    // @httpGet("/getAllUsers")
+    // public async getAllUsers(req: Request, res: Response) {
+    //     try {
+    //         const users = await this.userService.getAllUsers();
+    //         res.send(users.map(u=>{
+    //             return {
+    //                 id: u.id,
+    //                 user_id: u.user_id,
+    //                 balance: u.balance,
+    //                 username: u.username,
+    //                 email: u.email
+    //             };
+    //         }));
+    //     } catch (error) {
+    //         console.error("Error fetching all users", error);
+    //         const message = (error instanceof Error) ? error.message : String(error);
+    //         res.status(500).send({ message: "Error fetching all users", error: message });
+    //     }
+    // }
 
-    @httpGet("/admin/getAllUsers", LoggedCheck.middleware)
-    public async adminGetAllUsers(req: AuthenticatedRequest, res: Response) {
-        if(!req.user.admin) {
-            return res.status(403).send({ message: "Forbidden" });
-        }
-        try {
-            const users = await this.userService.getAllUsersWithDisabled();
-            res.send(users.map(u=>{
-                return {
-                    id: u.id,
-                    user_id: u.user_id,
-                    balance: u.balance,
-                    username: u.username,
-                    email: u.email,
-                    disabled: !!u.disabled,
-                    admin: !!u.admin
-                };
-            }));
-        } catch (error) {
-            console.error("Error fetching all users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching all users", error: message });
-        }
-    }
+    // @httpGet("/admin/getAllUsers", LoggedCheck.middleware)
+    // public async adminGetAllUsers(req: AuthenticatedRequest, res: Response) {
+    //     if(!req.user.admin) {
+    //         return res.status(403).send({ message: "Forbidden" });
+    //     }
+    //     try {
+    //         const users = await this.userService.getAllUsersWithDisabled();
+    //         res.send(users.map(u=>{
+    //             return {
+    //                 id: u.id,
+    //                 user_id: u.user_id,
+    //                 balance: u.balance,
+    //                 username: u.username,
+    //                 email: u.email,
+    //                 disabled: !!u.disabled,
+    //                 admin: !!u.admin
+    //             };
+    //         }));
+    //     } catch (error) {
+    //         console.error("Error fetching all users", error);
+    //         const message = (error instanceof Error) ? error.message : String(error);
+    //         res.status(500).send({ message: "Error fetching all users", error: message });
+    //     }
+    // }
 
     @httpPost("/admin/disable/:userId", LoggedCheck.middleware)
     public async disableAccount(req: AuthenticatedRequest, res: Response) {
