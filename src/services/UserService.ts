@@ -1,3 +1,5 @@
+
+
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
@@ -15,7 +17,7 @@ export interface IUserService {
     getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
-    createUser(user_id: string, username: string, email: string, password: string): Promise<void>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;
@@ -27,10 +29,33 @@ export interface IUserService {
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
+    findByEmail(email: string): Promise<User | null>;
+    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
 }
 
 @injectable()
 export class UserService implements IUserService {
+    /**
+     * Trouve un utilisateur par email (email unique)
+     */
+    async findByEmail(email: string): Promise<User | null> {
+        const users = await this.databaseService.read<User[]>(
+            "SELECT * FROM users WHERE email = ?",
+            [email]
+        );
+        return users.length > 0 ? users[0] : null;
+    }
+
+    /**
+     * Associe un identifiant OAuth (discord ou google) à un utilisateur existant
+     */
+    async associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void> {
+        const column = provider === "discord" ? "discord_id" : "google_id";
+        await this.databaseService.update(
+            `UPDATE users SET ${column} = ? WHERE user_id = ?`,
+            [providerId, user_id]
+        );
+    }
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
     ) { }
@@ -100,11 +125,26 @@ export class UserService implements IUserService {
         );
     }
 
-    async createUser(user_id: string, username: string, email: string, password: string): Promise<void> {
+    /**
+     * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
+     * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
+     */
+    async createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User> {
+        // Vérifie si l'utilisateur existe déjà par email
+        const existing = await this.findByEmail(email);
+        if (existing) {
+            // Si provider info, associe l'OAuth
+            if (provider && providerId) {
+                await this.associateOAuth(existing.user_id, provider, providerId);
+            }
+            return existing;
+        }
+        // Création du nouvel utilisateur
         await this.databaseService.create(
-            "INSERT INTO users (user_id, username, email, password, balance) VALUES (?, ?, ?, ?, ?)",
-            [user_id, username, email, password, 0]
+            "INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)",
+            [user_id, username, email, password, provider === "discord" ? providerId : null, provider === "google" ? providerId : null]
         );
+        return await this.getUser(user_id) as User;
     }
 
     async getUser(user_id: string): Promise<User | null> {

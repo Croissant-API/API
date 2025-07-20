@@ -9,8 +9,41 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { genKey, genVerificationKey } from '../utils/GenKey';
 import { User } from '../interfaces/User';
 
+
 @controller("/users")
 export class Users {
+    /**
+     * Connexion via OAuth (Google/Discord)
+     * Body attendu : { email, provider, providerId, username? }
+     */
+    @httpPost("/login-oauth")
+    public async loginOAuth(req: Request, res: Response) {
+        const { email, provider, providerId, username } = req.body;
+        if (!email || !provider || !providerId) {
+            return res.status(400).send({ message: "Missing email, provider or providerId" });
+        }
+        // Vérifie si l'utilisateur existe par email
+        let user = await this.userService.findByEmail(email);
+        if (!user) {
+            // Création d'un nouvel utilisateur si non existant
+            const userId = crypto.randomUUID();
+            user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
+        } else {
+            // Si l'association n'existe pas, on l'ajoute
+            if ((provider === "discord" && !user.discord_id) || (provider === "google" && !user.google_id)) {
+                await this.userService.associateOAuth(user.user_id, provider, providerId);
+            }
+            // Vérifie que l'id provider correspond bien
+            if ((provider === "discord" && user.discord_id && user.discord_id !== providerId) ||
+                (provider === "google" && user.google_id && user.google_id !== providerId)) {
+                return res.status(401).send({ message: "OAuth providerId mismatch" });
+            }
+        }
+        if (user.disabled) {
+            return res.status(403).send({ message: "Account is disabled" });
+        }
+        res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: genKey(user.user_id) });
+    }
     constructor(
         @inject("UserService") private userService: IUserService,
     ) {}
@@ -113,59 +146,6 @@ export class Users {
             res.status(500).send({ message: "Error searching users", error: message });
         }
     }
-
-    // @describe({
-    //     endpoint: "/users/getAllUsers",
-    //     method: "GET",
-    //     description: "Get all users",
-    //     responseType: [{ userId: "string", balance: "number", username: "string" }],
-    //     example: "GET /api/users/getAllUsers",
-    //     requiresAuth: true
-    // })
-    // @httpGet("/getAllUsers")
-    // public async getAllUsers(req: Request, res: Response) {
-    //     try {
-    //         const users = await this.userService.getAllUsers();
-    //         res.send(users.map(u=>{
-    //             return {
-    //                 id: u.id,
-    //                 user_id: u.user_id,
-    //                 balance: u.balance,
-    //                 username: u.username,
-    //                 email: u.email
-    //             };
-    //         }));
-    //     } catch (error) {
-    //         console.error("Error fetching all users", error);
-    //         const message = (error instanceof Error) ? error.message : String(error);
-    //         res.status(500).send({ message: "Error fetching all users", error: message });
-    //     }
-    // }
-
-    // @httpGet("/admin/getAllUsers", LoggedCheck.middleware)
-    // public async adminGetAllUsers(req: AuthenticatedRequest, res: Response) {
-    //     if(!req.user.admin) {
-    //         return res.status(403).send({ message: "Forbidden" });
-    //     }
-    //     try {
-    //         const users = await this.userService.getAllUsersWithDisabled();
-    //         res.send(users.map(u=>{
-    //             return {
-    //                 id: u.id,
-    //                 user_id: u.user_id,
-    //                 balance: u.balance,
-    //                 username: u.username,
-    //                 email: u.email,
-    //                 disabled: !!u.disabled,
-    //                 admin: !!u.admin
-    //             };
-    //         }));
-    //     } catch (error) {
-    //         console.error("Error fetching all users", error);
-    //         const message = (error instanceof Error) ? error.message : String(error);
-    //         res.status(500).send({ message: "Error fetching all users", error: message });
-    //     }
-    // }
 
     @httpPost("/admin/disable/:userId", LoggedCheck.middleware)
     public async disableAccount(req: AuthenticatedRequest, res: Response) {
@@ -280,30 +260,26 @@ export class Users {
 
     @httpPost("/register")
     public async register(req: Request, res: Response) {
-        const { username, email, password } = req.body;
+        const { username, email, password, provider, providerId } = req.body;
         let { userId } = req.body;
-        if (!username || !email || !password) {
+        if (!username || !email || (!password && !provider)) {
             return res.status(400).send({ message: "Missing required fields" });
         }
-        if(!userId) {
+        if (!userId) {
             userId = crypto.randomUUID();
         }
-        const allUsers = await this.userService.getAllUsers();
-        if (allUsers.some(u => u.email === email)) {
-            return res.status(409).send({ message: "Email already in use" });
-        }
-
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return res.status(400).send({ message: "Invalid email address" });
         }
-
-        // Hash du mot de passe
-        const hashedPassword = await bcrypt.hash(password, 10);
+        let hashedPassword = null;
+        if (password) {
+            hashedPassword = await bcrypt.hash(password, 10);
+        }
         try {
-            // TODO: Adapter UserService.createUser pour gérer email et password
-            await this.userService.createUser(userId, username , email, hashedPassword );
-            res.status(201).send({ message: "User registered", token: genKey(userId) });
+            // Crée ou associe l'utilisateur selon l'email et provider
+            const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
+            res.status(201).send({ message: "User registered", token: genKey(user.user_id) });
         } catch (error) {
             console.error("Error registering user", error);
             const message = (error instanceof Error) ? error.message : String(error);
