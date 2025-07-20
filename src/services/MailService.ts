@@ -19,7 +19,7 @@ export class MailService implements IMailService {
             secure: true, // true for 465, false for other ports
             auth: {
                 user: process.env.SMTP_USER || 'contact@croissant-api.fr',
-                pass: process.env.SMTP_PASS || 'OVHtipouf2010',
+                pass: process.env.SMTP_PASS,
             }
         });
     }
