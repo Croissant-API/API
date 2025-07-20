@@ -12,6 +12,13 @@ export declare class Users {
     loginOAuth(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     constructor(userService: IUserService, steamOAuthService: SteamOAuthService);
     /**
+ * Change le pseudo de l'utilisateur connecté
+ * POST /users/change-username
+ * Body: { username: string }
+ * Requires authentication
+ */
+    changeUsername(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
      * Redirige l'utilisateur vers Steam pour l'authentification OpenID
      * GET /users/steam-redirect
      */

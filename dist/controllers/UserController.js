@@ -62,6 +62,31 @@ let Users = class Users {
         this.steamOAuthService = steamOAuthService;
     }
     /**
+ * Change le pseudo de l'utilisateur connecté
+ * POST /users/change-username
+ * Body: { username: string }
+ * Requires authentication
+ */
+    async changeUsername(req, res) {
+        const userId = req.user?.user_id;
+        const { username } = req.body;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        if (!username || typeof username !== "string" || username.trim().length < 3) {
+            return res.status(400).send({ message: "Invalid username (min 3 characters)" });
+        }
+        try {
+            await this.userService.updateUser(userId, username.trim());
+            res.status(200).send({ message: "Username updated" });
+        }
+        catch (error) {
+            console.error("Error updating username", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error updating username", error: message });
+        }
+    }
+    /**
      * Redirige l'utilisateur vers Steam pour l'authentification OpenID
      * GET /users/steam-redirect
      */
@@ -137,9 +162,9 @@ let Users = class Users {
             if (!user) {
                 return res.status(404).send({ message: "User not found" });
             }
-            const discordUser = await this.userService.getDiscordUser(user.user_id);
+            // const discordUser = await this.userService.getDiscordUser(user.user_id);
             const filteredUser = {
-                ...discordUser,
+                // ...discordUser,
                 id: user.user_id,
                 userId: user.user_id,
                 balance: Math.floor(user.balance),
@@ -166,9 +191,9 @@ let Users = class Users {
             return res.status(404).send({ message: "User not found" });
         }
         // Filter user to only expose allowed fields
-        const discordUser = await this.userService.getDiscordUser(user.user_id);
+        // const discordUser = await this.userService.getDiscordUser(user.user_id)
         const filteredUser = {
-            ...discordUser,
+            // ...discordUser,
             id: user.user_id,
             userId: user.user_id,
             email: user.email,
@@ -193,9 +218,9 @@ let Users = class Users {
             const users = await this.userService.searchUsersByUsername(query);
             const filtered = [];
             for (const user of users) {
-                const discordUser = await this.userService.getDiscordUser(user.user_id);
+                // const discordUser = await this.userService.getDiscordUser(user.user_id);
                 filtered.push({
-                    ...discordUser,
+                    // ...discordUser,
                     id: user.user_id,
                     userId: user.user_id,
                     username: user.username,
@@ -222,9 +247,9 @@ let Users = class Users {
             const users = await this.userService.adminSearchUsers(query);
             const filtered = [];
             for (const user of users) {
-                const discordUser = await this.userService.getDiscordUser(user.user_id);
+                // const discordUser = await this.userService.getDiscordUser(user.user_id);
                 filtered.push({
-                    ...discordUser,
+                    // ...discordUser,
                     id: user.user_id,
                     userId: user.user_id,
                     username: user.username,
@@ -283,9 +308,9 @@ let Users = class Users {
             return res.status(404).send({ message: "User not found" });
         }
         // Filter user to only expose allowed fields
-        const discordUser = await this.userService.getDiscordUser(user.user_id);
+        // const discordUser = await this.userService.getDiscordUser(user.user_id);
         const filteredUser = {
-            ...discordUser,
+            // ...discordUser,
             id: user.user_id,
             userId: user.user_id,
             balance: Math.floor(user.balance),
@@ -319,9 +344,9 @@ let Users = class Users {
             return res.status(404).send({ message: "User not found" });
         }
         // Filter user to only expose allowed fields
-        const discordUser = await this.userService.getDiscordUser(user.user_id);
+        // const discordUser = await this.userService.getDiscordUser(user.user_id)
         const filteredUser = {
-            ...discordUser,
+            // ...discordUser,
             id: user.user_id,
             userId: user.user_id,
             balance: Math.floor(user.balance),
@@ -452,6 +477,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "loginOAuth", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/change-username", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "changeUsername", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/steam-redirect"),
     __metadata("design:type", Function),
