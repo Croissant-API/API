@@ -7,7 +7,9 @@ import { userIdParamValidator } from '../validators/UserValidator';
 import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { genKey, genVerificationKey } from '../utils/GenKey';
+
 import { User } from '../interfaces/User';
+import { SteamOAuthService } from '../services/SteamOAuthService';
 
 
 @controller("/users")
@@ -46,7 +48,53 @@ export class Users {
     }
     constructor(
         @inject("UserService") private userService: IUserService,
+        @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService
     ) {}
+
+    /**
+     * Redirige l'utilisateur vers Steam pour l'authentification OpenID
+     * GET /users/steam-redirect
+     */
+    @httpGet("/steam-redirect")
+    public async steamRedirect(req: Request, res: Response) {
+        const url = this.steamOAuthService.getAuthUrl();
+        res.send(url);
+    }
+
+    /**
+     * Associe le compte Steam à l'utilisateur connecté
+     * GET /users/steam-associate (callback Steam OpenID)
+     * Query params: OpenID response
+     * Requires authentication
+     */
+    @httpGet("/steam-associate")
+    public async steamAssociate(req: Request, res: Response) {
+        const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        const user = await this.userService.authenticateUser(token as string);
+        if (!user) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            // Vérifie la réponse OpenID de Steam
+            const steamId = await this.steamOAuthService.verifySteamOpenId(req.query as Record<string, string | string[]>);
+            if (!steamId) {
+                return res.status(400).send({ message: "Steam authentication failed" });
+            }
+            // Récupère le profil Steam
+            const profile = await this.steamOAuthService.getSteamProfile(steamId);
+            if (!profile) {
+                return res.status(400).send({ message: "Unable to fetch Steam profile" });
+            }
+            // Met à jour l'utilisateur avec les infos Steam
+            await this.userService.updateSteamFields(user.user_id, profile.steamid, profile.personaname, profile.avatarfull);
+            // Redirige vers /settings (front-end route)
+            res.send(`<html><head><meta http-equiv="refresh" content="0;url=/settings"></head><body>Redirecting to <a href="/settings">/settings</a>...</body></html>`);
+        } catch (error) {
+            console.error("Error associating Steam account", error);
+            // const message = (error instanceof Error) ? error.message : String(error);
+            // res.status(500).send({ message: "Error associating Steam account", error: message });
+        }
+    }
 
     @describe({
         endpoint: "/users/@me",
@@ -75,7 +123,10 @@ export class Users {
             email: user.email,
             balance: Math.floor(user.balance),
             username: user.username,
-            verificationKey: genVerificationKey(user.user_id)
+            verificationKey: genVerificationKey(user.user_id),
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url
         };
         if(user.admin) {
             filteredUser.admin = user.admin;
@@ -109,6 +160,9 @@ export class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url
                 });
             }
             res.send(filtered);
@@ -137,6 +191,9 @@ export class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url
                 });
             }
             res.send(filtered);
@@ -254,6 +311,9 @@ export class Users {
             userId: user.user_id,
             balance: Math.floor(user.balance),
             username: user.username,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url
         };
         res.send(filteredUser);
     }

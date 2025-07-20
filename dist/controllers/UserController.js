@@ -23,9 +23,85 @@ const UserValidator_1 = require("../validators/UserValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
+const SteamOAuthService_1 = require("../services/SteamOAuthService");
 let Users = class Users {
-    constructor(userService) {
+    /**
+     * Connexion via OAuth (Google/Discord)
+     * Body attendu : { email, provider, providerId, username? }
+     */
+    async loginOAuth(req, res) {
+        const { email, provider, providerId, username } = req.body;
+        if (!email || !provider || !providerId) {
+            return res.status(400).send({ message: "Missing email, provider or providerId" });
+        }
+        // Vérifie si l'utilisateur existe par email
+        let user = await this.userService.findByEmail(email);
+        if (!user) {
+            // Création d'un nouvel utilisateur si non existant
+            const userId = crypto.randomUUID();
+            user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
+        }
+        else {
+            // Si l'association n'existe pas, on l'ajoute
+            if ((provider === "discord" && !user.discord_id) || (provider === "google" && !user.google_id)) {
+                await this.userService.associateOAuth(user.user_id, provider, providerId);
+            }
+            // Vérifie que l'id provider correspond bien
+            if ((provider === "discord" && user.discord_id && user.discord_id !== providerId) ||
+                (provider === "google" && user.google_id && user.google_id !== providerId)) {
+                return res.status(401).send({ message: "OAuth providerId mismatch" });
+            }
+        }
+        if (user.disabled) {
+            return res.status(403).send({ message: "Account is disabled" });
+        }
+        res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
+    }
+    constructor(userService, steamOAuthService) {
         this.userService = userService;
+        this.steamOAuthService = steamOAuthService;
+    }
+    /**
+     * Redirige l'utilisateur vers Steam pour l'authentification OpenID
+     * GET /users/steam-redirect
+     */
+    async steamRedirect(req, res) {
+        const url = this.steamOAuthService.getAuthUrl();
+        res.send(url);
+    }
+    /**
+     * Associe le compte Steam à l'utilisateur connecté
+     * GET /users/steam-associate (callback Steam OpenID)
+     * Query params: OpenID response
+     * Requires authentication
+     */
+    async steamAssociate(req, res) {
+        const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        const user = await this.userService.authenticateUser(token);
+        if (!user) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            // Vérifie la réponse OpenID de Steam
+            const steamId = await this.steamOAuthService.verifySteamOpenId(req.query);
+            if (!steamId) {
+                return res.status(400).send({ message: "Steam authentication failed" });
+            }
+            // Récupère le profil Steam
+            const profile = await this.steamOAuthService.getSteamProfile(steamId);
+            if (!profile) {
+                return res.status(400).send({ message: "Unable to fetch Steam profile" });
+            }
+            // Met à jour l'utilisateur avec les infos Steam
+            await this.userService.updateSteamFields(user.user_id, profile.steamid, profile.personaname, profile.avatarfull);
+            // Redirige vers /settings (front-end route)
+            res.send(`<html><head><meta http-equiv="refresh" content="0;url=/settings"></head><body>Redirecting to <a href="/settings">/settings</a>...</body></html>`);
+        }
+        catch (error) {
+            console.error("Error associating Steam account", error);
+            // const message = (error instanceof Error) ? error.message : String(error);
+            // res.status(500).send({ message: "Error associating Steam account", error: message });
+        }
     }
     async getMe(req, res) {
         const userId = req.user?.user_id;
@@ -45,7 +121,10 @@ let Users = class Users {
             email: user.email,
             balance: Math.floor(user.balance),
             username: user.username,
-            verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id)
+            verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url
         };
         if (user.admin) {
             filteredUser.admin = user.admin;
@@ -68,6 +147,9 @@ let Users = class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url
                 });
             }
             res.send(filtered);
@@ -94,6 +176,9 @@ let Users = class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url
                 });
             }
             res.send(filtered);
@@ -102,49 +187,6 @@ let Users = class Users {
             console.error("Error searching users", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error searching users", error: message });
-        }
-    }
-    async getAllUsers(req, res) {
-        try {
-            const users = await this.userService.getAllUsers();
-            res.send(users.map(u => {
-                return {
-                    id: u.id,
-                    user_id: u.user_id,
-                    balance: u.balance,
-                    username: u.username,
-                    email: u.email
-                };
-            }));
-        }
-        catch (error) {
-            console.error("Error fetching all users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching all users", error: message });
-        }
-    }
-    async adminGetAllUsers(req, res) {
-        if (!req.user.admin) {
-            return res.status(403).send({ message: "Forbidden" });
-        }
-        try {
-            const users = await this.userService.getAllUsersWithDisabled();
-            res.send(users.map(u => {
-                return {
-                    id: u.id,
-                    user_id: u.user_id,
-                    balance: u.balance,
-                    username: u.username,
-                    email: u.email,
-                    disabled: !!u.disabled,
-                    admin: !!u.admin
-                };
-            }));
-        }
-        catch (error) {
-            console.error("Error fetching all users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching all users", error: message });
         }
     }
     async disableAccount(req, res) {
@@ -231,32 +273,33 @@ let Users = class Users {
             userId: user.user_id,
             balance: Math.floor(user.balance),
             username: user.username,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url
         };
         res.send(filteredUser);
     }
     async register(req, res) {
-        const { username, email, password } = req.body;
+        const { username, email, password, provider, providerId } = req.body;
         let { userId } = req.body;
-        if (!username || !email || !password) {
+        if (!username || !email || (!password && !provider)) {
             return res.status(400).send({ message: "Missing required fields" });
         }
         if (!userId) {
             userId = crypto.randomUUID();
         }
-        const allUsers = await this.userService.getAllUsers();
-        if (allUsers.some(u => u.email === email)) {
-            return res.status(409).send({ message: "Email already in use" });
-        }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return res.status(400).send({ message: "Invalid email address" });
         }
-        // Hash du mot de passe
-        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        let hashedPassword = null;
+        if (password) {
+            hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        }
         try {
-            // TODO: Adapter UserService.createUser pour gérer email et password
-            await this.userService.createUser(userId, username, email, hashedPassword);
-            res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(userId) });
+            // Crée ou associe l'utilisateur selon l'email et provider
+            const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
+            res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
             console.error("Error registering user", error);
@@ -351,6 +394,24 @@ let Users = class Users {
     }
 };
 __decorate([
+    (0, inversify_express_utils_1.httpPost)("/login-oauth"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "loginOAuth", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/steam-redirect"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "steamRedirect", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/steam-associate"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "steamAssociate", null);
+__decorate([
     (0, describe_1.describe)({
         endpoint: "/users/@me",
         method: "GET",
@@ -384,26 +445,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "adminSearchUsers", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/getAllUsers",
-        method: "GET",
-        description: "Get all users",
-        responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/getAllUsers",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpGet)("/getAllUsers"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "getAllUsers", null);
-__decorate([
-    (0, inversify_express_utils_1.httpGet)("/admin/getAllUsers", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "adminGetAllUsers", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/admin/disable/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -486,6 +527,7 @@ __decorate([
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("SteamOAuthService")),
+    __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService])
 ], Users);
 exports.Users = Users;

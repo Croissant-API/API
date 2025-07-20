@@ -24,6 +24,26 @@ const path_1 = __importDefault(require("path"));
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = class UserService {
+    /**
+     * Met à jour les champs Steam de l'utilisateur
+     */
+    async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
+        await this.databaseService.update("UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?", [steam_id, steam_username, steam_avatar_url, user_id]);
+    }
+    /**
+     * Trouve un utilisateur par email (email unique)
+     */
+    async findByEmail(email) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE email = ?", [email]);
+        return users.length > 0 ? users[0] : null;
+    }
+    /**
+     * Associe un identifiant OAuth (discord ou google) à un utilisateur existant
+     */
+    async associateOAuth(user_id, provider, providerId) {
+        const column = provider === "discord" ? "discord_id" : "google_id";
+        await this.databaseService.update(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
+    }
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
@@ -76,8 +96,23 @@ let UserService = class UserService {
     async updateUserBalance(user_id, balance) {
         await this.databaseService.update("UPDATE users SET balance = ? WHERE user_id = ?", [balance, user_id]);
     }
-    async createUser(user_id, username, email, password) {
-        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance) VALUES (?, ?, ?, ?, ?)", [user_id, username, email, password, 0]);
+    /**
+     * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
+     * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
+     */
+    async createUser(user_id, username, email, password, provider, providerId) {
+        // Vérifie si l'utilisateur existe déjà par email
+        const existing = await this.findByEmail(email);
+        if (existing) {
+            // Si provider info, associe l'OAuth
+            if (provider && providerId) {
+                await this.associateOAuth(existing.user_id, provider, providerId);
+            }
+            return existing;
+        }
+        // Création du nouvel utilisateur
+        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [user_id, username, email, password, provider === "discord" ? providerId : null, provider === "google" ? providerId : null]);
+        return await this.getUser(user_id);
     }
     async getUser(user_id) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE user_id = ? AND (disabled = 0 OR disabled IS NULL)", [user_id]);

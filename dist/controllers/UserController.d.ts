@@ -1,14 +1,31 @@
 import { Request, Response } from 'express';
 import { IUserService } from '../services/UserService';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { SteamOAuthService } from '../services/SteamOAuthService';
 export declare class Users {
     private userService;
-    constructor(userService: IUserService);
+    private steamOAuthService;
+    /**
+     * Connexion via OAuth (Google/Discord)
+     * Body attendu : { email, provider, providerId, username? }
+     */
+    loginOAuth(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    constructor(userService: IUserService, steamOAuthService: SteamOAuthService);
+    /**
+     * Redirige l'utilisateur vers Steam pour l'authentification OpenID
+     * GET /users/steam-redirect
+     */
+    steamRedirect(req: Request, res: Response): Promise<void>;
+    /**
+     * Associe le compte Steam à l'utilisateur connecté
+     * GET /users/steam-associate (callback Steam OpenID)
+     * Query params: OpenID response
+     * Requires authentication
+     */
+    steamAssociate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMe(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     adminSearchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    getAllUsers(req: Request, res: Response): Promise<void>;
-    adminGetAllUsers(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     disableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     reenableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     adminGetUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

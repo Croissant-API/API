@@ -33,6 +33,8 @@ OwnerCheck.middleware = async (req, res, next) => {
         return res.status(403).send({ message: "You are not the owner of this item" });
     }
     req.owner = owner;
-    req.user = user;
+    if (user) {
+        req.user = user;
+    }
     next();
 };

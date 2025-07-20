@@ -9,6 +9,7 @@ const LobbyService_1 = require("./services/LobbyService");
 const TradeService_1 = require("./services/TradeService");
 const GameService_1 = require("./services/GameService");
 const OAuth2Service_1 = require("./services/OAuth2Service");
+const SteamOAuthService_1 = require("./services/SteamOAuthService");
 const container = new inversify_1.Container();
 container.bind("DatabaseService").to(DatabaseService_1.DatabaseService).inSingletonScope();
 container.bind("InventoryService").to(InventoryService_1.InventoryService).inSingletonScope();
@@ -18,4 +19,5 @@ container.bind("LobbyService").to(LobbyService_1.LobbyService).inSingletonScope(
 container.bind("TradeService").to(TradeService_1.TradeService).inSingletonScope();
 container.bind("GameService").to(GameService_1.GameService).inSingletonScope();
 container.bind("OAuth2Service").to(OAuth2Service_1.OAuth2Service).inSingletonScope();
+container.bind("SteamOAuthService").to(SteamOAuthService_1.SteamOAuthService).inSingletonScope();
 exports.default = container;

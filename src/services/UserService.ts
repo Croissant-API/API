@@ -1,5 +1,6 @@
 
 
+
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
@@ -13,6 +14,7 @@ config({ path: path.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 export interface IUserService {
+    updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
@@ -35,6 +37,15 @@ export interface IUserService {
 
 @injectable()
 export class UserService implements IUserService {
+    /**
+     * Met à jour les champs Steam de l'utilisateur
+     */
+    async updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void> {
+        await this.databaseService.update(
+            "UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?",
+            [steam_id, steam_username, steam_avatar_url, user_id]
+        );
+    }
     /**
      * Trouve un utilisateur par email (email unique)
      */

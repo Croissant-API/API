@@ -7,7 +7,7 @@ import { IUserService } from '../services/UserService';
 
 export interface AuthenticatedRequestWithOwner extends Request {
     owner: User;
-    user?: User | null;
+    user?: User;
 }
 
 export class OwnerCheck {
@@ -38,7 +38,9 @@ export class OwnerCheck {
         }
 
         (req as AuthenticatedRequestWithOwner).owner = owner;
-        (req as AuthenticatedRequestWithOwner).user = user;
+        if (user) {
+            (req as AuthenticatedRequestWithOwner).user = user;
+        }
         next();
     }
 }

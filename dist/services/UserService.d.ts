@@ -1,10 +1,11 @@
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
 export interface IUserService {
+    updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void>;
     getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
-    createUser(user_id: string, username: string, email: string, password: string): Promise<void>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;
@@ -16,16 +17,34 @@ export interface IUserService {
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
+    findByEmail(email: string): Promise<User | null>;
+    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
 }
 export declare class UserService implements IUserService {
     private databaseService;
+    /**
+     * Met à jour les champs Steam de l'utilisateur
+     */
+    updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void>;
+    /**
+     * Trouve un utilisateur par email (email unique)
+     */
+    findByEmail(email: string): Promise<User | null>;
+    /**
+     * Associe un identifiant OAuth (discord ou google) à un utilisateur existant
+     */
+    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
     constructor(databaseService: IDatabaseService);
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     getDiscordUser(userId: string): Promise<any>;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, balance: number): Promise<void>;
-    createUser(user_id: string, username: string, email: string, password: string): Promise<void>;
+    /**
+     * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
+     * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
+     */
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;
