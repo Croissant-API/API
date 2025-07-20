@@ -24,6 +24,9 @@ LoggedCheck.middleware = async (req, res, next) => {
     if (!user) {
         return res.status(401).send({ message: "Unauthorized" });
     }
+    if (user.disabled && !user.admin) {
+        return res.status(403).send({ message: "Account is disabled" });
+    }
     req.user = user;
     next();
 };

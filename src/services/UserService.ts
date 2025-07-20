@@ -17,11 +17,16 @@ export interface IUserService {
     updateUserBalance(user_id: string, arg1: number): unknown;
     createUser(user_id: string, username: string, email: string, password: string): Promise<void>;
     getUser(user_id: string): Promise<User | null>;
+    adminGetUser(user_id: string): Promise<User | null>;
+    adminSearchUsers(query: string): Promise<User[]>;
     getAllUsers(): Promise<User[]>;
+    getAllUsersWithDisabled(): Promise<User[]>;
     updateUser(user_id: string, username?: string, balance?: number): Promise<void>;
     deleteUser(user_id: string): Promise<void>;
     authenticateUser(api_key: string): Promise<User | null>;
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
+    disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
+    reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
 }
 
 @injectable()
@@ -29,6 +34,29 @@ export class UserService implements IUserService {
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
     ) { }
+    async disableAccount(targetUserId: string, adminUserId: string): Promise<void> {
+        // Check if adminUserId is admin
+        const admin = await this.adminGetUser(adminUserId);
+        if (!admin || !admin.admin) {
+            throw new Error("Unauthorized: not admin");
+        }
+        await this.databaseService.update(
+            "UPDATE users SET disabled = 1 WHERE user_id = ?",
+            [targetUserId]
+        );
+    }
+
+    async reenableAccount(targetUserId: string, adminUserId: string): Promise<void> {
+        // Check if adminUserId is admin
+        const admin = await this.adminGetUser(adminUserId);
+        if (!admin || !admin.admin) {
+            throw new Error("Unauthorized: not admin");
+        }
+        await this.databaseService.update(
+            "UPDATE users SET disabled = 0 WHERE user_id = ?",
+            [targetUserId]
+        );
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getDiscordUser(userId: string): Promise<any> {
@@ -58,7 +86,7 @@ export class UserService implements IUserService {
 
     async searchUsersByUsername(query: string): Promise<User[]> {
         const users = await this.databaseService.read<User[]>(
-            "SELECT * FROM users WHERE username LIKE ?",
+            "SELECT * FROM users WHERE username LIKE ? AND (disabled = 0 OR disabled IS NULL)",
             [`%${query}%`]
         );
         return users;
@@ -81,13 +109,34 @@ export class UserService implements IUserService {
 
     async getUser(user_id: string): Promise<User | null> {
         const users = await this.databaseService.read<User[]>(
+            "SELECT * FROM users WHERE user_id = ? AND (disabled = 0 OR disabled IS NULL)",
+            [user_id]
+        );
+        return users.length > 0 ? users[0] : null;
+    }
+
+    async adminGetUser(user_id: string): Promise<User | null> {
+        const users = await this.databaseService.read<User[]>(
             "SELECT * FROM users WHERE user_id = ?",
             [user_id]
         );
         return users.length > 0 ? users[0] : null;
     }
 
+    async adminSearchUsers(query: string): Promise<User[]> {
+        const users = await this.databaseService.read<User[]>(
+            "SELECT * FROM users WHERE username LIKE ?",
+            [`%${query}%`]
+        );
+        return users;
+    }
+
     async getAllUsers(): Promise<User[]> {
+        return await this.databaseService.read<User[]>("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
+    }
+
+    async getAllUsersWithDisabled(): Promise<User[]> {
+        // This method retrieves all users, including those who are disabled
         return await this.databaseService.read<User[]>("SELECT * FROM users");
     }
 
@@ -118,7 +167,7 @@ export class UserService implements IUserService {
     }
 
     async authenticateUser(api_key: string): Promise<User | null> {
-        const users = await this.getAllUsers();
+        const users = await this.getAllUsersWithDisabled();
 
         if (!users) {
             console.error("Error fetching users", users);

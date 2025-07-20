@@ -19,10 +19,15 @@ export class LoggedCheck {
             return res.status(401).send({ message: "Unauthorized" });
         }
 
+
         const userService = container.get("UserService") as IUserService;
         const user: User | null = await userService.authenticateUser(token);
         if (!user) {
             return res.status(401).send({ message: "Unauthorized" });
+        }
+
+        if(user.disabled && !user.admin) {
+            return res.status(403).send({ message: "Account is disabled" });
         }
 
         (req as AuthenticatedRequest).user = user;

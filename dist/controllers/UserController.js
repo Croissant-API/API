@@ -47,6 +47,9 @@ let Users = class Users {
             username: user.username,
             verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id)
         };
+        if (user.admin) {
+            filteredUser.admin = user.admin;
+        }
         res.send(filteredUser);
     }
     async searchUsers(req, res) {
@@ -74,6 +77,127 @@ let Users = class Users {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error searching users", error: message });
         }
+    }
+    async adminSearchUsers(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users = await this.userService.adminSearchUsers(query);
+            const filtered = [];
+            for (const user of users) {
+                const discordUser = await this.userService.getDiscordUser(user.user_id);
+                filtered.push({
+                    ...discordUser,
+                    id: user.user_id,
+                    userId: user.user_id,
+                    username: user.username,
+                    balance: Math.floor(user.balance),
+                });
+            }
+            res.send(filtered);
+        }
+        catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
+    async getAllUsers(req, res) {
+        try {
+            const users = await this.userService.getAllUsers();
+            res.send(users.map(u => {
+                return {
+                    id: u.id,
+                    user_id: u.user_id,
+                    balance: u.balance,
+                    username: u.username,
+                    email: u.email
+                };
+            }));
+        }
+        catch (error) {
+            console.error("Error fetching all users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching all users", error: message });
+        }
+    }
+    async adminGetAllUsers(req, res) {
+        if (!req.user.admin) {
+            return res.status(403).send({ message: "Forbidden" });
+        }
+        try {
+            const users = await this.userService.getAllUsersWithDisabled();
+            res.send(users.map(u => {
+                return {
+                    id: u.id,
+                    user_id: u.user_id,
+                    balance: u.balance,
+                    username: u.username,
+                    email: u.email,
+                    disabled: !!u.disabled,
+                    admin: !!u.admin
+                };
+            }));
+        }
+        catch (error) {
+            console.error("Error fetching all users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching all users", error: message });
+        }
+    }
+    async disableAccount(req, res) {
+        const { userId } = req.params;
+        const adminUserId = req.user?.user_id;
+        if (!adminUserId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.disableAccount(userId, adminUserId);
+            res.status(200).send({ message: "Account disabled" });
+        }
+        catch (error) {
+            res.status(403).send({ message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+    async reenableAccount(req, res) {
+        const { userId } = req.params;
+        const adminUserId = req.user?.user_id;
+        if (!adminUserId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.reenableAccount(userId, adminUserId);
+            res.status(200).send({ message: "Account re-enabled" });
+        }
+        catch (error) {
+            res.status(403).send({ message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+    async adminGetUser(req, res) {
+        try {
+            await UserValidator_1.userIdParamValidator.validate(req.params);
+        }
+        catch (err) {
+            return res.status(400).send({ message: "Invalid userId", error: err });
+        }
+        const { userId } = req.params;
+        const user = await this.userService.adminGetUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        // Filter user to only expose allowed fields
+        const discordUser = await this.userService.getDiscordUser(user.user_id);
+        const filteredUser = {
+            ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            balance: Math.floor(user.balance),
+            username: user.username,
+            disabled: !!user.disabled,
+        };
+        res.send(filteredUser);
     }
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
@@ -145,7 +269,7 @@ let Users = class Users {
         if (!email || !password) {
             return res.status(400).send({ message: "Missing email or password" });
         }
-        const allUsers = await this.userService.getAllUsers();
+        const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find(u => u.email === email);
         if (!user || !user.password) {
             return res.status(401).send({ message: "Invalid credentials" });
@@ -154,6 +278,10 @@ let Users = class Users {
         const valid = await bcryptjs_1.default.compare(password, user.password);
         if (!valid) {
             return res.status(401).send({ message: "Invalid credentials" });
+        }
+        // Check si le compte est désactivé
+        if (user.disabled) {
+            return res.status(403).send({ message: "Account is disabled" });
         }
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
     }
@@ -250,6 +378,50 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "searchUsers", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/admin/search"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "adminSearchUsers", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/getAllUsers",
+        method: "GET",
+        description: "Get all users",
+        responseType: [{ userId: "string", balance: "number", username: "string" }],
+        example: "GET /api/users/getAllUsers",
+        requiresAuth: true
+    }),
+    (0, inversify_express_utils_1.httpGet)("/getAllUsers"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "getAllUsers", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/admin/getAllUsers", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "adminGetAllUsers", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/admin/disable/:userId", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "disableAccount", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/admin/enable/:userId", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "reenableAccount", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/admin/:userId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "adminGetUser", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/auth-verification",

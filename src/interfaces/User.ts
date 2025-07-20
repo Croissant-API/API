@@ -5,4 +5,6 @@ export interface User {
     username: string;
     email?: string;
     password?: string;
+    disabled?: boolean;
+    admin?: boolean;
 }

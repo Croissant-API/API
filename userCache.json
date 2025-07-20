@@ -100,47 +100,6 @@
     },
     "timestamp": 1752928410577
   },
-  "724847846897221642": {
-    "data": {
-      "id": "724847846897221642",
-      "username": "fox3000foxy.new",
-      "avatar": "3fe240e01286b9ddd0c1add42b03325a",
-      "discriminator": "0",
-      "public_flags": 4194432,
-      "flags": 4194432,
-      "banner": "a_837443d38c3aa9c006e025cf40e0744e",
-      "accent_color": null,
-      "global_name": "Fox",
-      "avatar_decoration_data": {
-        "asset": "a_643e26a948548adb435b1078f273c426",
-        "sku_id": "1301993378484850771",
-        "expires_at": null
-      },
-      "collectibles": {
-        "nameplate": {
-          "sku_id": "1349849614102036581",
-          "asset": "nameplates/nameplates/cherry_blossoms/",
-          "label": "COLLECTIBLES_NAMEPLATES_CHERRY_BLOSSOMS_A11Y",
-          "palette": "berry"
-        }
-      },
-      "display_name_styles": null,
-      "banner_color": null,
-      "clan": {
-        "identity_guild_id": "1369382919948210248",
-        "identity_enabled": true,
-        "tag": "GLAD",
-        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
-      },
-      "primary_guild": {
-        "identity_guild_id": "1369382919948210248",
-        "identity_enabled": true,
-        "tag": "GLAD",
-        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
-      }
-    },
-    "timestamp": 1753001622871
-  },
   "843808047042134026": {
     "data": {
       "id": "843808047042134026",
@@ -181,5 +140,131 @@
       }
     },
     "timestamp": 1753004191258
+  },
+  "724847846897221642": {
+    "data": {
+      "id": "724847846897221642",
+      "username": "fox3000foxy.new",
+      "avatar": "3fe240e01286b9ddd0c1add42b03325a",
+      "discriminator": "0",
+      "public_flags": 4194432,
+      "flags": 4194432,
+      "banner": "a_837443d38c3aa9c006e025cf40e0744e",
+      "accent_color": null,
+      "global_name": "Fox",
+      "avatar_decoration_data": {
+        "asset": "a_643e26a948548adb435b1078f273c426",
+        "sku_id": "1301993378484850771",
+        "expires_at": null
+      },
+      "collectibles": {
+        "nameplate": {
+          "sku_id": "1349849614102036581",
+          "asset": "nameplates/nameplates/cherry_blossoms/",
+          "label": "COLLECTIBLES_NAMEPLATES_CHERRY_BLOSSOMS_A11Y",
+          "palette": "berry"
+        }
+      },
+      "display_name_styles": null,
+      "banner_color": null,
+      "clan": {
+        "identity_guild_id": "1369382919948210248",
+        "identity_enabled": true,
+        "tag": "GLAD",
+        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
+      },
+      "primary_guild": {
+        "identity_guild_id": "1369382919948210248",
+        "identity_enabled": true,
+        "tag": "GLAD",
+        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
+      }
+    },
+    "timestamp": 1753005575242
+  },
+  "742343474921078814": {
+    "data": {
+      "id": "742343474921078814",
+      "username": "fourty3000",
+      "avatar": "f09bf27f709f6e728e70c94b5844277d",
+      "discriminator": "0",
+      "public_flags": 4194368,
+      "flags": 4194368,
+      "banner": "6a87165845ee62d69441091d41cc6eb2",
+      "accent_color": 8901631,
+      "global_name": "๖̶ζ͜͡Fourty3000",
+      "avatar_decoration_data": {
+        "asset": "a_e574b8ba0f477f7cac8d24d6797abf65",
+        "sku_id": "1374394443997642803",
+        "expires_at": null
+      },
+      "collectibles": null,
+      "display_name_styles": null,
+      "banner_color": "#87d3ff",
+      "clan": {
+        "identity_guild_id": "1369382919948210248",
+        "identity_enabled": true,
+        "tag": "GLAD",
+        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
+      },
+      "primary_guild": {
+        "identity_guild_id": "1369382919948210248",
+        "identity_enabled": true,
+        "tag": "GLAD",
+        "badge": "4f567556cb5c26fd3f3f854b37d98ca7"
+      }
+    },
+    "timestamp": 1753006106043
+  },
+  "1023809772878835733": {
+    "data": {
+      "id": "1023809772878835733",
+      "username": "billie_eillish_lover",
+      "avatar": "cda0b25af0d819ba9911fb27f23a4b82",
+      "discriminator": "0",
+      "public_flags": 0,
+      "flags": 0,
+      "banner": null,
+      "accent_color": 6681648,
+      "global_name": "Loveur2BillieEilish",
+      "avatar_decoration_data": null,
+      "collectibles": null,
+      "display_name_styles": null,
+      "banner_color": "#65f430",
+      "clan": null,
+      "primary_guild": null
+    },
+    "timestamp": 1753006106273
+  },
+  "301492402999263235": {
+    "data": {
+      "id": "301492402999263235",
+      "username": "itsrealfortune",
+      "avatar": "8228f4602bfd6bb8a703b83e24096cb3",
+      "discriminator": "0",
+      "public_flags": 0,
+      "flags": 0,
+      "banner": "bc49d9019e085921cf81be219f3af0f0",
+      "accent_color": null,
+      "global_name": "Miss Fortune",
+      "avatar_decoration_data": {
+        "asset": "a_8ffa2ba9bff18e96b76c2e66fd0d7fa3",
+        "sku_id": "1144307957425778779",
+        "expires_at": null
+      },
+      "collectibles": {
+        "nameplate": {
+          "sku_id": "1349849614311751731",
+          "asset": "nameplates/nameplates/angels/",
+          "label": "COLLECTIBLES_NAMEPLATES_ANGELS_A11Y",
+          "palette": "bubble_gum"
+        }
+      },
+      "display_name_styles": null,
+      "banner_color": null,
+      "clan": null,
+      "primary_guild": null
+    },
+    "timestamp": 1753006106522
   }
 }

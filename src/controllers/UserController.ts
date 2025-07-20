@@ -44,6 +44,9 @@ export class Users {
             username: user.username,
             verificationKey: genVerificationKey(user.user_id)
         };
+        if(user.admin) {
+            filteredUser.admin = user.admin;
+        }
         res.send(filteredUser);
     }
 
@@ -81,6 +84,143 @@ export class Users {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error searching users", error: message });
         }
+    }
+
+    @httpGet("/admin/search")
+    public async adminSearchUsers(req: Request, res: Response) {
+        const query = (req.query.q as string)?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users: User[] = await this.userService.adminSearchUsers(query);
+
+            const filtered = [];
+            for (const user of users) {
+                const discordUser = await this.userService.getDiscordUser(user.user_id);
+                filtered.push({
+                    ...discordUser,
+                    id: user.user_id,
+                    userId: user.user_id,
+                    username: user.username,
+                    balance: Math.floor(user.balance),
+                });
+            }
+            res.send(filtered);
+        } catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
+
+    @describe({
+        endpoint: "/users/getAllUsers",
+        method: "GET",
+        description: "Get all users",
+        responseType: [{ userId: "string", balance: "number", username: "string" }],
+        example: "GET /api/users/getAllUsers",
+        requiresAuth: true
+    })
+    @httpGet("/getAllUsers")
+    public async getAllUsers(req: Request, res: Response) {
+        try {
+            const users = await this.userService.getAllUsers();
+            res.send(users.map(u=>{
+                return {
+                    id: u.id,
+                    user_id: u.user_id,
+                    balance: u.balance,
+                    username: u.username,
+                    email: u.email
+                };
+            }));
+        } catch (error) {
+            console.error("Error fetching all users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching all users", error: message });
+        }
+    }
+
+    @httpGet("/admin/getAllUsers", LoggedCheck.middleware)
+    public async adminGetAllUsers(req: AuthenticatedRequest, res: Response) {
+        if(!req.user.admin) {
+            return res.status(403).send({ message: "Forbidden" });
+        }
+        try {
+            const users = await this.userService.getAllUsersWithDisabled();
+            res.send(users.map(u=>{
+                return {
+                    id: u.id,
+                    user_id: u.user_id,
+                    balance: u.balance,
+                    username: u.username,
+                    email: u.email,
+                    disabled: !!u.disabled,
+                    admin: !!u.admin
+                };
+            }));
+        } catch (error) {
+            console.error("Error fetching all users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching all users", error: message });
+        }
+    }
+
+    @httpPost("/admin/disable/:userId", LoggedCheck.middleware)
+    public async disableAccount(req: AuthenticatedRequest, res: Response) {
+        const { userId } = req.params;
+        const adminUserId = req.user?.user_id;
+        if (!adminUserId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.disableAccount(userId, adminUserId);
+            res.status(200).send({ message: "Account disabled" });
+        } catch (error) {
+            res.status(403).send({ message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+
+    @httpPost("/admin/enable/:userId", LoggedCheck.middleware)
+    public async reenableAccount(req: AuthenticatedRequest, res: Response) {
+        const { userId } = req.params;
+        const adminUserId = req.user?.user_id;
+        if (!adminUserId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.reenableAccount(userId, adminUserId);
+            res.status(200).send({ message: "Account re-enabled" });
+        } catch (error) {
+            res.status(403).send({ message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+
+   
+    @httpGet("/admin/:userId")
+    public async adminGetUser(req: Request, res: Response) {
+        try {
+            await userIdParamValidator.validate(req.params);
+        } catch (err) {
+            return res.status(400).send({ message: "Invalid userId", error: err });
+        }
+        const { userId } = req.params;
+        const user = await this.userService.adminGetUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        // Filter user to only expose allowed fields
+        const discordUser = await this.userService.getDiscordUser(user.user_id);
+        const filteredUser = {
+            ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            balance: Math.floor(user.balance),
+            username: user.username,
+            disabled: !!user.disabled,
+        };
+        res.send(filteredUser);
     }
 
     @describe({
@@ -177,7 +317,7 @@ export class Users {
         if (!email || !password) {
             return res.status(400).send({ message: "Missing email or password" });
         }
-        const allUsers = await this.userService.getAllUsers();
+        const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find(u => u.email === email);
         if (!user || !user.password) {
             return res.status(401).send({ message: "Invalid credentials" });
@@ -186,6 +326,10 @@ export class Users {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) {
             return res.status(401).send({ message: "Invalid credentials" });
+        }
+        // Check si le compte est désactivé
+        if (user.disabled) {
+            return res.status(403).send({ message: "Account is disabled" });
         }
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: genKey(user.user_id) });
     }

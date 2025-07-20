@@ -6,6 +6,12 @@ export declare class Users {
     constructor(userService: IUserService);
     getMe(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    adminSearchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getAllUsers(req: Request, res: Response): Promise<void>;
+    adminGetAllUsers(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    disableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    reenableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    adminGetUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     register(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

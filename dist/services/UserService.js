@@ -27,6 +27,22 @@ let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
+    async disableAccount(targetUserId, adminUserId) {
+        // Check if adminUserId is admin
+        const admin = await this.adminGetUser(adminUserId);
+        if (!admin || !admin.admin) {
+            throw new Error("Unauthorized: not admin");
+        }
+        await this.databaseService.update("UPDATE users SET disabled = 1 WHERE user_id = ?", [targetUserId]);
+    }
+    async reenableAccount(targetUserId, adminUserId) {
+        // Check if adminUserId is admin
+        const admin = await this.adminGetUser(adminUserId);
+        if (!admin || !admin.admin) {
+            throw new Error("Unauthorized: not admin");
+        }
+        await this.databaseService.update("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getDiscordUser(userId) {
         try {
@@ -54,7 +70,7 @@ let UserService = class UserService {
         }
     }
     async searchUsersByUsername(query) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);
+        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${query}%`]);
         return users;
     }
     async updateUserBalance(user_id, balance) {
@@ -64,10 +80,22 @@ let UserService = class UserService {
         await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance) VALUES (?, ?, ?, ?, ?)", [user_id, username, email, password, 0]);
     }
     async getUser(user_id) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE user_id = ? AND (disabled = 0 OR disabled IS NULL)", [user_id]);
+        return users.length > 0 ? users[0] : null;
+    }
+    async adminGetUser(user_id) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE user_id = ?", [user_id]);
         return users.length > 0 ? users[0] : null;
     }
+    async adminSearchUsers(query) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);
+        return users;
+    }
     async getAllUsers() {
+        return await this.databaseService.read("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
+    }
+    async getAllUsersWithDisabled() {
+        // This method retrieves all users, including those who are disabled
         return await this.databaseService.read("SELECT * FROM users");
     }
     async updateUser(user_id, username, balance) {
@@ -90,7 +118,7 @@ let UserService = class UserService {
         await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [user_id]);
     }
     async authenticateUser(api_key) {
-        const users = await this.getAllUsers();
+        const users = await this.getAllUsersWithDisabled();
         if (!users) {
             console.error("Error fetching users", users);
             return null;
