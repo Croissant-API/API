@@ -96,6 +96,48 @@ export class Users {
         }
     }
 
+    /**
+     * GET /users/getUserBySteamId?steamId=xxx
+     * Récupère un utilisateur par son Steam ID
+     */
+    @describe({
+        endpoint: "/users/getUserBySteamId",
+        method: "GET",
+        description: "Get a user by their Steam ID",
+        query: { steamId: "The Steam ID of the user" },
+        responseType: { userId: "string", balance: "number", username: "string", steam_id: "string", steam_username: "string", steam_avatar_url: "string" },
+        example: "GET /api/users/getUserBySteamId?steamId=1234567890"
+    })
+    @httpGet("/getUserBySteamId")
+    public async getUserBySteamId(req: Request, res: Response) {
+        const steamId = req.query.steamId as string;
+        if (!steamId) {
+            return res.status(400).send({ message: "Missing steamId query parameter" });
+        }
+        try {
+            const user = await this.userService.getUserBySteamId(steamId);
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            const discordUser = await this.userService.getDiscordUser(user.user_id);
+            const filteredUser = {
+                ...discordUser,
+                id: user.user_id,
+                userId: user.user_id,
+                balance: Math.floor(user.balance),
+                username: user.username,
+                steam_id: user.steam_id,
+                steam_username: user.steam_username,
+                steam_avatar_url: user.steam_avatar_url
+            };
+            res.send(filteredUser);
+        } catch (error) {
+            console.error("Error fetching user by Steam ID", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user by Steam ID", error: message });
+        }
+    }
+
     @describe({
         endpoint: "/users/@me",
         method: "GET",

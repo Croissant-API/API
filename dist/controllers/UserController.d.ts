@@ -23,6 +23,11 @@ export declare class Users {
      * Requires authentication
      */
     steamAssociate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * GET /users/getUserBySteamId?steamId=xxx
+     * Récupère un utilisateur par son Steam ID
+     */
+    getUserBySteamId(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMe(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     adminSearchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

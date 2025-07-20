@@ -1,6 +1,3 @@
-
-
-
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
@@ -33,6 +30,7 @@ export interface IUserService {
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+    getUserBySteamId(steamId: string): Promise<User | null>;
 }
 
 @injectable()
@@ -230,6 +228,17 @@ export class UserService implements IUserService {
             return null;
         }
         return user;
+    }
+
+    /**
+     * Récupère un utilisateur par son Steam ID
+     */
+    async getUserBySteamId(steamId: string): Promise<User | null> {
+        const users = await this.databaseService.read<User[]>(
+            "SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)",
+            [steamId]
+        );
+        return users.length > 0 ? users[0] : null;
     }
 
     async updateUserPassword(user_id: string, hashedPassword: string): Promise<void> {

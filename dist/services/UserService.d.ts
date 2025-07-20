@@ -19,6 +19,7 @@ export interface IUserService {
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+    getUserBySteamId(steamId: string): Promise<User | null>;
 }
 export declare class UserService implements IUserService {
     private databaseService;
@@ -53,5 +54,9 @@ export declare class UserService implements IUserService {
     updateUser(user_id: string, username?: string, balance?: number): Promise<void>;
     deleteUser(user_id: string): Promise<void>;
     authenticateUser(api_key: string): Promise<User | null>;
+    /**
+     * Récupère un utilisateur par son Steam ID
+     */
+    getUserBySteamId(steamId: string): Promise<User | null>;
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
 }

@@ -165,6 +165,13 @@ let UserService = class UserService {
         }
         return user;
     }
+    /**
+     * Récupère un utilisateur par son Steam ID
+     */
+    async getUserBySteamId(steamId) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)", [steamId]);
+        return users.length > 0 ? users[0] : null;
+    }
     async updateUserPassword(user_id, hashedPassword) {
         await this.databaseService.update("UPDATE users SET password = ? WHERE user_id = ?", [hashedPassword, user_id]);
     }
