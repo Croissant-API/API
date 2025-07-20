@@ -104,6 +104,26 @@ let Users = class Users {
         }
     }
     /**
+     * Dissocie le compte Steam de l'utilisateur connecté
+     * POST /users/unlink-steam
+     * Requires authentication
+     */
+    async unlinkSteam(req, res) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.updateSteamFields(userId, null, null, null);
+            res.status(200).send({ message: "Steam account unlinked" });
+        }
+        catch (error) {
+            console.error("Error unlinking Steam account", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error unlinking Steam account", error: message });
+        }
+    }
+    /**
      * GET /users/getUserBySteamId?steamId=xxx
      * Récupère un utilisateur par son Steam ID
      */
@@ -444,6 +464,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "steamAssociate", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/unlink-steam", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "unlinkSteam", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/getUserBySteamId",

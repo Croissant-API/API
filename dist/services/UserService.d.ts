@@ -1,7 +1,7 @@
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
 export interface IUserService {
-    updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void>;
+    updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
@@ -26,7 +26,7 @@ export declare class UserService implements IUserService {
     /**
      * Met à jour les champs Steam de l'utilisateur
      */
-    updateSteamFields(user_id: string, steam_id: string, steam_username: string, steam_avatar_url: string): Promise<void>;
+    updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     /**
      * Trouve un utilisateur par email (email unique)
      */

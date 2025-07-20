@@ -97,6 +97,27 @@ export class Users {
     }
 
     /**
+     * Dissocie le compte Steam de l'utilisateur connecté
+     * POST /users/unlink-steam
+     * Requires authentication
+     */
+    @httpPost("/unlink-steam", LoggedCheck.middleware)
+    public async unlinkSteam(req: AuthenticatedRequest, res: Response) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        try {
+            await this.userService.updateSteamFields(userId, null, null, null);
+            res.status(200).send({ message: "Steam account unlinked" });
+        } catch (error) {
+            console.error("Error unlinking Steam account", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error unlinking Steam account", error: message });
+        }
+    }
+
+    /**
      * GET /users/getUserBySteamId?steamId=xxx
      * Récupère un utilisateur par son Steam ID
      */

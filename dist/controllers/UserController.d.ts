@@ -24,6 +24,12 @@ export declare class Users {
      */
     steamAssociate(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     /**
+     * Dissocie le compte Steam de l'utilisateur connecté
+     * POST /users/unlink-steam
+     * Requires authentication
+     */
+    unlinkSteam(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
      * GET /users/getUserBySteamId?steamId=xxx
      * Récupère un utilisateur par son Steam ID
      */
