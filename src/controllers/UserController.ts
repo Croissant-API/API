@@ -352,7 +352,14 @@ export class Users {
         }
         // Filter user to only expose allowed fields
         // const discordUser = await this.userService.getDiscordUser(user.user_id);
-        const filteredUser = {
+        const filteredUser: {
+            id: string;
+            userId: string;
+            balance: number;
+            username: string;
+            admin?: boolean;
+            disabled?: boolean;
+        } = {
             // ...discordUser,
             id: user.user_id,
             userId: user.user_id,
@@ -360,6 +367,9 @@ export class Users {
             username: user.username,
             disabled: !!user.disabled,
         };
+        if(user.admin) {
+            filteredUser.admin = user.admin;
+        }
         res.send(filteredUser);
     }
 

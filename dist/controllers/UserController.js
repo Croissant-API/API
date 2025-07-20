@@ -320,6 +320,9 @@ let Users = class Users {
             username: user.username,
             disabled: !!user.disabled,
         };
+        if (user.admin) {
+            filteredUser.admin = user.admin;
+        }
         res.send(filteredUser);
     }
     async checkVerificationKey(req, res) {
