@@ -35,12 +35,13 @@ function filterGame(game: Game, userId?: string) {
     };
 }
 
+
 @controller("/games")
 export class Games {
     constructor(
         @inject("GameService") private gameService: IGameService,
         @inject("UserService") private userService: IUserService,
-    ) {}
+    ) { }
 
     @describe({
         endpoint: "/games",
@@ -159,6 +160,57 @@ export class Games {
         } catch (error) {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error fetching user games", error: message });
+        }
+    }
+
+
+    @describe({
+        endpoint: "/games/search",
+        method: "GET",
+        description: "Search for games by name, genre, or description.",
+        query: { q: "The search query" },
+        responseType: [{
+            gameId: "string",
+            name: "string",
+            description: "string",
+            price: "number",
+            owner_id: "string",
+            showInStore: "boolean",
+            iconHash: "string",
+            splashHash: "string",
+            bannerHash: "string",
+            genre: "string",
+            release_date: "string",
+            developer: "string",
+            publisher: "string",
+            platforms: ["string"],
+            rating: "number",
+            website: "string",
+            trailer_link: "string",
+            multiplayer: "boolean"
+        }],
+        example: "GET /api/games/search?q=Minecraft"
+    })
+    @httpGet("/search", LoggedCheck.middleware)
+    public async searchGames(req: AuthenticatedRequest, res: Response) {
+        const query = (req.query.q as string)?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            // Recherche insensible à la casse sur le nom, la description ou le genre, et seulement les jeux visibles en boutique
+            const games = await this.gameService.listGames();
+            const filtered = games.filter(game =>
+                game.showInStore && (
+                    (game.name && game.name.toLowerCase().includes(query.toLowerCase())) ||
+                    (game.description && game.description.toLowerCase().includes(query.toLowerCase())) ||
+                    (game.genre && game.genre.toLowerCase().includes(query.toLowerCase()))
+                )
+            ).map(game => filterGame(game));
+            res.send(filtered);
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching games", error: message });
         }
     }
 
@@ -299,7 +351,7 @@ export class Games {
             await this.gameService.addOwner(gameId, ownerId);
 
             const game = await this.gameService.getGame(gameId);
-            res.status(201).send({message: "Game created", game: game});
+            res.status(201).send({ message: "Game created", game: game });
         } catch (error) {
             if (error instanceof ValidationError) {
                 return res.status(400).send({ message: "Validation failed", errors: error.errors });
@@ -318,12 +370,12 @@ export class Games {
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
-            if(req.user.user_id !== game.owner_id) {
+            if (req.user.user_id !== game.owner_id) {
                 return res.status(403).send({ message: "You are not the owner of this game" });
             }
             const { gameId } = req.params;
             await this.gameService.updateGame(gameId, req.body);
-            const updatedGame = await this.gameService.getGame(gameId) as Game; 
+            const updatedGame = await this.gameService.getGame(gameId) as Game;
             res.status(200).send(filterGame(updatedGame, req.user.user_id));
         } catch (error) {
             if (error instanceof ValidationError) {
@@ -334,7 +386,7 @@ export class Games {
         }
     }
 
-    @httpPost("/:gameId/buy", LoggedCheck.middleware)
+    @httpPost(":/gameId/buy", LoggedCheck.middleware)
     public async buyGame(req: AuthenticatedRequest, res: Response) {
         const { gameId } = req.params;
         const userId = req.user.user_id;

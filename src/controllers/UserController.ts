@@ -1,48 +1,19 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { IUserService } from '../services/UserService';
-import { createUserValidator, userIdParamValidator } from '../validators/UserValidator';
+import { userIdParamValidator } from '../validators/UserValidator';
 import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
-import { genVerificationKey } from '../utils/GenKey';
+import { genKey, genVerificationKey } from '../utils/GenKey';
 import { User } from '../interfaces/User';
-import { v4 } from 'uuid';
 
 @controller("/users")
 export class Users {
     constructor(
         @inject("UserService") private userService: IUserService,
     ) {}
-
-    @describe({
-        endpoint: "/users",
-        method: "POST",
-        description: "Add a new user",
-        body: { id: "The id of the user", username: "The username of the user" },
-        responseType: { message: "string" },
-        example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
-    })
-    @httpPost("/")
-    public async addUser(req: Request, res: Response) {
-        try {
-            await createUserValidator.validate(req.body);
-        } catch (err) {
-            return res.status(400).send({ message: "Invalid user data", error: err });
-        }
-        const { username } = req.body;
-        const id = req.body.userId || req.body.id || v4().split("-")[0]; // Use userId or id from the request body
-        const balance = req.body.balance || 0; // Default balance to 0 if not provided
-        try {
-            await this.userService.createUser(id, username, balance);
-            res.status(201).send({ message: "User added" });
-        } catch (error) {
-            console.error("Error adding user", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error adding user", error: message });
-        }
-    }
-
 
     @describe({
         endpoint: "/users/@me",
@@ -68,6 +39,7 @@ export class Users {
             ...discordUser,
             id: user.user_id,
             userId: user.user_id,
+            email: user.email,
             balance: Math.floor(user.balance),
             username: user.username,
             verificationKey: genVerificationKey(user.user_id)
@@ -167,22 +139,80 @@ export class Users {
         res.send(filteredUser);
     }
 
-    @httpPost("/create")
-    public async createUser(req: Request, res: Response) {
-        try {
-            await createUserValidator.validate(req.body);
-        } catch (err) {
-            return res.status(400).send({ message: "Invalid user data", error: err });
+    @httpPost("/register")
+    public async register(req: Request, res: Response) {
+        const { userId, username, email, password } = req.body;
+        if (!userId || !username || !email || !password) {
+            return res.status(400).send({ message: "Missing required fields" });
         }
-        const { userId, username } = req.body;
-        const balance = 0;
+        const allUsers = await this.userService.getAllUsers();
+        if (allUsers.some(u => u.email === email)) {
+            return res.status(409).send({ message: "Email already in use" });
+        }
+        // Hash du mot de passe
+        const hashedPassword = await bcrypt.hash(password, 10);
         try {
-            await this.userService.createUser(userId, username, balance);
-            res.status(201).send({ message: "User created" });
+            // TODO: Adapter UserService.createUser pour gérer email et password
+            await this.userService.createUser(userId, username , email, hashedPassword );
+            res.status(201).send({ message: "User registered" });
         } catch (error) {
-            console.error("Error creating user", error);
+            console.error("Error registering user", error);
             const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error creating user", error: message });
+            res.status(500).send({ message: "Error registering user", error: message });
+        }
+    }
+
+    @httpPost("/login")
+    public async login(req: Request, res: Response) {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).send({ message: "Missing email or password" });
+        }
+        const allUsers = await this.userService.getAllUsers();
+        const user = allUsers.find(u => u.email === email);
+        if (!user || !user.password) {
+            return res.status(401).send({ message: "Invalid credentials" });
+        }
+        // bcrypt importé en haut
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) {
+            return res.status(401).send({ message: "Invalid credentials" });
+        }
+        res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: genKey(user.user_id) });
+    }
+
+    @httpPost("/change-password", LoggedCheck.middleware)
+    public async changePassword(req: AuthenticatedRequest, res: Response) {
+        const { oldPassword, newPassword, confirmPassword } = req.body;
+        if (!newPassword || !confirmPassword) {
+            return res.status(400).send({ message: "Missing newPassword or confirmPassword" });
+        }
+        if (newPassword !== confirmPassword) {
+            return res.status(400).send({ message: "New password and confirm password do not match" });
+        }
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        let valid = true;
+        if (user.password) {
+            valid = await bcrypt.compare(oldPassword, user.password);
+        }
+        if (!valid) {
+            return res.status(401).send({ message: "Invalid current password" });
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        try {
+            await this.userService.updateUserPassword(userId, hashedPassword);
+            res.status(200).send({ message: "Password changed successfully" });
+        } catch (error) {
+            console.error("Error changing password", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error changing password", error: message });
         }
     }
 

@@ -11,38 +11,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Users = void 0;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const UserValidator_1 = require("../validators/UserValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
-const uuid_1 = require("uuid");
 let Users = class Users {
     constructor(userService) {
         this.userService = userService;
-    }
-    async addUser(req, res) {
-        try {
-            await UserValidator_1.createUserValidator.validate(req.body);
-        }
-        catch (err) {
-            return res.status(400).send({ message: "Invalid user data", error: err });
-        }
-        const { username } = req.body;
-        const id = req.body.userId || req.body.id || (0, uuid_1.v4)().split("-")[0]; // Use userId or id from the request body
-        const balance = req.body.balance || 0; // Default balance to 0 if not provided
-        try {
-            await this.userService.createUser(id, username, balance);
-            res.status(201).send({ message: "User added" });
-        }
-        catch (error) {
-            console.error("Error adding user", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error adding user", error: message });
-        }
     }
     async getMe(req, res) {
         const userId = req.user?.user_id;
@@ -59,6 +42,7 @@ let Users = class Users {
             ...discordUser,
             id: user.user_id,
             userId: user.user_id,
+            email: user.email,
             balance: Math.floor(user.balance),
             username: user.username,
             verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id)
@@ -126,23 +110,77 @@ let Users = class Users {
         };
         res.send(filteredUser);
     }
-    async createUser(req, res) {
-        try {
-            await UserValidator_1.createUserValidator.validate(req.body);
+    async register(req, res) {
+        const { userId, username, email, password } = req.body;
+        if (!userId || !username || !email || !password) {
+            return res.status(400).send({ message: "Missing required fields" });
         }
-        catch (err) {
-            return res.status(400).send({ message: "Invalid user data", error: err });
+        const allUsers = await this.userService.getAllUsers();
+        if (allUsers.some(u => u.email === email)) {
+            return res.status(409).send({ message: "Email already in use" });
         }
-        const { userId, username } = req.body;
-        const balance = 0;
+        // Hash du mot de passe
+        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         try {
-            await this.userService.createUser(userId, username, balance);
-            res.status(201).send({ message: "User created" });
+            // TODO: Adapter UserService.createUser pour gérer email et password
+            await this.userService.createUser(userId, username, email, hashedPassword);
+            res.status(201).send({ message: "User registered" });
         }
         catch (error) {
-            console.error("Error creating user", error);
+            console.error("Error registering user", error);
             const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error creating user", error: message });
+            res.status(500).send({ message: "Error registering user", error: message });
+        }
+    }
+    async login(req, res) {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).send({ message: "Missing email or password" });
+        }
+        const allUsers = await this.userService.getAllUsers();
+        const user = allUsers.find(u => u.email === email);
+        if (!user || !user.password) {
+            return res.status(401).send({ message: "Invalid credentials" });
+        }
+        // bcrypt importé en haut
+        const valid = await bcryptjs_1.default.compare(password, user.password);
+        if (!valid) {
+            return res.status(401).send({ message: "Invalid credentials" });
+        }
+        res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
+    }
+    async changePassword(req, res) {
+        const { oldPassword, newPassword, confirmPassword } = req.body;
+        if (!newPassword || !confirmPassword) {
+            return res.status(400).send({ message: "Missing newPassword or confirmPassword" });
+        }
+        if (newPassword !== confirmPassword) {
+            return res.status(400).send({ message: "New password and confirm password do not match" });
+        }
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        let valid = true;
+        if (user.password) {
+            valid = await bcryptjs_1.default.compare(oldPassword, user.password);
+        }
+        if (!valid) {
+            return res.status(401).send({ message: "Invalid current password" });
+        }
+        const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
+        try {
+            await this.userService.updateUserPassword(userId, hashedPassword);
+            res.status(200).send({ message: "Password changed successfully" });
+        }
+        catch (error) {
+            console.error("Error changing password", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error changing password", error: message });
         }
     }
     async transferCredits(req, res) {
@@ -176,20 +214,6 @@ let Users = class Users {
         }
     }
 };
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users",
-        method: "POST",
-        description: "Add a new user",
-        body: { id: "The id of the user", username: "The username of the user" },
-        responseType: { message: "string" },
-        example: "POST /api/users { userId: '123', username: 'JohnDoe', balance: 100 }"
-    }),
-    (0, inversify_express_utils_1.httpPost)("/"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "addUser", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/@me",
@@ -248,11 +272,23 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "getUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/create"),
+    (0, inversify_express_utils_1.httpPost)("/register"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Users.prototype, "createUser", null);
+], Users.prototype, "register", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/login"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "login", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/change-password", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "changePassword", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/transfer-credits",

@@ -3,4 +3,6 @@ export interface User {
     user_id: string;
     balance: number;
     username: string;
+    email?: string;
+    password?: string;
 }

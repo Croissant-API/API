@@ -15,6 +15,7 @@
     "test-watch": "npx tsc && npx jest --watch --detectOpenHandles  --forceExit"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "commander": "^13.1.0",
     "cors": "^2.8.5",
     "croissant-api": "file:",

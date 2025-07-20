@@ -6,7 +6,7 @@ import { getCachedUser, setCachedUser } from "../utils/UserCache";
 import { config } from "dotenv";
 import path from "path";
 
-config({path: path.join(__dirname, "..", "..", ".env")});
+config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -15,19 +15,20 @@ export interface IUserService {
     getDiscordUser(user_id: string): any;
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
-    createUser(user_id: string, username: string, balance: number): Promise<void>;
+    createUser(user_id: string, username: string, email: string, password: string): Promise<void>;
     getUser(user_id: string): Promise<User | null>;
     getAllUsers(): Promise<User[]>;
     updateUser(user_id: string, username?: string, balance?: number): Promise<void>;
     deleteUser(user_id: string): Promise<void>;
     authenticateUser(api_key: string): Promise<User | null>;
+    updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
 }
 
 @injectable()
 export class UserService implements IUserService {
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
-    ) {}
+    ) { }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getDiscordUser(userId: string): Promise<any> {
@@ -71,10 +72,10 @@ export class UserService implements IUserService {
         );
     }
 
-    async createUser(user_id: string, username: string, balance: number): Promise<void> {
+    async createUser(user_id: string, username: string, email: string, password: string): Promise<void> {
         await this.databaseService.create(
-            "INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)",
-            [user_id, username, balance]
+            "INSERT INTO users (user_id, username, email, password, balance) VALUES (?, ?, ?, ?, ?)",
+            [user_id, username, email, password, 0]
         );
     }
 
@@ -119,7 +120,7 @@ export class UserService implements IUserService {
     async authenticateUser(api_key: string): Promise<User | null> {
         const users = await this.getAllUsers();
 
-        if(!users) {
+        if (!users) {
             console.error("Error fetching users", users);
             return null;
         }
@@ -129,5 +130,12 @@ export class UserService implements IUserService {
             return null;
         }
         return user;
+    }
+
+    async updateUserPassword(user_id: string, hashedPassword: string): Promise<void> {
+        await this.databaseService.update(
+            "UPDATE users SET password = ? WHERE user_id = ?",
+            [hashedPassword, user_id]
+        );
     }
 }

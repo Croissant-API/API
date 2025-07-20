@@ -84,6 +84,24 @@ let Games = class Games {
             res.status(500).send({ message: "Error fetching user games", error: message });
         }
     }
+    async searchGames(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            // Recherche insensible à la casse sur le nom, la description ou le genre, et seulement les jeux visibles en boutique
+            const games = await this.gameService.listGames();
+            const filtered = games.filter(game => game.showInStore && ((game.name && game.name.toLowerCase().includes(query.toLowerCase())) ||
+                (game.description && game.description.toLowerCase().includes(query.toLowerCase())) ||
+                (game.genre && game.genre.toLowerCase().includes(query.toLowerCase())))).map(game => filterGame(game));
+            res.send(filtered);
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching games", error: message });
+        }
+    }
     async getGamesByUserId(req, res) {
         try {
             const { userId } = req.params;
@@ -316,6 +334,39 @@ __decorate([
 ], Games.prototype, "getUserGames", null);
 __decorate([
     (0, describe_1.describe)({
+        endpoint: "/games/search",
+        method: "GET",
+        description: "Search for games by name, genre, or description.",
+        query: { q: "The search query" },
+        responseType: [{
+                gameId: "string",
+                name: "string",
+                description: "string",
+                price: "number",
+                owner_id: "string",
+                showInStore: "boolean",
+                iconHash: "string",
+                splashHash: "string",
+                bannerHash: "string",
+                genre: "string",
+                release_date: "string",
+                developer: "string",
+                publisher: "string",
+                platforms: ["string"],
+                rating: "number",
+                website: "string",
+                trailer_link: "string",
+                multiplayer: "boolean"
+            }],
+        example: "GET /api/games/search?q=Minecraft"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/search", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "searchGames", null);
+__decorate([
+    (0, describe_1.describe)({
         endpoint: "/games/list/:userId",
         method: "GET",
         description: "List all games owned by a specific user.",
@@ -393,7 +444,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "updateGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:gameId/buy", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)(":/gameId/buy", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

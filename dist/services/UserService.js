@@ -60,8 +60,8 @@ let UserService = class UserService {
     async updateUserBalance(user_id, balance) {
         await this.databaseService.update("UPDATE users SET balance = ? WHERE user_id = ?", [balance, user_id]);
     }
-    async createUser(user_id, username, balance) {
-        await this.databaseService.create("INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)", [user_id, username, balance]);
+    async createUser(user_id, username, email, password) {
+        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance) VALUES (?, ?, ?, ?, ?)", [user_id, username, email, password, 0]);
     }
     async getUser(user_id) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE user_id = ?", [user_id]);
@@ -101,6 +101,9 @@ let UserService = class UserService {
             return null;
         }
         return user;
+    }
+    async updateUserPassword(user_id, hashedPassword) {
+        await this.databaseService.update("UPDATE users SET password = ? WHERE user_id = ?", [hashedPassword, user_id]);
     }
 };
 UserService = __decorate([
