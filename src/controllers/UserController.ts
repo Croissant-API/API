@@ -175,6 +175,7 @@ export class Users {
                 id: user.user_id,
                 userId: user.user_id,
                 balance: Math.floor(user.balance),
+                verified: user.verified,
                 username: user.username,
                 steam_id: user.steam_id,
                 steam_username: user.steam_username,
@@ -213,6 +214,7 @@ export class Users {
             userId: string;
             email: string;
             balance: number;
+            verified: boolean;
             username: string;
             verificationKey: string;
             steam_id?: string;
@@ -225,6 +227,7 @@ export class Users {
             userId: user.user_id,
             email: user.email,
             balance: Math.floor(user.balance),
+            verified: user.verified,
             username: user.username,
             verificationKey: genVerificationKey(user.user_id),
             steam_id: user.steam_id,
@@ -263,6 +266,7 @@ export class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    verified: user.verified,
                     steam_id: user.steam_id,
                     steam_username: user.steam_username,
                     steam_avatar_url: user.steam_avatar_url
@@ -294,6 +298,7 @@ export class Users {
                     userId: user.user_id,
                     username: user.username,
                     balance: Math.floor(user.balance),
+                    verified: user.verified,
                     steam_id: user.steam_id,
                     steam_username: user.steam_username,
                     steam_avatar_url: user.steam_avatar_url
@@ -356,6 +361,7 @@ export class Users {
             id: string;
             userId: string;
             balance: number;
+            verified: boolean;
             username: string;
             admin?: boolean;
             disabled?: boolean;
@@ -364,6 +370,7 @@ export class Users {
             id: user.user_id,
             userId: user.user_id,
             balance: Math.floor(user.balance),
+            verified: user.verified,
             username: user.username,
             disabled: !!user.disabled,
         };
@@ -440,7 +447,8 @@ export class Users {
             username: user.username,
             steam_id: user.steam_id,
             steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url
+            steam_avatar_url: user.steam_avatar_url,
+            verified: user.verified
         };
         res.send(filteredUser);
     }

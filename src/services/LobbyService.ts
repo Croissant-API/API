@@ -62,13 +62,10 @@ export class LobbyService implements ILobbyService {
             "SELECT lobbyId, users FROM lobbies"
         );
         for (const row of rows) {
-            const fetchedUsers: (User | null)[] = await Promise
+            const users: (User | null)[] = await Promise
                 .all(JSON.parse(row.users).map((u: string) => this.userService.getUser(u)))
                 .catch(() => []);
-            const users = await Promise.all(
-                fetchedUsers.map(u => this.userService.getDiscordUser(u?.user_id || ""))
-            );
-            if (fetchedUsers.find(user => user?.user_id === userId)) {
+            if (users.find(user => user?.user_id === userId)) {
                 // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
             }

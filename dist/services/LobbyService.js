@@ -51,11 +51,10 @@ let LobbyService = class LobbyService {
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const fetchedUsers = await Promise
+            const users = await Promise
                 .all(JSON.parse(row.users).map((u) => this.userService.getUser(u)))
                 .catch(() => []);
-            const users = await Promise.all(fetchedUsers.map(u => this.userService.getDiscordUser(u?.user_id || "")));
-            if (fetchedUsers.find(user => user?.user_id === userId)) {
+            if (users.find(user => user?.user_id === userId)) {
                 // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
             }
