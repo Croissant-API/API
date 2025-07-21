@@ -86,7 +86,6 @@ let StudioService = class StudioService {
         if (studios.length === 0)
             return { success: false, error: "User doesn't have any studios" };
         for (const studio of studios) {
-            console.log(studio.users);
             if (studio.users.some((u) => u.userId === user_id)) {
                 // L'utilisateur est admin, on peut changer son rôle
                 await this.databaseService.update("UPDATE users SET role = ? WHERE user_id = ?", [role, user_id]);

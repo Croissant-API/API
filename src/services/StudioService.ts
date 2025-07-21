@@ -110,7 +110,6 @@ export class StudioService implements IStudioService {
         if (studios.length === 0) return { success: false, error: "User doesn't have any studios" };
 
         for (const studio of studios) {
-            console.log(studio.users)
             if (studio.users.some((u: any) => u.userId === user_id)) {
                 // L'utilisateur est admin, on peut changer son rôle
                 await this.databaseService.update(
