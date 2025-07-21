@@ -134,6 +134,8 @@ out
 .yarn/install-state.gz
 .pnp.*
 
+database_backups/
+
 package-lock.json
 database.db
 databaseBackup.db
