@@ -6,6 +6,7 @@ export interface IUserService {
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
     createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+    createBrandUser(user_id: string, username: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;
@@ -24,6 +25,7 @@ export interface IUserService {
 }
 export declare class UserService implements IUserService {
     private databaseService;
+    constructor(databaseService: IDatabaseService);
     /**
      * Met à jour les champs Steam de l'utilisateur
      */
@@ -36,7 +38,6 @@ export declare class UserService implements IUserService {
      * Associe un identifiant OAuth (discord ou google) à un utilisateur existant
      */
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
-    constructor(databaseService: IDatabaseService);
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     getDiscordUser(userId: string): Promise<any>;
@@ -47,6 +48,7 @@ export declare class UserService implements IUserService {
      * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
      */
     createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+    createBrandUser(user_id: string, username: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;

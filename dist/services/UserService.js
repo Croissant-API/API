@@ -25,6 +25,9 @@ const crypto_1 = __importDefault(require("crypto"));
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = class UserService {
+    constructor(databaseService) {
+        this.databaseService = databaseService;
+    }
     /**
      * Met à jour les champs Steam de l'utilisateur
      */
@@ -44,9 +47,6 @@ let UserService = class UserService {
     async associateOAuth(user_id, provider, providerId) {
         const column = provider === "discord" ? "discord_id" : "google_id";
         await this.databaseService.update(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
-    }
-    constructor(databaseService) {
-        this.databaseService = databaseService;
     }
     async disableAccount(targetUserId, adminUserId) {
         // Check if adminUserId is admin
@@ -113,6 +113,11 @@ let UserService = class UserService {
         }
         // Création du nouvel utilisateur
         await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [user_id, username, email, password, provider === "discord" ? providerId : null, provider === "google" ? providerId : null]);
+        return await this.getUser(user_id);
+    }
+    async createBrandUser(user_id, username) {
+        // Crée un utilisateur de marque sans email ni mot de passe
+        await this.databaseService.create("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
         return await this.getUser(user_id);
     }
     async getUser(user_id) {

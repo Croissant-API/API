@@ -14,4 +14,6 @@ export interface User {
     steam_avatar_url?: string;
     forgot_password_token?: string;
     verified: boolean;
+    isStudio: boolean;
+    role: string;
 }

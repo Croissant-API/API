@@ -8,4 +8,5 @@ import "./controllers/LobbyController";
 import "./controllers/TradeController";
 import "./controllers/UserController";
 import "./controllers/OAuth2Controller";
+import "./controllers/StudioController";
 export declare const app: express.Application;

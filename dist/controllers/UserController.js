@@ -25,11 +25,14 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const SteamOAuthService_1 = require("../services/SteamOAuthService");
 const MailService_1 = require("../services/MailService");
+const StudioService_1 = require("../services/StudioService");
 let Users = class Users {
-    /**
-     * Connexion via OAuth (Google/Discord)
-     * Body attendu : { email, provider, providerId, username? }
-     */
+    constructor(userService, steamOAuthService, mailService, studioService) {
+        this.userService = userService;
+        this.steamOAuthService = steamOAuthService;
+        this.mailService = mailService;
+        this.studioService = studioService;
+    }
     async loginOAuth(req, res) {
         const { email, provider, providerId, username } = req.body;
         if (!email || !provider || !providerId) {
@@ -59,17 +62,6 @@ let Users = class Users {
         }
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: (0, GenKey_1.genKey)(user.user_id) });
     }
-    constructor(userService, steamOAuthService, mailService) {
-        this.userService = userService;
-        this.steamOAuthService = steamOAuthService;
-        this.mailService = mailService;
-    }
-    /**
- * Change le pseudo de l'utilisateur connecté
- * POST /users/change-username
- * Body: { username: string }
- * Requires authentication
- */
     async changeUsername(req, res) {
         const userId = req.user?.user_id;
         const { username } = req.body;
@@ -89,23 +81,12 @@ let Users = class Users {
             res.status(500).send({ message: "Error updating username", error: message });
         }
     }
-    /**
-     * Redirige l'utilisateur vers Steam pour l'authentification OpenID
-     * GET /users/steam-redirect
-     */
     async steamRedirect(req, res) {
         const url = this.steamOAuthService.getAuthUrl();
         res.send(url);
     }
-    /**
-     * Associe le compte Steam à l'utilisateur connecté
-     * GET /users/steam-associate (callback Steam OpenID)
-     * Query params: OpenID response
-     * Requires authentication
-     */
     async steamAssociate(req, res) {
-        const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-        const user = await this.userService.authenticateUser(token);
+        const user = req.user;
         if (!user) {
             return res.status(401).send({ message: "Unauthorized" });
         }
@@ -131,11 +112,6 @@ let Users = class Users {
             // res.status(500).send({ message: "Error associating Steam account", error: message });
         }
     }
-    /**
-     * Dissocie le compte Steam de l'utilisateur connecté
-     * POST /users/unlink-steam
-     * Requires authentication
-     */
     async unlinkSteam(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
@@ -149,99 +125,6 @@ let Users = class Users {
             console.error("Error unlinking Steam account", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error unlinking Steam account", error: message });
-        }
-    }
-    /**
-     * GET /users/getUserBySteamId?steamId=xxx
-     * Récupère un utilisateur par son Steam ID
-     */
-    async getUserBySteamId(req, res) {
-        const steamId = req.query.steamId;
-        if (!steamId) {
-            return res.status(400).send({ message: "Missing steamId query parameter" });
-        }
-        try {
-            const user = await this.userService.getUserBySteamId(steamId);
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
-            }
-            // const discordUser = await this.userService.getDiscordUser(user.user_id);
-            const filteredUser = {
-                // ...discordUser,
-                id: user.user_id,
-                userId: user.user_id,
-                balance: Math.floor(user.balance),
-                verified: user.verified,
-                username: user.username,
-                steam_id: user.steam_id,
-                steam_username: user.steam_username,
-                steam_avatar_url: user.steam_avatar_url
-            };
-            res.send(filteredUser);
-        }
-        catch (error) {
-            console.error("Error fetching user by Steam ID", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user by Steam ID", error: message });
-        }
-    }
-    async getMe(req, res) {
-        const userId = req.user?.user_id;
-        if (!userId) {
-            return res.status(401).send({ message: "Unauthorized" });
-        }
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        // Filter user to only expose allowed fields
-        // const discordUser = await this.userService.getDiscordUser(user.user_id)
-        const filteredUser = {
-            // ...discordUser,
-            id: user.user_id,
-            userId: user.user_id,
-            email: user.email,
-            balance: Math.floor(user.balance),
-            verified: user.verified,
-            username: user.username,
-            verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
-            steam_id: user.steam_id,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url
-        };
-        if (user.admin) {
-            filteredUser.admin = user.admin;
-        }
-        res.send(filteredUser);
-    }
-    async searchUsers(req, res) {
-        const query = req.query.q?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            const users = await this.userService.searchUsersByUsername(query);
-            const filtered = [];
-            for (const user of users) {
-                // const discordUser = await this.userService.getDiscordUser(user.user_id);
-                filtered.push({
-                    // ...discordUser,
-                    id: user.user_id,
-                    userId: user.user_id,
-                    username: user.username,
-                    balance: Math.floor(user.balance),
-                    verified: user.verified,
-                    steam_id: user.steam_id,
-                    steam_username: user.steam_username,
-                    steam_avatar_url: user.steam_avatar_url
-                });
-            }
-            res.send(filtered);
-        }
-        catch (error) {
-            console.error("Error searching users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error searching users", error: message });
         }
     }
     async adminSearchUsers(req, res) {
@@ -263,7 +146,9 @@ let Users = class Users {
                     verified: user.verified,
                     steam_id: user.steam_id,
                     steam_username: user.steam_username,
-                    steam_avatar_url: user.steam_avatar_url
+                    steam_avatar_url: user.steam_avatar_url,
+                    isStudio: user.isStudio,
+                    admin: !!user.admin
                 });
             }
             res.send(filtered);
@@ -324,23 +209,13 @@ let Users = class Users {
             verified: user.verified,
             username: user.username,
             disabled: !!user.disabled,
+            admin: !!user.admin,
+            isStudio: !!user.isStudio
         };
         if (user.admin) {
             filteredUser.admin = user.admin;
         }
         res.send(filteredUser);
-    }
-    async checkVerificationKey(req, res) {
-        const { userId, verificationKey } = req.body;
-        if (!userId || !verificationKey) {
-            return res.status(400).send({ message: "Missing userId or verificationKey" });
-        }
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
-        res.send({ success: verificationKey === expectedKey });
     }
     async isValidResetToken(req, res) {
         const { reset_token } = req.query;
@@ -353,33 +228,6 @@ let Users = class Users {
             return res.status(404).send({ message: "Invalid reset token" });
         }
         res.status(200).send({ message: "Valid reset token", user });
-    }
-    async getUser(req, res) {
-        try {
-            await UserValidator_1.userIdParamValidator.validate(req.params);
-        }
-        catch (err) {
-            return res.status(400).send({ message: "Invalid userId", error: err });
-        }
-        const { userId } = req.params;
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        // Filter user to only expose allowed fields
-        // const discordUser = await this.userService.getDiscordUser(user.user_id)
-        const filteredUser = {
-            // ...discordUser,
-            id: user.user_id,
-            userId: user.user_id,
-            balance: Math.floor(user.balance),
-            username: user.username,
-            steam_id: user.steam_id,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url,
-            verified: user.verified
-        };
-        res.send(filteredUser);
     }
     async register(req, res) {
         const { username, email, password, provider, providerId } = req.body;
@@ -468,36 +316,6 @@ let Users = class Users {
             res.status(500).send({ message: "Error changing password", error: message });
         }
     }
-    async transferCredits(req, res) {
-        const { targetUserId, amount } = req.body;
-        if (!targetUserId || isNaN(amount) || amount <= 0) {
-            return res.status(400).send({ message: "Invalid input" });
-        }
-        try {
-            const sender = req.user;
-            if (!sender) {
-                return res.status(401).send({ message: "Unauthorized" });
-            }
-            if (sender.user_id === targetUserId) {
-                return res.status(400).send({ message: "Cannot transfer credits to yourself" });
-            }
-            const recipient = await this.userService.getUser(targetUserId);
-            if (!recipient) {
-                return res.status(404).send({ message: "Recipient not found" });
-            }
-            if (sender.balance < amount) {
-                return res.status(400).send({ message: "Insufficient balance" });
-            }
-            await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
-            await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
-            res.status(200).send({ message: "Credits transferred" });
-        }
-        catch (error) {
-            console.error("Error transferring credits", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error transferring credits", error: message });
-        }
-    }
     async forgotPassword(req, res) {
         const { email } = req.body;
         if (!email) {
@@ -536,6 +354,216 @@ let Users = class Users {
             res.status(500).send({ message: "Error resetting password", error: message });
         }
     }
+    async changeRole(req, res) {
+        const userId = req.originalUser?.user_id;
+        const { role } = req.body;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        if (!role || typeof role !== "string") {
+            return res.status(400).send({ message: "Invalid role" });
+        }
+        try {
+            const success = await this.studioService.changeRole(userId, role);
+            const user = await this.userService.getUser(role);
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            const studios = await this.studioService.getUserStudios(userId);
+            const roles = [userId, ...studios.map(s => s.user_id)];
+            const filteredUser = {
+                // ...discordUser,
+                id: user.user_id,
+                userId: user.user_id,
+                email: user.email,
+                balance: Math.floor(user.balance),
+                verified: user.verified,
+                username: user.username,
+                verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
+                steam_id: user.steam_id,
+                steam_username: user.steam_username,
+                steam_avatar_url: user.steam_avatar_url,
+                studios: studios,
+                isStudio: user.isStudio,
+                roles,
+                admin: !!user.admin
+            };
+            if (success) {
+                return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
+            }
+            else {
+                return res.status(400).send({ message: "Failed to update role" });
+            }
+        }
+        catch (error) {
+            console.error("Error changing role", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            return res.status(500).send({ message: "Error changing role", error: message });
+        }
+    }
+    async getMe(req, res) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        // Filter user to only expose allowed fields
+        // const discordUser = await this.userService.getDiscordUser(user.user_id)
+        const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
+        const roles = [req.originalUser?.user_id, ...studios.map(s => s.user_id)];
+        const filteredUser = {
+            // ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            email: user.email,
+            balance: Math.floor(user.balance),
+            verified: user.verified,
+            username: user.username,
+            verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            studios: studios,
+            isStudio: user.isStudio,
+            roles,
+            admin: !!user.admin
+        };
+        if (user.admin) {
+            filteredUser.admin = user.admin;
+        }
+        res.send(filteredUser);
+    }
+    async searchUsers(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users = await this.userService.searchUsersByUsername(query);
+            const filtered = [];
+            for (const user of users) {
+                // const discordUser = await this.userService.getDiscordUser(user.user_id);
+                filtered.push({
+                    // ...discordUser,
+                    id: user.user_id,
+                    userId: user.user_id,
+                    username: user.username,
+                    balance: Math.floor(user.balance),
+                    verified: user.verified,
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url,
+                    isStudio: user.isStudio,
+                    admin: !!user.admin
+                });
+            }
+            res.send(filtered);
+        }
+        catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
+    async checkVerificationKey(req, res) {
+        const { userId, verificationKey } = req.body;
+        if (!userId || !verificationKey) {
+            return res.status(400).send({ message: "Missing userId or verificationKey" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
+        res.send({ success: verificationKey === expectedKey });
+    }
+    async getUserBySteamId(req, res) {
+        const steamId = req.query.steamId;
+        if (!steamId) {
+            return res.status(400).send({ message: "Missing steamId query parameter" });
+        }
+        try {
+            const user = await this.userService.getUserBySteamId(steamId);
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            // const discordUser = await this.userService.getDiscordUser(user.user_id);
+            if (!user.steam_id) {
+                return res.status(404).send({ message: "User does not have a linked Steam account" });
+            }
+            const filteredUser = {
+                // ...discordUser,
+                id: user.user_id,
+                username: user.username
+            };
+            res.send(filteredUser);
+        }
+        catch (error) {
+            console.error("Error fetching user by Steam ID", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user by Steam ID", error: message });
+        }
+    }
+    async transferCredits(req, res) {
+        const { targetUserId, amount } = req.body;
+        if (!targetUserId || isNaN(amount) || amount <= 0) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const sender = req.user;
+            if (!sender) {
+                return res.status(401).send({ message: "Unauthorized" });
+            }
+            if (sender.user_id === targetUserId) {
+                return res.status(400).send({ message: "Cannot transfer credits to yourself" });
+            }
+            const recipient = await this.userService.getUser(targetUserId);
+            if (!recipient) {
+                return res.status(404).send({ message: "Recipient not found" });
+            }
+            if (sender.balance < amount) {
+                return res.status(400).send({ message: "Insufficient balance" });
+            }
+            await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
+            await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
+            res.status(200).send({ message: "Credits transferred" });
+        }
+        catch (error) {
+            console.error("Error transferring credits", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error transferring credits", error: message });
+        }
+    }
+    async getUser(req, res) {
+        try {
+            await UserValidator_1.userIdParamValidator.validate(req.params);
+        }
+        catch (err) {
+            return res.status(400).send({ message: "Invalid userId", error: err });
+        }
+        const { userId } = req.params;
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        const filteredUser = {
+            // ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            balance: Math.floor(user.balance),
+            username: user.username,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            verified: !!user.verified,
+            isStudio: !!user.isStudio,
+            admin: !!user.admin
+        };
+        res.send(filteredUser);
+    }
 };
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/login-oauth"),
@@ -556,7 +584,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "steamRedirect", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/steam-associate"),
+    (0, inversify_express_utils_1.httpGet)("/steam-associate", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
@@ -567,48 +595,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "unlinkSteam", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/getUserBySteamId",
-        method: "GET",
-        description: "Get a user by their Steam ID",
-        query: { steamId: "The Steam ID of the user" },
-        responseType: { userId: "string", balance: "number", username: "string", steam_id: "string", steam_username: "string", steam_avatar_url: "string" },
-        example: "GET /api/users/getUserBySteamId?steamId=1234567890"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/getUserBySteamId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "getUserBySteamId", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/@me",
-        method: "GET",
-        description: "Get the authenticated user's information",
-        responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/@me",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "getMe", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/search",
-        method: "GET",
-        description: "Search for users by username",
-        query: { q: "The search query" },
-        responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/search?q=John",
-    }),
-    (0, inversify_express_utils_1.httpGet)("/search"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "searchUsers", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/admin/search"),
     __metadata("design:type", Function),
@@ -634,39 +620,11 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "adminGetUser", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/auth-verification",
-        method: "POST",
-        description: "Check the verification key for the user",
-        responseType: { success: "boolean" },
-        query: { userId: "The id of the user", verificationKey: "The verification key" },
-        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
-    }),
-    (0, inversify_express_utils_1.httpPost)("/auth-verification"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "checkVerificationKey", null);
-__decorate([
     (0, inversify_express_utils_1.httpGet)("/validate-reset-token"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "isValidResetToken", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/:userId",
-        method: "GET",
-        description: "Get a user by userId",
-        params: { userId: "The id of the user" },
-        responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/123"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/:userId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "getUser", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/register"),
     __metadata("design:type", Function),
@@ -686,6 +644,80 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "changePassword", null);
 __decorate([
+    (0, inversify_express_utils_1.httpPost)("/forgot-password"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "forgotPassword", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/reset-password"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "resetPassword", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/change-role", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "changeRole", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/@me",
+        method: "GET",
+        description: "Get the authenticated user's information",
+        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" },
+        example: "GET /api/users/@me",
+        requiresAuth: true
+    }),
+    (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "getMe", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/search",
+        method: "GET",
+        description: "Search for users by username",
+        query: { q: "The search query" },
+        responseType: [{ userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" }],
+        example: "GET /api/users/search?q=John",
+    }),
+    (0, inversify_express_utils_1.httpGet)("/search"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "searchUsers", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/auth-verification",
+        method: "POST",
+        description: "Check the verification key for the user",
+        responseType: { success: "boolean" },
+        query: { userId: "The id of the user", verificationKey: "The verification key" },
+        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
+    }),
+    (0, inversify_express_utils_1.httpPost)("/auth-verification"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "checkVerificationKey", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/getUserBySteamId",
+        method: "GET",
+        description: "Get a user by their Steam ID",
+        query: { steamId: "The Steam ID of the user" },
+        responseType: { id: "string", username: "string" },
+        example: "GET /api/users/getUserBySteamId?steamId=1234567890"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/getUserBySteamId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "getUserBySteamId", null);
+__decorate([
     (0, describe_1.describe)({
         endpoint: "/users/transfer-credits",
         method: "POST",
@@ -701,23 +733,27 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "transferCredits", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/forgot-password"),
+    (0, describe_1.describe)({
+        endpoint: "/users/:userId",
+        method: "GET",
+        description: "Get a user by userId",
+        params: { userId: "The id of the user" },
+        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" },
+        example: "GET /api/users/123"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Users.prototype, "forgotPassword", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/reset-password"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "resetPassword", null);
+], Users.prototype, "getUser", null);
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("SteamOAuthService")),
     __param(2, (0, inversify_1.inject)("MailService")),
+    __param(3, (0, inversify_1.inject)("StudioService")),
     __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService,
-        MailService_1.MailService])
+        MailService_1.MailService,
+        StudioService_1.StudioService])
 ], Users);
 exports.Users = Users;

@@ -18,6 +18,7 @@ export interface IUserService {
     searchUsersByUsername(query: string): Promise<User[]>;
     updateUserBalance(user_id: string, arg1: number): unknown;
     createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+    createBrandUser(user_id: string, username: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
     adminSearchUsers(query: string): Promise<User[]>;
@@ -37,6 +38,10 @@ export interface IUserService {
 
 @injectable()
 export class UserService implements IUserService {
+    constructor(
+        @inject("DatabaseService") private databaseService: IDatabaseService
+    ) { }
+
     /**
      * Met à jour les champs Steam de l'utilisateur
      */
@@ -67,9 +72,7 @@ export class UserService implements IUserService {
             [providerId, user_id]
         );
     }
-    constructor(
-        @inject("DatabaseService") private databaseService: IDatabaseService
-    ) { }
+
     async disableAccount(targetUserId: string, adminUserId: string): Promise<void> {
         // Check if adminUserId is admin
         const admin = await this.adminGetUser(adminUserId);
@@ -154,6 +157,15 @@ export class UserService implements IUserService {
         await this.databaseService.create(
             "INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)",
             [user_id, username, email, password, provider === "discord" ? providerId : null, provider === "google" ? providerId : null]
+        );
+        return await this.getUser(user_id) as User;
+    }
+
+    async createBrandUser(user_id: string, username: string): Promise<User> {
+        // Crée un utilisateur de marque sans email ni mot de passe
+        await this.databaseService.create(
+            "INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)",
+            [user_id, username, ""]
         );
         return await this.getUser(user_id) as User;
     }

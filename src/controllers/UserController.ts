@@ -11,14 +11,19 @@ import { genKey, genVerificationKey } from '../utils/GenKey';
 import { User } from '../interfaces/User';
 import { SteamOAuthService } from '../services/SteamOAuthService';
 import { MailService } from '../services/MailService';
+import { StudioService } from '../services/StudioService';
+import { Studio } from '../interfaces/Studio';
 
 
 @controller("/users")
 export class Users {
-    /**
-     * Connexion via OAuth (Google/Discord)
-     * Body attendu : { email, provider, providerId, username? }
-     */
+    constructor(
+        @inject("UserService") private userService: IUserService,
+        @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService,
+        @inject("MailService") private mailService: MailService,
+        @inject("StudioService") private studioService: StudioService
+    ) { }
+
     @httpPost("/login-oauth")
     public async loginOAuth(req: Request, res: Response) {
         const { email, provider, providerId, username } = req.body;
@@ -48,18 +53,7 @@ export class Users {
         }
         res.status(200).send({ message: "Login successful", user: { userId: user.user_id, username: user.username, email: user.email }, token: genKey(user.user_id) });
     }
-    constructor(
-        @inject("UserService") private userService: IUserService,
-        @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService,
-        @inject("MailService") private mailService: MailService
-    ) {}
 
-        /**
-     * Change le pseudo de l'utilisateur connecté
-     * POST /users/change-username
-     * Body: { username: string }
-     * Requires authentication
-     */
     @httpPost("/change-username", LoggedCheck.middleware)
     public async changeUsername(req: AuthenticatedRequest, res: Response) {
         const userId = req.user?.user_id;
@@ -80,26 +74,15 @@ export class Users {
         }
     }
 
-    /**
-     * Redirige l'utilisateur vers Steam pour l'authentification OpenID
-     * GET /users/steam-redirect
-     */
     @httpGet("/steam-redirect")
     public async steamRedirect(req: Request, res: Response) {
         const url = this.steamOAuthService.getAuthUrl();
         res.send(url);
     }
 
-    /**
-     * Associe le compte Steam à l'utilisateur connecté
-     * GET /users/steam-associate (callback Steam OpenID)
-     * Query params: OpenID response
-     * Requires authentication
-     */
-    @httpGet("/steam-associate")
-    public async steamAssociate(req: Request, res: Response) {
-        const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-        const user = await this.userService.authenticateUser(token as string);
+    @httpGet("/steam-associate", LoggedCheck.middleware)
+    public async steamAssociate(req: AuthenticatedRequest, res: Response) {
+        const user = req.user;
         if (!user) {
             return res.status(401).send({ message: "Unauthorized" });
         }
@@ -125,11 +108,6 @@ export class Users {
         }
     }
 
-    /**
-     * Dissocie le compte Steam de l'utilisateur connecté
-     * POST /users/unlink-steam
-     * Requires authentication
-     */
     @httpPost("/unlink-steam", LoggedCheck.middleware)
     public async unlinkSteam(req: AuthenticatedRequest, res: Response) {
         const userId = req.user?.user_id;
@@ -143,140 +121,6 @@ export class Users {
             console.error("Error unlinking Steam account", error);
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error unlinking Steam account", error: message });
-        }
-    }
-
-    /**
-     * GET /users/getUserBySteamId?steamId=xxx
-     * Récupère un utilisateur par son Steam ID
-     */
-    @describe({
-        endpoint: "/users/getUserBySteamId",
-        method: "GET",
-        description: "Get a user by their Steam ID",
-        query: { steamId: "The Steam ID of the user" },
-        responseType: { userId: "string", balance: "number", username: "string", steam_id: "string", steam_username: "string", steam_avatar_url: "string" },
-        example: "GET /api/users/getUserBySteamId?steamId=1234567890"
-    })
-    @httpGet("/getUserBySteamId")
-    public async getUserBySteamId(req: Request, res: Response) {
-        const steamId = req.query.steamId as string;
-        if (!steamId) {
-            return res.status(400).send({ message: "Missing steamId query parameter" });
-        }
-        try {
-            const user = await this.userService.getUserBySteamId(steamId);
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
-            }
-            // const discordUser = await this.userService.getDiscordUser(user.user_id);
-            const filteredUser = {
-                // ...discordUser,
-                id: user.user_id,
-                userId: user.user_id,
-                balance: Math.floor(user.balance),
-                verified: user.verified,
-                username: user.username,
-                steam_id: user.steam_id,
-                steam_username: user.steam_username,
-                steam_avatar_url: user.steam_avatar_url
-            };
-            res.send(filteredUser);
-        } catch (error) {
-            console.error("Error fetching user by Steam ID", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user by Steam ID", error: message });
-        }
-    }
-
-    @describe({
-        endpoint: "/users/@me",
-        method: "GET",
-        description: "Get the authenticated user's information",
-        responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/@me",
-        requiresAuth: true
-    })
-    @httpGet("/@me", LoggedCheck.middleware)
-    async getMe(req: AuthenticatedRequest, res: Response) {
-        const userId = req.user?.user_id;
-        if (!userId) {
-            return res.status(401).send({ message: "Unauthorized" });
-        }
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        // Filter user to only expose allowed fields
-        // const discordUser = await this.userService.getDiscordUser(user.user_id)
-        const filteredUser: {
-            id: string;
-            userId: string;
-            email: string;
-            balance: number;
-            verified: boolean;
-            username: string;
-            verificationKey: string;
-            steam_id?: string;
-            steam_username?: string;
-            steam_avatar_url?: string;
-            admin?: boolean;
-        } = {
-            // ...discordUser,
-            id: user.user_id,
-            userId: user.user_id,
-            email: user.email,
-            balance: Math.floor(user.balance),
-            verified: user.verified,
-            username: user.username,
-            verificationKey: genVerificationKey(user.user_id),
-            steam_id: user.steam_id,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url
-        };
-        if(user.admin) {
-            filteredUser.admin = user.admin;
-        }
-        res.send(filteredUser);
-    }
-
-    @describe({
-        endpoint: "/users/search",
-        method: "GET",
-        description: "Search for users by username",
-        query: { q: "The search query" },
-        responseType: [{ userId: "string", balance: "number", username: "string" }],
-        example: "GET /api/users/search?q=John",
-    })
-    @httpGet("/search")
-    public async searchUsers(req: Request, res: Response) {
-        const query = (req.query.q as string)?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            const users: User[] = await this.userService.searchUsersByUsername(query);
-
-            const filtered = [];
-            for (const user of users) {
-                // const discordUser = await this.userService.getDiscordUser(user.user_id);
-                filtered.push({
-                    // ...discordUser,
-                    id: user.user_id,
-                    userId: user.user_id,
-                    username: user.username,
-                    balance: Math.floor(user.balance),
-                    verified: user.verified,
-                    steam_id: user.steam_id,
-                    steam_username: user.steam_username,
-                    steam_avatar_url: user.steam_avatar_url
-                });
-            }
-            res.send(filtered);
-        } catch (error) {
-            console.error("Error searching users", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error searching users", error: message });
         }
     }
 
@@ -301,7 +145,9 @@ export class Users {
                     verified: user.verified,
                     steam_id: user.steam_id,
                     steam_username: user.steam_username,
-                    steam_avatar_url: user.steam_avatar_url
+                    steam_avatar_url: user.steam_avatar_url,
+                    isStudio: user.isStudio,
+                    admin: !!user.admin
                 });
             }
             res.send(filtered);
@@ -342,7 +188,6 @@ export class Users {
         }
     }
 
-   
     @httpGet("/admin/:userId")
     public async adminGetUser(req: Request, res: Response) {
         try {
@@ -365,6 +210,7 @@ export class Users {
             username: string;
             admin?: boolean;
             disabled?: boolean;
+            isStudio?: boolean;
         } = {
             // ...discordUser,
             id: user.user_id,
@@ -373,36 +219,15 @@ export class Users {
             verified: user.verified,
             username: user.username,
             disabled: !!user.disabled,
+            admin: !!user.admin,
+            isStudio: !!user.isStudio
         };
-        if(user.admin) {
+        if (user.admin) {
             filteredUser.admin = user.admin;
         }
         res.send(filteredUser);
     }
 
-    @describe({
-        endpoint: "/users/auth-verification",
-        method: "POST",
-        description: "Check the verification key for the user",
-        responseType: { success: "boolean" },
-        query: { userId: "The id of the user", verificationKey: "The verification key" },
-        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
-    })
-    @httpPost("/auth-verification")
-    async checkVerificationKey(req: Request, res: Response) {
-        const { userId, verificationKey } = req.body;
-        if (!userId || !verificationKey) {
-            return res.status(400).send({ message: "Missing userId or verificationKey" });
-        }
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        const expectedKey = genVerificationKey(user.user_id);
-        res.send({ success: verificationKey === expectedKey });
-    }
-
-    
     @httpGet("/validate-reset-token")
     public async isValidResetToken(req: Request, res: Response) {
         const { reset_token } = req.query;
@@ -415,42 +240,6 @@ export class Users {
             return res.status(404).send({ message: "Invalid reset token" });
         }
         res.status(200).send({ message: "Valid reset token", user });
-    }
-
-    @describe({
-        endpoint: "/users/:userId",
-        method: "GET",
-        description: "Get a user by userId",
-        params: { userId: "The id of the user" },
-        responseType: { userId: "string", balance: "number", username: "string" },
-        example: "GET /api/users/123"
-    })
-    @httpGet("/:userId")
-    public async getUser(req: Request, res: Response) {
-        try {
-            await userIdParamValidator.validate(req.params);
-        } catch (err) {
-            return res.status(400).send({ message: "Invalid userId", error: err });
-        }
-        const { userId } = req.params;
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-        // Filter user to only expose allowed fields
-        // const discordUser = await this.userService.getDiscordUser(user.user_id)
-        const filteredUser = {
-            // ...discordUser,
-            id: user.user_id,
-            userId: user.user_id,
-            balance: Math.floor(user.balance),
-            username: user.username,
-            steam_id: user.steam_id,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url,
-            verified: user.verified
-        };
-        res.send(filteredUser);
     }
 
     @httpPost("/register")
@@ -544,6 +333,269 @@ export class Users {
         }
     }
 
+    @httpPost("/forgot-password")
+    public async forgotPassword(req: Request, res: Response) {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).send({ message: "Email is required" });
+        }
+        const user = await this.userService.findByEmail(email);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid email" });
+        }
+        // Here you would typically generate a password reset token and send it via email
+        const passwordResetToken = await this.userService.generatePasswordResetToken(email)
+        await this.mailService.sendPasswordResetMail(email, passwordResetToken);
+        res.status(200).send({ message: "Password reset email sent" });
+    }
+
+    @httpPost("/reset-password")
+    public async resetPassword(req: Request, res: Response) {
+        const { new_password, confirm_password, reset_token } = req.body;
+        if (!new_password || !reset_token || !confirm_password) {
+            return res.status(400).send({ message: "Missing required fields" });
+        }
+        if (new_password !== confirm_password) {
+            return res.status(400).send({ message: "New password and confirm password do not match" });
+        }
+        const allUsers = await this.userService.getAllUsersWithDisabled();
+        const user = allUsers.find(u => u.forgot_password_token === reset_token);
+        if (!user) {
+            return res.status(404).send({ message: "Invalid user" });
+        }
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        try {
+            await this.userService.updateUserPassword(user.user_id, hashedPassword);
+            res.status(200).send({ message: "Password reset successfully", token: genKey(user.user_id) });
+        } catch (error) {
+            console.error("Error resetting password", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error resetting password", error: message });
+        }
+    }
+
+    @httpPost("/change-role", LoggedCheck.middleware)
+    async changeRole(req: AuthenticatedRequest, res: Response) {
+        const userId = req.originalUser?.user_id;
+        const { role } = req.body;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        if (!role || typeof role !== "string") {
+            return res.status(400).send({ message: "Invalid role" });
+        }
+        try {
+            const success = await this.studioService.changeRole(userId, role);
+            const user = await this.userService.getUser(role);
+            if(!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            const studios = await this.studioService.getUserStudios(userId);
+            const roles = [userId, ...studios.map(s => s.user_id)];
+            const filteredUser: {
+                id: string;
+                userId: string;
+                email: string;
+                balance: number;
+                verified: boolean;
+                username: string;
+                verificationKey: string;
+                steam_id?: string;
+                steam_username?: string;
+                steam_avatar_url?: string;
+                admin?: boolean;
+                studios?: Studio[];
+                isStudio?: boolean;
+                roles?: string[];
+            } = {
+                // ...discordUser,
+                id: user.user_id,
+                userId: user.user_id,
+                email: user.email,
+                balance: Math.floor(user.balance),
+                verified: user.verified,
+                username: user.username,
+                verificationKey: genVerificationKey(user.user_id),
+                steam_id: user.steam_id,
+                steam_username: user.steam_username,
+                steam_avatar_url: user.steam_avatar_url,
+                studios: studios,
+                isStudio: user.isStudio,
+                roles,
+                admin: !!user.admin
+            };
+
+            if (success) {
+                return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
+            } else {
+                return res.status(400).send({ message: "Failed to update role" });
+            }
+        } catch (error) {
+            console.error("Error changing role", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            return res.status(500).send({ message: "Error changing role", error: message });
+        }
+    }
+    @describe({
+        endpoint: "/users/@me",
+        method: "GET",
+        description: "Get the authenticated user's information",
+        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" },
+        example: "GET /api/users/@me",
+        requiresAuth: true
+    })
+    @httpGet("/@me", LoggedCheck.middleware)
+    async getMe(req: AuthenticatedRequest, res: Response) {
+        const userId = req.user?.user_id;
+        if (!userId) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        // Filter user to only expose allowed fields
+        // const discordUser = await this.userService.getDiscordUser(user.user_id)
+        const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
+        const roles = [req.originalUser?.user_id as string, ...studios.map(s => s.user_id)];
+        const filteredUser: {
+            id: string;
+            userId: string;
+            email: string;
+            balance: number;
+            verified: boolean;
+            username: string;
+            verificationKey: string;
+            steam_id?: string;
+            steam_username?: string;
+            steam_avatar_url?: string;
+            admin?: boolean;
+            studios?: Studio[];
+            isStudio?: boolean;
+            roles?: string[];
+        } = {
+            // ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            email: user.email,
+            balance: Math.floor(user.balance),
+            verified: user.verified,
+            username: user.username,
+            verificationKey: genVerificationKey(user.user_id),
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            studios: studios,
+            isStudio: user.isStudio,
+            roles,
+            admin: !!user.admin
+        };
+        if (user.admin) {
+            filteredUser.admin = user.admin;
+        }
+        res.send(filteredUser);
+    }
+
+    @describe({
+        endpoint: "/users/search",
+        method: "GET",
+        description: "Search for users by username",
+        query: { q: "The search query" },
+        responseType: [{ userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" }],
+        example: "GET /api/users/search?q=John",
+    })
+    @httpGet("/search")
+    public async searchUsers(req: Request, res: Response) {
+        const query = (req.query.q as string)?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const users: User[] = await this.userService.searchUsersByUsername(query);
+
+            const filtered = [];
+            for (const user of users) {
+                // const discordUser = await this.userService.getDiscordUser(user.user_id);
+                filtered.push({
+                    // ...discordUser,
+                    id: user.user_id,
+                    userId: user.user_id,
+                    username: user.username,
+                    balance: Math.floor(user.balance),
+                    verified: user.verified,
+                    steam_id: user.steam_id,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url,
+                    isStudio: user.isStudio,
+                    admin: !!user.admin
+                });
+            }
+            res.send(filtered);
+        } catch (error) {
+            console.error("Error searching users", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error searching users", error: message });
+        }
+    }
+
+    @describe({
+        endpoint: "/users/auth-verification",
+        method: "POST",
+        description: "Check the verification key for the user",
+        responseType: { success: "boolean" },
+        query: { userId: "The id of the user", verificationKey: "The verification key" },
+        example: "POST /api/users/auth-verification?userId=123&verificationKey=abc123"
+    })
+    @httpPost("/auth-verification")
+    async checkVerificationKey(req: Request, res: Response) {
+        const { userId, verificationKey } = req.body;
+        if (!userId || !verificationKey) {
+            return res.status(400).send({ message: "Missing userId or verificationKey" });
+        }
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        const expectedKey = genVerificationKey(user.user_id);
+        res.send({ success: verificationKey === expectedKey });
+    }
+
+    @describe({
+        endpoint: "/users/getUserBySteamId",
+        method: "GET",
+        description: "Get a user by their Steam ID",
+        query: { steamId: "The Steam ID of the user" },
+        responseType: { id: "string", username: "string" },
+        example: "GET /api/users/getUserBySteamId?steamId=1234567890"
+    })
+    @httpGet("/getUserBySteamId")
+    public async getUserBySteamId(req: Request, res: Response) {
+        const steamId = req.query.steamId as string;
+        if (!steamId) {
+            return res.status(400).send({ message: "Missing steamId query parameter" });
+        }
+        try {
+            const user = await this.userService.getUserBySteamId(steamId);
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            // const discordUser = await this.userService.getDiscordUser(user.user_id);
+            if (!user.steam_id) {
+                return res.status(404).send({ message: "User does not have a linked Steam account" });
+            }
+            const filteredUser = {
+                // ...discordUser,
+                id: user.user_id,
+                username: user.username
+            };
+            res.send(filteredUser);
+        } catch (error) {
+            console.error("Error fetching user by Steam ID", error);
+            const message = (error instanceof Error) ? error.message : String(error);
+            res.status(500).send({ message: "Error fetching user by Steam ID", error: message });
+        }
+    }
+
     @describe({
         endpoint: "/users/transfer-credits",
         method: "POST",
@@ -586,44 +638,40 @@ export class Users {
         }
     }
 
-    @httpPost("/forgot-password")
-    public async forgotPassword(req: Request, res: Response) {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).send({ message: "Email is required" });
-        }
-        const user = await this.userService.findByEmail(email);
-        if (!user) {
-            return res.status(404).send({ message: "Invalid email" });
-        }
-        // Here you would typically generate a password reset token and send it via email
-        const passwordResetToken = await this.userService.generatePasswordResetToken(email)
-        await this.mailService.sendPasswordResetMail(email, passwordResetToken);
-        res.status(200).send({ message: "Password reset email sent" });
-    }
-
-    @httpPost("/reset-password")
-    public async resetPassword(req: Request, res: Response) {
-        const { new_password, confirm_password,  reset_token } = req.body;
-        if (!new_password || !reset_token || !confirm_password) {
-            return res.status(400).send({ message: "Missing required fields" });
-        }
-        if (new_password !== confirm_password) {
-            return res.status(400).send({ message: "New password and confirm password do not match" });
-        }
-        const allUsers = await this.userService.getAllUsersWithDisabled();
-        const user = allUsers.find(u => u.forgot_password_token === reset_token);
-        if (!user) {
-            return res.status(404).send({ message: "Invalid user" });
-        }
-        const hashedPassword = await bcrypt.hash(new_password, 10);
+    @describe({
+        endpoint: "/users/:userId",
+        method: "GET",
+        description: "Get a user by userId",
+        params: { userId: "The id of the user" },
+        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" },
+        example: "GET /api/users/123"
+    })
+    @httpGet("/:userId")
+    public async getUser(req: Request, res: Response) {
         try {
-            await this.userService.updateUserPassword(user.user_id, hashedPassword);
-            res.status(200).send({ message: "Password reset successfully", token: genKey(user.user_id) });
-        } catch (error) {
-            console.error("Error resetting password", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error resetting password", error: message });
+            await userIdParamValidator.validate(req.params);
+        } catch (err) {
+            return res.status(400).send({ message: "Invalid userId", error: err });
         }
+        const { userId } = req.params;
+        const user = await this.userService.getUser(userId);
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+
+        const filteredUser = {
+            // ...discordUser,
+            id: user.user_id,
+            userId: user.user_id,
+            balance: Math.floor(user.balance),
+            username: user.username,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            verified: !!user.verified,
+            isStudio: !!user.isStudio,
+            admin: !!user.admin
+        };
+        res.send(filteredUser);
     }
 }

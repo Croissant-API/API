@@ -14,4 +14,6 @@ export interface User {
     steam_avatar_url?: string; // URL de l'avatar Steam
     forgot_password_token?: string; // Token pour réinitialisation de mot de passe
     verified: boolean; // Indique si l'email est vérifié
+    isStudio: boolean;
+    role: string;
 }
