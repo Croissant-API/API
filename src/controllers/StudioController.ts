@@ -2,19 +2,31 @@ import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { inject } from "inversify";
 import { Request, Response } from "express";
 import { IStudioService } from "../services/StudioService";
-import { User } from "../interfaces/User";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { describe } from "decorators/describe";
 
 @controller("/studios")
-export class StudioController {
+export class Studios {
     constructor(
         @inject("StudioService") private studioService: IStudioService
     ) { }
 
-    /**
-     * GET /studios/:studioId
-     * Récupère un studio par son user_id
-     */
+    @describe({
+        endpoint: "/studios/:studioId",
+        method: "GET",
+        description: "Get a studio by studioId",
+        params: { studioId: "The ID of the studio to retrieve" },
+        responseType: { studio_id: "string", name: "string", admin_id: "string", users: "User[]" },
+        exampleResponse: {
+            studio_id: "studio123",
+            name: "My Studio",
+            admin_id: "user1",
+            users: [
+                { user_id: "user1", username: "User One", verified: true, isStudio: false, admin: false },
+                { user_id: "user2", username: "User Two", verified: true, isStudio: false, admin: false }
+            ]
+        },
+    })
     @httpGet(":studioId")
     async getStudio(req: Request, res: Response) {
         const { studioId } = req.params;
@@ -25,11 +37,6 @@ export class StudioController {
         res.send(studio);
     }
 
-    /**
-     * POST /studios
-     * Crée un studio
-     * Body: { userId, adminId, studioName, adminUsername, adminEmail, adminPassword }
-     */
     @httpPost("/", LoggedCheck.middleware)
     async createStudio(req: AuthenticatedRequest, res: Response) {
         if(req.user.isStudio) {
@@ -47,31 +54,6 @@ export class StudioController {
         }
     }
 
-    /**
-     * POST /studios/:studioId/properties
-     * Met à jour les propriétés d'un studio (admin_id, users)
-     * Body: { adminId, users: User[] }
-     */
-    @httpPost("/:studioId/properties")
-    async setStudioProperties(req: Request, res: Response) {
-        const { studioId } = req.params;
-        const { adminId, users } = req.body;
-        if (!adminId || !Array.isArray(users)) {
-            return res.status(400).send({ message: "Missing adminId or users" });
-        }
-        try {
-            await this.studioService.setStudioProperties(studioId, adminId, users as User[]);
-            res.send({ message: "Studio properties updated" });
-        } catch (error) {
-            res.status(500).send({ message: "Error updating studio properties", error: (error as Error).message });
-        }
-    }
-
-    /**
-     * POST /studios/:studioId/add-user
-     * Ajoute un utilisateur à un studio
-     * Body: { user: User }
-     */
     @httpPost("/:studioId/add-user", LoggedCheck.middleware)
     async addUserToStudio(req: AuthenticatedRequest, res: Response) {
         const { studioId } = req.params;
@@ -91,11 +73,6 @@ export class StudioController {
         }
     }
 
-    /**
-     * POST /studios/:studioId/remove-user
-     * Retire un utilisateur d'un studio
-     * Body: { userId: string }
-     */
     @httpPost("/:studioId/remove-user", LoggedCheck.middleware)
     async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
         const { studioId } = req.params;

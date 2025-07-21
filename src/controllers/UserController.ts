@@ -440,7 +440,7 @@ export class Users {
         endpoint: "/users/@me",
         method: "GET",
         description: "Get the authenticated user's information",
-        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean" },
+        responseType: { userId: "string", balance: "number", username: "string", verified: "boolean", steam_id: "string", steam_username: "string", steam_avatar_url: "string", isStudio: "boolean", admin: "boolean", roles: "string[]", studios: "Studio[]" },
         example: "GET /api/users/@me",
         requiresAuth: true
     })

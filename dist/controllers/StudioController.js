@@ -12,18 +12,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StudioController = void 0;
+exports.Studios = void 0;
 const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-let StudioController = class StudioController {
+const describe_1 = require("decorators/describe");
+let Studios = class Studios {
     constructor(studioService) {
         this.studioService = studioService;
     }
-    /**
-     * GET /studios/:studioId
-     * Récupère un studio par son user_id
-     */
     async getStudio(req, res) {
         const { studioId } = req.params;
         const studio = await this.studioService.getStudio(studioId);
@@ -32,11 +29,6 @@ let StudioController = class StudioController {
         }
         res.send(studio);
     }
-    /**
-     * POST /studios
-     * Crée un studio
-     * Body: { userId, adminId, studioName, adminUsername, adminEmail, adminPassword }
-     */
     async createStudio(req, res) {
         if (req.user.isStudio) {
             return res.status(403).send({ message: "A studio can't create another studio" });
@@ -53,30 +45,6 @@ let StudioController = class StudioController {
             res.status(500).send({ message: "Error creating studio", error: error.message });
         }
     }
-    /**
-     * POST /studios/:studioId/properties
-     * Met à jour les propriétés d'un studio (admin_id, users)
-     * Body: { adminId, users: User[] }
-     */
-    async setStudioProperties(req, res) {
-        const { studioId } = req.params;
-        const { adminId, users } = req.body;
-        if (!adminId || !Array.isArray(users)) {
-            return res.status(400).send({ message: "Missing adminId or users" });
-        }
-        try {
-            await this.studioService.setStudioProperties(studioId, adminId, users);
-            res.send({ message: "Studio properties updated" });
-        }
-        catch (error) {
-            res.status(500).send({ message: "Error updating studio properties", error: error.message });
-        }
-    }
-    /**
-     * POST /studios/:studioId/add-user
-     * Ajoute un utilisateur à un studio
-     * Body: { user: User }
-     */
     async addUserToStudio(req, res) {
         const { studioId } = req.params;
         const { userId } = req.body;
@@ -95,11 +63,6 @@ let StudioController = class StudioController {
             res.status(500).send({ message: "Error adding user to studio", error: error.message });
         }
     }
-    /**
-     * POST /studios/:studioId/remove-user
-     * Retire un utilisateur d'un studio
-     * Body: { userId: string }
-     */
     async removeUserFromStudio(req, res) {
         const { studioId } = req.params;
         const { userId } = req.body;
@@ -126,38 +89,48 @@ let StudioController = class StudioController {
     }
 };
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/studios/:studioId",
+        method: "GET",
+        description: "Get a studio by studioId",
+        params: { studioId: "The ID of the studio to retrieve" },
+        responseType: { studio_id: "string", name: "string", admin_id: "string", users: "User[]" },
+        exampleResponse: {
+            studio_id: "studio123",
+            name: "My Studio",
+            admin_id: "user1",
+            users: [
+                { user_id: "user1", username: "User One", verified: true, isStudio: false, admin: false },
+                { user_id: "user2", username: "User Two", verified: true, isStudio: false, admin: false }
+            ]
+        },
+    }),
     (0, inversify_express_utils_1.httpGet)(":studioId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], StudioController.prototype, "getStudio", null);
+], Studios.prototype, "getStudio", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], StudioController.prototype, "createStudio", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/:studioId/properties"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], StudioController.prototype, "setStudioProperties", null);
+], Studios.prototype, "createStudio", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:studioId/add-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], StudioController.prototype, "addUserToStudio", null);
+], Studios.prototype, "addUserToStudio", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/:studioId/remove-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], StudioController.prototype, "removeUserFromStudio", null);
-StudioController = __decorate([
+], Studios.prototype, "removeUserFromStudio", null);
+Studios = __decorate([
     (0, inversify_express_utils_1.controller)("/studios"),
     __param(0, (0, inversify_1.inject)("StudioService")),
     __metadata("design:paramtypes", [Object])
-], StudioController);
-exports.StudioController = StudioController;
+], Studios);
+exports.Studios = Studios;
