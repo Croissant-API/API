@@ -18,6 +18,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Users = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const inversify_1 = require("inversify");
+const crypto_1 = __importDefault(require("crypto"));
 const inversify_express_utils_1 = require("inversify-express-utils");
 const UserValidator_1 = require("../validators/UserValidator");
 const describe_1 = require("../decorators/describe");
@@ -42,7 +43,7 @@ let Users = class Users {
         let user = await this.userService.findByEmail(email);
         if (!user) {
             // Création d'un nouvel utilisateur si non existant
-            const userId = crypto.randomUUID();
+            const userId = crypto_1.default.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
         }
@@ -236,7 +237,7 @@ let Users = class Users {
             return res.status(400).send({ message: "Missing required fields" });
         }
         if (!userId) {
-            userId = crypto.randomUUID();
+            userId = crypto_1.default.randomUUID();
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {

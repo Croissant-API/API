@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { inject } from 'inversify';
+import crypto from 'crypto';
 import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { IUserService } from '../services/UserService';
 import { userIdParamValidator } from '../validators/UserValidator';
