@@ -6,6 +6,7 @@ export interface IItemService {
     getAllItems(): Promise<Item[]>;
     updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
+    searchItemsByName(query: string): Promise<Item[]>;
 }
 export declare class ItemService implements IItemService {
     private databaseService;
@@ -15,4 +16,8 @@ export declare class ItemService implements IItemService {
     getAllItems(): Promise<Item[]>;
     updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
+    /**
+     * Search items by name, only those with showInStore = true and not deleted
+     */
+    searchItemsByName(query: string): Promise<Item[]>;
 }

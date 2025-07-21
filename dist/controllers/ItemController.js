@@ -59,29 +59,6 @@ let Items = class Items {
         }));
         res.send(myItemsMap);
     }
-    async healthCheck(req, res) {
-        try {
-            await ItemValidator_1.itemIdParamValidator.validate(req.params);
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid itemId", error: message });
-        }
-        const { itemId } = req.params;
-        const item = await this.itemService.getItem(itemId);
-        if (!item || item.deleted) {
-            return res.status(404).send({ message: "Item not found" });
-        }
-        const filteredItem = {
-            name: item.name,
-            description: item.description,
-            owner: item.owner,
-            price: item.price,
-            showInStore: item.showInStore,
-            iconHash: item.iconHash,
-        };
-        res.send(filteredItem);
-    }
     async createItem(req, res) {
         try {
             await ItemValidator_1.createItemValidator.validate(req.body);
@@ -333,6 +310,51 @@ let Items = class Items {
             res.status(500).send({ message: "Error transferring item", error: message });
         }
     }
+    async searchItems(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const items = await this.itemService.searchItemsByName(query);
+            const filtered = items.map(item => ({
+                itemId: item.itemId,
+                name: item.name,
+                description: item.description,
+                owner: item.owner,
+                price: item.price,
+                iconHash: item.iconHash,
+                showInStore: !!item.showInStore
+            }));
+            res.send(filtered);
+        }
+        catch {
+            res.status(500).send({ message: "Error searching items" });
+        }
+    }
+    async healthCheck(req, res) {
+        try {
+            await ItemValidator_1.itemIdParamValidator.validate(req.params);
+        }
+        catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            return res.status(400).send({ message: "Invalid itemId", error: message });
+        }
+        const { itemId } = req.params;
+        const item = await this.itemService.getItem(itemId);
+        if (!item || item.deleted) {
+            return res.status(404).send({ message: "Item not found" });
+        }
+        const filteredItem = {
+            name: item.name,
+            description: item.description,
+            owner: item.owner,
+            price: item.price,
+            showInStore: item.showInStore,
+            iconHash: item.iconHash,
+        };
+        res.send(filteredItem);
+    }
 };
 __decorate([
     (0, describe_1.describe)({
@@ -361,20 +383,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "getMyItems", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/:itemId",
-        method: "GET",
-        description: "Get a single item by itemId",
-        params: { itemId: "The id of the item" },
-        responseType: { name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string" },
-        example: "GET /api/items/123"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/:itemId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Items.prototype, "healthCheck", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",
@@ -532,6 +540,34 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "transferItem", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/search",
+        method: "GET",
+        description: "Search for items by name (only those visible in store)",
+        query: { q: "The search query" },
+        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
+        example: "GET /api/items/search?q=Apple"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/search"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "searchItems", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/:itemId",
+        method: "GET",
+        description: "Get a single item by itemId",
+        params: { itemId: "The id of the item" },
+        responseType: { name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string" },
+        example: "GET /api/items/123"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/:itemId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "healthCheck", null);
 Items = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),

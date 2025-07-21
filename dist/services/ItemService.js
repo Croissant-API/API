@@ -70,6 +70,12 @@ let ItemService = class ItemService {
             this.databaseService.delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]).then(resolve).catch(reject);
         });
     }
+    /**
+     * Search items by name, only those with showInStore = true and not deleted
+     */
+    async searchItemsByName(query) {
+        return this.databaseService.read("SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0", [`%${query}%`]);
+    }
 };
 ItemService = __decorate([
     (0, inversify_1.injectable)(),

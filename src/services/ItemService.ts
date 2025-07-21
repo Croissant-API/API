@@ -8,6 +8,7 @@ export interface IItemService {
   getAllItems(): Promise<Item[]>;
   updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
   deleteItem(itemId: string): Promise<void>;
+  searchItemsByName(query: string): Promise<Item[]>;
 }
 
 @injectable()
@@ -82,5 +83,15 @@ export class ItemService implements IItemService {
         [itemId]
       ).then(resolve).catch(reject);
     });
+  }
+
+  /**
+   * Search items by name, only those with showInStore = true and not deleted
+   */
+  async searchItemsByName(query: string): Promise<Item[]> {
+    return this.databaseService.read<Item[]>(
+      "SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0",
+      [`%${query}%`]
+    );
   }
 }

@@ -71,38 +71,6 @@ export class Items {
     }
 
     @describe({
-        endpoint: "/items/:itemId",
-        method: "GET",
-        description: "Get a single item by itemId",
-        params: { itemId: "The id of the item" },
-        responseType: {name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string"},
-        example: "GET /api/items/123"
-    })
-    @httpGet("/:itemId")
-    public async healthCheck(req: Request, res: Response) {
-        try {
-            await itemIdParamValidator.validate(req.params);
-        } catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid itemId", error: message });
-        }
-        const { itemId } = req.params;
-        const item = await this.itemService.getItem(itemId);
-        if (!item || item.deleted) {
-            return res.status(404).send({ message: "Item not found" });
-        }
-        const filteredItem = {
-            name: item.name,
-            description: item.description,
-            owner: item.owner,
-            price: item.price,
-            showInStore: item.showInStore,
-            iconHash: item.iconHash,
-        };
-        res.send(filteredItem);
-    }
-
-    @describe({
         endpoint: "/items/create",
         method: "POST",
         description: "Create a new item.",
@@ -472,5 +440,70 @@ export class Items {
             const message = (error instanceof Error) ? error.message : String(error);
             res.status(500).send({ message: "Error transferring item", error: message });
         }
+    }
+
+    @describe({
+        endpoint: "/items/search",
+        method: "GET",
+        description: "Search for items by name (only those visible in store)",
+        query: { q: "The search query" },
+        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
+        example: "GET /api/items/search?q=Apple"
+    })
+    @httpGet("/search")
+    public async searchItems(req: Request, res: Response) {
+        const query = (req.query.q as string)?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const items = await this.itemService.searchItemsByName(query);
+            const filtered = items.map(item => ({
+                itemId: item.itemId,
+                name: item.name,
+                description: item.description,
+                owner: item.owner,
+                price: item.price,
+                iconHash: item.iconHash,
+                showInStore: !!item.showInStore
+            }));
+            res.send(filtered);
+        } catch {
+            res.status(500).send({ message: "Error searching items" });
+        }
+    }
+
+    
+
+    @describe({
+        endpoint: "/items/:itemId",
+        method: "GET",
+        description: "Get a single item by itemId",
+        params: { itemId: "The id of the item" },
+        responseType: {name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string"},
+        example: "GET /api/items/123"
+    })
+    @httpGet("/:itemId")
+    public async healthCheck(req: Request, res: Response) {
+        try {
+            await itemIdParamValidator.validate(req.params);
+        } catch (error) {
+            const message = (error instanceof Error) ? error.message : String(error);
+            return res.status(400).send({ message: "Invalid itemId", error: message });
+        }
+        const { itemId } = req.params;
+        const item = await this.itemService.getItem(itemId);
+        if (!item || item.deleted) {
+            return res.status(404).send({ message: "Item not found" });
+        }
+        const filteredItem = {
+            name: item.name,
+            description: item.description,
+            owner: item.owner,
+            price: item.price,
+            showInStore: item.showInStore,
+            iconHash: item.iconHash,
+        };
+        res.send(filteredItem);
     }
 }
