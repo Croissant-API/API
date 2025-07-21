@@ -250,6 +250,12 @@ export class Users {
         if (!username || !email || (!password && !provider)) {
             return res.status(400).send({ message: "Missing required fields" });
         }
+
+        const users = await this.userService.getAllUsersWithDisabled();
+        if (users.find(u => u.email === email)) {
+            return res.status(400).send({ message: "Email already exists" });
+        }
+
         if (!userId) {
             userId = crypto.randomUUID();
         }
@@ -386,7 +392,7 @@ export class Users {
             return res.status(400).send({ message: "Invalid role" });
         }
         try {
-            const success = await this.studioService.changeRole(userId, role);
+            const {success, error} = await this.studioService.changeRole(userId, role);
             const user = await this.userService.getUser(role);
             if(!user) {
                 return res.status(404).send({ message: "User not found" });
@@ -429,7 +435,7 @@ export class Users {
             if (success) {
                 return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
             } else {
-                return res.status(400).send({ message: "Failed to update role" });
+                return res.status(400).send({ message: "Failed to update role", error });
             }
         } catch (error) {
             console.error("Error changing role", error);

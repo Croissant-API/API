@@ -10,7 +10,7 @@ export interface IStudioService {
     setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;
     getUserStudios(user_id: string): Promise<Array<Studio & { isAdmin: boolean }>>;
     createStudio(studioName: string, admin_id: string): Promise<void>;
-    changeRole(user_id: string, role: string): Promise<boolean>;
+    changeRole(user_id: string, role: string): Promise<{ success: boolean; error?: string }> ;
     addUserToStudio(studioId: string, user: User): Promise<void>;
     removeUserFromStudio(studioId: string, userId: string): Promise<void>;
     getUser(user_id: string): Promise<User | null>;
@@ -105,21 +105,22 @@ export class StudioService implements IStudioService {
         );
     }
 
-    async changeRole(user_id: string, role: string): Promise<boolean> {
+    async changeRole(user_id: string, role: string): Promise<{success: boolean, error?: string}> {
         const studios = await this.getUserStudios(user_id);
-        if (studios.length === 0) return false;
+        if (studios.length === 0) return { success: false, error: "User doesn't have any studios" };
 
         for (const studio of studios) {
-            if (studio.admin_id === user_id) {
+            console.log(studio.users)
+            if (studio.users.some((u: any) => u.userId === user_id)) {
                 // L'utilisateur est admin, on peut changer son rôle
                 await this.databaseService.update(
                     "UPDATE users SET role = ? WHERE user_id = ?",
                     [role, user_id]
                 );
-                return true;
+                return { success: true };
             }
         }
-        return false;
+        return { success: false, error: "User is not a studio user" };
     }
     
     /**

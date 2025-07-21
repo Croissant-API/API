@@ -84,15 +84,16 @@ let StudioService = class StudioService {
     async changeRole(user_id, role) {
         const studios = await this.getUserStudios(user_id);
         if (studios.length === 0)
-            return false;
+            return { success: false, error: "User doesn't have any studios" };
         for (const studio of studios) {
-            if (studio.admin_id === user_id) {
+            console.log(studio.users);
+            if (studio.users.some((u) => u.userId === user_id)) {
                 // L'utilisateur est admin, on peut changer son rôle
                 await this.databaseService.update("UPDATE users SET role = ? WHERE user_id = ?", [role, user_id]);
-                return true;
+                return { success: true };
             }
         }
-        return false;
+        return { success: false, error: "User is not a studio user" };
     }
     /**
      * Ajoute un utilisateur à un studio
