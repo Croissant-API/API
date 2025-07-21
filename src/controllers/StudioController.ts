@@ -3,7 +3,7 @@ import { inject } from "inversify";
 import { Request, Response } from "express";
 import { IStudioService } from "../services/StudioService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { describe } from "decorators/describe";
+import { describe } from "../decorators/describe";
 
 @controller("/studios")
 export class Studios {

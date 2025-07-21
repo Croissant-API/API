@@ -16,7 +16,7 @@ exports.Studios = void 0;
 const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const describe_1 = require("decorators/describe");
+const describe_1 = require("../decorators/describe");
 let Studios = class Studios {
     constructor(studioService) {
         this.studioService = studioService;
