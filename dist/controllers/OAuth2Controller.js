@@ -86,7 +86,13 @@ let OAuth2 = class OAuth2 {
         const user = await this.oauth2Service.getUserByCode(code, client_id);
         if (!user)
             return res.status(404).send({ message: "User not found" });
-        res.send(user);
+        res.send({
+            username: user.username,
+            user_id: user.user_id,
+            email: user.email,
+            balance: user.balance,
+            verified: user.verified,
+        });
     }
 };
 __decorate([
