@@ -89,6 +89,7 @@ let GameService = class GameService {
     }
     // Méthodes pour gérer les owners secondaires
     async addOwner(gameId, ownerId) {
+        console.log(`Adding owner ${ownerId} to game ${gameId}`);
         await this.databaseService.update("INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)", [gameId, ownerId]);
     }
     async removeOwner(gameId, ownerId) {

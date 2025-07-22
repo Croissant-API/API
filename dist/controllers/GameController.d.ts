@@ -8,7 +8,6 @@ export declare class Games {
     constructor(gameService: IGameService, userService: IUserService);
     listGames(req: Request, res: Response): Promise<void>;
     searchGames(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    getGamesByUserId(req: Request, res: Response): Promise<void>;
     getMyCreatedGames(req: AuthenticatedRequest, res: Response): Promise<void>;
     getUserGames(req: AuthenticatedRequest, res: Response): Promise<void>;
     getGame(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

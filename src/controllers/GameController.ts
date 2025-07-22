@@ -156,50 +156,6 @@ export class Games {
   }
 
   @describe({
-    endpoint: "/games/list/:userId",
-    method: "GET",
-    description: "List all games owned by a specific user.",
-    params: { userId: "The id of the user" },
-    responseType: [
-      {
-        gameId: "string",
-        name: "string",
-        description: "string",
-        price: "number",
-        owner_id: "string",
-        showInStore: "boolean",
-        iconHash: "string",
-        splashHash: "string",
-        bannerHash: "string",
-        genre: "string",
-        release_date: "string",
-        developer: "string",
-        publisher: "string",
-        platforms: ["string"],
-        rating: "number",
-        website: "string",
-        trailer_link: "string",
-        multiplayer: "boolean",
-      },
-    ],
-    example: "GET /api/games/list/123",
-  })
-  @httpGet("/list/:userId")
-  public async getGamesByUserId(req: Request, res: Response) {
-    try {
-      const { userId } = req.params;
-      const games = await this.gameService.getUserGames(userId);
-      const filteredGames = games.map((game) => filterGame(game, userId));
-      res.send(filteredGames);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error fetching user games", error: message });
-    }
-  }
-
-  @describe({
     endpoint: "/games/@mine",
     method: "GET",
     description: "Get all games created by the authenticated user.",
@@ -434,7 +390,7 @@ export class Games {
 
   // --- ACHAT ---
 
-  @httpPost(":/gameId/buy", LoggedCheck.middleware)
+  @httpPost("/:gameId/buy", LoggedCheck.middleware)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
     const userId = req.user.user_id;

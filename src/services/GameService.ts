@@ -119,6 +119,7 @@ export class GameService implements IGameService {
 
   // Méthodes pour gérer les owners secondaires
   async addOwner(gameId: string, ownerId: string): Promise<void> {
+    console.log(`Adding owner ${ownerId} to game ${gameId}`);
     await this.databaseService.update(
       "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
       [gameId, ownerId]
