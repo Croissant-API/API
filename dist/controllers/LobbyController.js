@@ -106,8 +106,18 @@ let Lobbies = class Lobbies {
         try {
             await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
             const lobbyId = req.params.lobbyId;
-            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
-            res.status(200).send({ message: "Joined lobby" });
+            console.log("LobbyService: joinLobby", lobbyId, req.user.user_id);
+            this.lobbyService.joinLobby(lobbyId, req.user.user_id).then(() => {
+                res.status(200).send({ message: "Joined lobby" });
+            }).catch((error) => {
+                if (error instanceof yup_1.ValidationError) {
+                    res.status(400).send({ message: "Validation failed", errors: error.errors });
+                }
+                else {
+                    const message = error instanceof Error ? error.message : String(error);
+                    res.status(500).send({ message: "Error joining lobby", error: message });
+                }
+            });
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {

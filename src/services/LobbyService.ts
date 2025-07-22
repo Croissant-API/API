@@ -34,6 +34,8 @@ export class LobbyService implements ILobbyService {
   }
 
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
+    
+    console.log("LobbyService: joinLobby", lobbyId, userId);
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
     const users: string[] = JSON.parse(lobby.users);
@@ -78,8 +80,6 @@ export class LobbyService implements ILobbyService {
           return {
             username: user.username,
             user_id: user.user_id,
-            email: user.email,
-            balance: user.balance,
             verified: user.verified,
             steam_username: user.steam_username,
             steam_avatar_url: user.steam_avatar_url,
