@@ -259,7 +259,6 @@ export class TradeService implements ITradeService {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private deserializeTrade = (row: any): Trade => ({
     ...row,
     fromUserItems: JSON.parse(row.fromUserItems),
