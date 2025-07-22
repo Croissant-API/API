@@ -218,6 +218,10 @@ let Games = class Games {
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
             }
+            const userGames = await this.gameService.getUserGames(userId);
+            if (userGames.some((g) => g.gameId === gameId)) {
+                return res.status(400).send({ message: "Game already owned" });
+            }
             if (game.owner_id === userId) {
                 await this.gameService.addOwner(gameId, userId);
                 res.status(200).send({ message: "Game obtained" });
