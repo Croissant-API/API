@@ -135,8 +135,6 @@ out
 .pnp.*
 
 database_backups/
-
-package-lock.json
 database.db
 databaseBackup.db
 archive
