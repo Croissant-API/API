@@ -20,12 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        working-directory: ./API
 
       - name: Run ESLint
         run: npx eslint .
-        working-directory: ./API
 
       - name: Run TypeScript compiler
         run: npx tsc --noEmit
-        working-directory: ./API
