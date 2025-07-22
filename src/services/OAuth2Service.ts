@@ -9,7 +9,6 @@ export interface IOAuth2Service {
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;
     getAppByClientId(client_id: string): Promise<OAuth2App | null>;
     generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string>;
-    exchangeCodeForToken(code: string, client_id: string, client_secret: string, redirect_uri: string): Promise<string | null>;
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void>;
     getUserByCode(code: string, client_id: string, client_secret: string): Promise<any | null>;
@@ -20,7 +19,6 @@ export class OAuth2Service implements IOAuth2Service {
     constructor(@inject("DatabaseService") private db: IDatabaseService) {}
 
     async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
-        // Utilise un vrai identifiant unique pour client_id (remplace par ton générateur de snowflake si besoin)
         const client_id = uuidv4();
         const client_secret = uuidv4();
         await this.db.create(
@@ -54,23 +52,6 @@ export class OAuth2Service implements IOAuth2Service {
         return code;
     }
 
-    async exchangeCodeForToken(code: string, client_id: string, client_secret: string, redirect_uri: string): Promise<string | null> {
-        const rows = await this.db.read<any[]>(
-            "SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ? AND redirect_uri = ?",
-            [code, client_id, redirect_uri]
-        );
-        if (!rows.length) return null;
-        const app = await this.getAppByClientId(client_id);
-        if (!app || app.client_secret !== client_secret) return null;
-        // Ici tu peux générer un vrai JWT, pour l'exemple on retourne juste un token random
-        const token = uuidv4();
-        await this.db.create(
-            "INSERT INTO oauth2_tokens (token, user_id, client_id) VALUES (?, ?, ?)",
-            [token, rows[0].user_id, client_id]
-        );
-        return token;
-    }
-
     async deleteApp(client_id: string, owner_id: string): Promise<void> {
         await this.db.delete(
             "DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?",
@@ -98,19 +79,16 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async getUserByCode(code: string, client_id: string, client_secret: string): Promise<any | null> {
-        // Vérifie le code et récupère l'user_id
         const codeRows = await this.db.read<any[]>(
             "SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?",
             [code, client_id]
         );
         if (!codeRows.length) return null;
-        // Vérifie le client_secret
         const appRows = await this.db.read<any[]>(
             "SELECT * FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
         if (!appRows.length || appRows[0].client_secret !== client_secret) return null;
-        // Récupère l'utilisateur
         const userRows = await this.db.read<any[]>(
             "SELECT * FROM users WHERE user_id = ?",
             [codeRows[0].user_id]
