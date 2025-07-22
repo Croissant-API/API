@@ -124,14 +124,23 @@ export class StudioService implements IStudioService {
     user_id: string,
     role: string
   ): Promise<{ success: boolean; error?: string }> {
+    if (user_id === role) {
+      await this.databaseService.update(
+        "UPDATE users SET role = ? WHERE user_id = ?",
+        [role, user_id]
+      );
+      return { success: true };
+    }
+
     const studios = await this.getUserStudios(user_id);
     if (studios.length === 0)
       return { success: false, error: "User doesn't have any studios" };
 
     const studio = await this.userService.getUser(role);
     if (!studio) return { success: false, error: "User not found" };
-    if (!studio.isStudio)
+    if (!studio.isStudio) {
       return { success: false, error: "User is not a studio" };
+    }
 
     for (const studio of studios) {
       if (studio.user_id !== role) continue;
