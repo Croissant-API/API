@@ -11,10 +11,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudioService = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
+const crypto_1 = __importDefault(require("crypto"));
 let StudioService = class StudioService {
     constructor(databaseService, userService) {
         this.databaseService = databaseService;
@@ -76,7 +80,7 @@ let StudioService = class StudioService {
     }
     async createStudio(studioName, admin_id) {
         // Crée l'utilisateur admin si besoin (ou récupère l'existant)
-        const user_id = crypto.randomUUID();
+        const user_id = crypto_1.default.randomUUID();
         await this.userService.createBrandUser(user_id, studioName);
         // Crée le studio
         await this.databaseService.create("INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)", [user_id, admin_id, JSON.stringify([])]);

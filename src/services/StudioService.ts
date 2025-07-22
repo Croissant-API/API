@@ -5,6 +5,8 @@ import { Studio } from "../interfaces/Studio";
 import { User } from "../interfaces/User";
 import { IUserService } from "./UserService";
 
+import crypto from "crypto";
+
 export interface IStudioService {
   getStudio(user_id: string): Promise<Studio | null>;
   setStudioProperties(
