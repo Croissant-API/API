@@ -144,7 +144,6 @@ export class Lobbies {
     try {
       await lobbyIdParamSchema.validate(req.params);
       const lobbyId = req.params.lobbyId;
-      console.log("LobbyService: joinLobby", lobbyId, req.user.user_id);
       this.lobbyService.joinLobby(lobbyId, req.user.user_id).then(() => {
         res.status(200).send({ message: "Joined lobby" });
       }).catch((error) => {
