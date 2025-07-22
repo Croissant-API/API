@@ -69,7 +69,20 @@ export class LobbyService implements ILobbyService {
     >("SELECT lobbyId, users FROM lobbies");
     for (const row of rows) {
       const users: (User | null)[] = await Promise.all(
-        JSON.parse(row.users).map((u: string) => this.userService.getUser(u))
+        JSON.parse(row.users)
+          .map((u: string) => this.userService.getUser(u))
+          .map((user: User) => {
+            return {
+              username: user.username,
+              user_id: user.user_id,
+              email: user.email,
+              balance: user.balance,
+              verified: user.verified,
+              steam_username: user.steam_username,
+              steam_avatar_url: user.steam_avatar_url,
+              steam_id: user.steam_id,
+            };
+          })
       ).catch(() => []);
       if (users.find((user) => user?.user_id === userId)) {
         // Si l'utilisateur fait partie de la lobby, on retourne la lobby

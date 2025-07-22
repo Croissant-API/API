@@ -51,7 +51,20 @@ let LobbyService = class LobbyService {
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const users = await Promise.all(JSON.parse(row.users).map((u) => this.userService.getUser(u))).catch(() => []);
+            const users = await Promise.all(JSON.parse(row.users)
+                .map((u) => this.userService.getUser(u))
+                .map((user) => {
+                return {
+                    username: user.username,
+                    user_id: user.user_id,
+                    email: user.email,
+                    balance: user.balance,
+                    verified: user.verified,
+                    steam_username: user.steam_username,
+                    steam_avatar_url: user.steam_avatar_url,
+                    steam_id: user.steam_id,
+                };
+            })).catch(() => []);
             if (users.find((user) => user?.user_id === userId)) {
                 // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
