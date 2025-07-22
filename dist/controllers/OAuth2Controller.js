@@ -92,6 +92,9 @@ let OAuth2 = class OAuth2 {
             email: user.email,
             balance: user.balance,
             verified: user.verified,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            steam_id: user.steam_id,
         });
     }
 };

@@ -114,10 +114,7 @@ export class OAuth2 {
     if (!code || !client_id) {
       return res.status(400).send({ message: "Missing params" });
     }
-    const user = await this.oauth2Service.getUserByCode(
-      code,
-      client_id
-    );
+    const user = await this.oauth2Service.getUserByCode(code, client_id);
     if (!user) return res.status(404).send({ message: "User not found" });
     res.send({
       username: user.username,
@@ -125,6 +122,9 @@ export class OAuth2 {
       email: user.email,
       balance: user.balance,
       verified: user.verified,
+      steam_username: user.steam_username,
+      steam_avatar_url: user.steam_avatar_url,
+      steam_id: user.steam_id,
     });
   }
 }
