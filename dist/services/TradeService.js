@@ -22,7 +22,6 @@ let TradeService = class TradeService {
         this.databaseService = databaseService;
         this.inventoryService = inventoryService;
         this.itemService = itemService;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         this.deserializeTrade = (row) => ({
             ...row,
             fromUserItems: JSON.parse(row.fromUserItems),

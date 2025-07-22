@@ -27,6 +27,30 @@ const GenKey_1 = require("../utils/GenKey");
 const SteamOAuthService_1 = require("../services/SteamOAuthService");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
+function sendError(res, status, message, error) {
+    return res.status(status).send({ message, error });
+}
+function filterUser(user, studios = [], roles = []) {
+    return {
+        id: user.user_id,
+        userId: user.user_id,
+        email: user.email,
+        balance: Math.floor(user.balance),
+        verified: user.verified,
+        username: user.username,
+        verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
+        steam_id: user.steam_id,
+        steam_username: user.steam_username,
+        steam_avatar_url: user.steam_avatar_url,
+        studios,
+        isStudio: user.isStudio,
+        roles,
+        admin: !!user.admin,
+    };
+}
+function findUserByResetToken(users, reset_token) {
+    return users.find((u) => u.forgot_password_token === reset_token);
+}
 let Users = class Users {
     constructor(userService, steamOAuthService, mailService, studioService) {
         this.userService = userService;
@@ -89,14 +113,14 @@ let Users = class Users {
         }
         const users = await this.userService.getAllUsersWithDisabled();
         if (users.find((u) => u.email === email)) {
-            return res.status(400).send({ message: "Email already exists" });
+            return sendError(res, 400, "Email already exists");
         }
         if (!userId) {
             userId = crypto_1.default.randomUUID();
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            return res.status(400).send({ message: "Invalid email address" });
+            return sendError(res, 400, "Invalid email address");
         }
         let hashedPassword = null;
         if (password) {
@@ -106,16 +130,12 @@ let Users = class Users {
             // Crée ou associe l'utilisateur selon l'email et provider
             const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
-            res
-                .status(201)
-                .send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
+            res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
             console.error("Error registering user", error);
             const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error registering user", error: message });
+            sendError(res, 500, "Error registering user", message);
         }
     }
     async login(req, res) {
@@ -126,16 +146,16 @@ let Users = class Users {
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.email === email);
         if (!user || !user.password) {
-            return res.status(401).send({ message: "Invalid credentials" });
+            return sendError(res, 401, "Invalid credentials");
         }
         // bcrypt importé en haut
         const valid = await bcryptjs_1.default.compare(password, user.password);
         if (!valid) {
-            return res.status(401).send({ message: "Invalid credentials" });
+            return sendError(res, 401, "Invalid credentials");
         }
         // Check si le compte est désactivé
         if (user.disabled) {
-            return res.status(403).send({ message: "Account is disabled" });
+            return sendError(res, 403, "Account is disabled");
         }
         this.mailService
             .sendConnectionNotificationMail(user.email, user.username)
@@ -197,14 +217,10 @@ let Users = class Users {
         const userId = req.user?.user_id;
         const { username } = req.body;
         if (!userId) {
-            return res.status(401).send({ message: "Unauthorized" });
+            return sendError(res, 401, "Unauthorized");
         }
-        if (!username ||
-            typeof username !== "string" ||
-            username.trim().length < 3) {
-            return res
-                .status(400)
-                .send({ message: "Invalid username (min 3 characters)" });
+        if (!username || typeof username !== "string" || username.trim().length < 3) {
+            return sendError(res, 400, "Invalid username (min 3 characters)");
         }
         try {
             await this.userService.updateUser(userId, username.trim());
@@ -213,37 +229,31 @@ let Users = class Users {
         catch (error) {
             console.error("Error updating username", error);
             const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error updating username", error: message });
+            sendError(res, 500, "Error updating username", message);
         }
     }
     async changePassword(req, res) {
         const { oldPassword, newPassword, confirmPassword } = req.body;
         if (!newPassword || !confirmPassword) {
-            return res
-                .status(400)
-                .send({ message: "Missing newPassword or confirmPassword" });
+            return sendError(res, 400, "Missing newPassword or confirmPassword");
         }
         if (newPassword !== confirmPassword) {
-            return res
-                .status(400)
-                .send({ message: "New password and confirm password do not match" });
+            return sendError(res, 400, "New password and confirm password do not match");
         }
         const userId = req.user?.user_id;
         if (!userId) {
-            return res.status(401).send({ message: "Unauthorized" });
+            return sendError(res, 401, "Unauthorized");
         }
         const user = await this.userService.getUser(userId);
         if (!user) {
-            return res.status(404).send({ message: "User not found" });
+            return sendError(res, 404, "User not found");
         }
         let valid = true;
         if (user.password) {
             valid = await bcryptjs_1.default.compare(oldPassword, user.password);
         }
         if (!valid) {
-            return res.status(401).send({ message: "Invalid current password" });
+            return sendError(res, 401, "Invalid current password");
         }
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         try {
@@ -253,19 +263,17 @@ let Users = class Users {
         catch (error) {
             console.error("Error changing password", error);
             const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error changing password", error: message });
+            sendError(res, 500, "Error changing password", message);
         }
     }
     async forgotPassword(req, res) {
         const { email } = req.body;
         if (!email) {
-            return res.status(400).send({ message: "Email is required" });
+            return sendError(res, 400, "Email is required");
         }
         const user = await this.userService.findByEmail(email);
         if (!user) {
-            return res.status(404).send({ message: "Invalid email" });
+            return sendError(res, 404, "Invalid email");
         }
         // Here you would typically generate a password reset token and send it via email
         const passwordResetToken = await this.userService.generatePasswordResetToken(email);
@@ -275,24 +283,20 @@ let Users = class Users {
     async resetPassword(req, res) {
         const { new_password, confirm_password, reset_token } = req.body;
         if (!new_password || !reset_token || !confirm_password) {
-            return res.status(400).send({ message: "Missing required fields" });
+            return sendError(res, 400, "Missing required fields");
         }
         if (new_password !== confirm_password) {
-            return res
-                .status(400)
-                .send({ message: "New password and confirm password do not match" });
+            return sendError(res, 400, "New password and confirm password do not match");
         }
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.forgot_password_token === reset_token);
         if (!user) {
-            return res.status(404).send({ message: "Invalid user" });
+            return sendError(res, 404, "Invalid user");
         }
         const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
         try {
             await this.userService.updateUserPassword(user.user_id, hashedPassword);
-            res
-                .status(200)
-                .send({
+            res.status(200).send({
                 message: "Password reset successfully",
                 token: (0, GenKey_1.genKey)(user.user_id),
             });
@@ -300,9 +304,7 @@ let Users = class Users {
         catch (error) {
             console.error("Error resetting password", error);
             const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error resetting password", error: message });
+            sendError(res, 500, "Error resetting password", message);
         }
     }
     async steamRedirect(req, res) {
@@ -350,9 +352,7 @@ let Users = class Users {
         catch (error) {
             console.error("Error unlinking Steam account", error);
             const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error unlinking Steam account", error: message });
+            sendError(res, 500, "Error unlinking Steam account", message);
         }
     }
     // --- RECHERCHE & LECTURE D'UTILISATEURS ---
@@ -563,9 +563,7 @@ let Users = class Users {
                 return res.status(401).send({ message: "Unauthorized" });
             }
             if (sender.user_id === targetUserId) {
-                return res
-                    .status(400)
-                    .send({ message: "Cannot transfer credits to yourself" });
+                return sendError(res, 400, "Cannot transfer credits to yourself");
             }
             const recipient = await this.userService.getUser(targetUserId);
             if (!recipient) {
@@ -589,9 +587,7 @@ let Users = class Users {
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey) {
-            return res
-                .status(400)
-                .send({ message: "Missing userId or verificationKey" });
+            return sendError(res, 400, "Missing userId or verificationKey");
         }
         const user = await this.userService.getUser(userId);
         if (!user) {
@@ -604,64 +600,42 @@ let Users = class Users {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
         if (!userId) {
-            return res.status(401).send({ message: "Unauthorized" });
+            return sendError(res, 401, "Unauthorized");
         }
         if (!role || typeof role !== "string") {
-            return res.status(400).send({ message: "Invalid role" });
+            return sendError(res, 400, "Invalid role");
         }
         try {
             const { success, error } = await this.studioService.changeRole(userId, role);
             const user = await this.userService.getUser(role);
             if (!user) {
-                return res.status(404).send({ message: "User not found" });
+                return sendError(res, 404, "User not found");
             }
             const studios = await this.studioService.getUserStudios(userId);
             const roles = [userId, ...studios.map((s) => s.user_id)];
-            const filteredUser = {
-                // ...discordUser,
-                id: user.user_id,
-                userId: user.user_id,
-                email: user.email,
-                balance: Math.floor(user.balance),
-                verified: user.verified,
-                username: user.username,
-                verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
-                steam_id: user.steam_id,
-                steam_username: user.steam_username,
-                steam_avatar_url: user.steam_avatar_url,
-                studios: studios,
-                isStudio: user.isStudio,
-                roles,
-                admin: !!user.admin,
-            };
+            const filteredUser = filterUser(user, studios, roles);
             if (success) {
-                return res
-                    .status(200)
-                    .send({ message: "Role updated successfully", user: filteredUser });
+                return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
             }
             else {
-                return res
-                    .status(400)
-                    .send({ message: "Failed to update role", error });
+                return sendError(res, 400, "Failed to update role", error);
             }
         }
         catch (error) {
             console.error("Error changing role", error);
             const message = error instanceof Error ? error.message : String(error);
-            return res
-                .status(500)
-                .send({ message: "Error changing role", error: message });
+            return sendError(res, 500, "Error changing role", message);
         }
     }
     async isValidResetToken(req, res) {
         const { reset_token } = req.query;
         if (!reset_token) {
-            return res.status(400).send({ message: "Missing required fields" });
+            return sendError(res, 400, "Missing required fields");
         }
         const users = await this.userService.getAllUsersWithDisabled();
-        const user = users.find((u) => u.forgot_password_token === reset_token);
+        const user = findUserByResetToken(users, reset_token);
         if (!user) {
-            return res.status(404).send({ message: "Invalid reset token" });
+            return sendError(res, 404, "Invalid reset token");
         }
         res.status(200).send({ message: "Valid reset token", user });
     }
