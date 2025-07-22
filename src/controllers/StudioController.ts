@@ -79,7 +79,7 @@ export class Studios {
   }
 
   // --- Gestion des membres ---
-  @httpPost(":/studioId/add-user", LoggedCheck.middleware)
+  @httpPost("/:studioId/add-user", LoggedCheck.middleware)
   async addUserToStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
@@ -103,7 +103,7 @@ export class Studios {
     }
   }
 
-  @httpPost(":/studioId/remove-user", LoggedCheck.middleware)
+  @httpPost("/:studioId/remove-user", LoggedCheck.middleware)
   async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;

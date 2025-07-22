@@ -159,13 +159,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Studios.prototype, "getStudio", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)(":/studioId/add-user", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:studioId/add-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Studios.prototype, "addUserToStudio", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)(":/studioId/remove-user", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:studioId/remove-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
