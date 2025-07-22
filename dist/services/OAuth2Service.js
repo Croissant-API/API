@@ -57,12 +57,12 @@ let OAuth2Service = class OAuth2Service {
         values.push(client_id, owner_id);
         await this.db.update(`UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`, values);
     }
-    async getUserByCode(code, client_id, client_secret) {
+    async getUserByCode(code, client_id) {
         const codeRows = await this.db.read("SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?", [code, client_id]);
         if (!codeRows.length)
             return null;
         const appRows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
-        if (!appRows.length || appRows[0].client_secret !== client_secret)
+        if (!appRows.length /*|| appRows[0].client_secret !== client_secret*/)
             return null;
         const userRows = await this.db.read("SELECT * FROM users WHERE user_id = ?", [codeRows[0].user_id]);
         if (!userRows.length)

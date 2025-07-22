@@ -11,7 +11,7 @@ export interface IOAuth2Service {
     generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string>;
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void>;
-    getUserByCode(code: string, client_id: string, client_secret: string): Promise<any | null>;
+    getUserByCode(code: string, client_id: string): Promise<any | null>;
 }
 
 @injectable()
@@ -78,7 +78,7 @@ export class OAuth2Service implements IOAuth2Service {
         );
     }
 
-    async getUserByCode(code: string, client_id: string, client_secret: string): Promise<any | null> {
+    async getUserByCode(code: string, client_id: string): Promise<any | null> {
         const codeRows = await this.db.read<any[]>(
             "SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?",
             [code, client_id]
@@ -88,7 +88,7 @@ export class OAuth2Service implements IOAuth2Service {
             "SELECT * FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
-        if (!appRows.length || appRows[0].client_secret !== client_secret) return null;
+        if (!appRows.length /*|| appRows[0].client_secret !== client_secret*/) return null;
         const userRows = await this.db.read<any[]>(
             "SELECT * FROM users WHERE user_id = ?",
             [codeRows[0].user_id]

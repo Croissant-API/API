@@ -110,14 +110,13 @@ export class OAuth2 {
   })
   @httpGet("/user")
   async getUserByCode(req: Request, res: Response) {
-    const { code, client_id, client_secret } = req.query as any;
-    if (!code || !client_id || !client_secret) {
+    const { code, client_id } = req.query as any;
+    if (!code || !client_id) {
       return res.status(400).send({ message: "Missing params" });
     }
     const user = await this.oauth2Service.getUserByCode(
       code,
-      client_id,
-      client_secret
+      client_id
     );
     if (!user) return res.status(404).send({ message: "User not found" });
     res.send(user);
