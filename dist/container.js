@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const inversify_1 = require("inversify");
-const ItemService_1 = require("./services/ItemService");
 const DatabaseService_1 = require("./services/DatabaseService");
-const UserService_1 = require("./services/UserService");
 const InventoryService_1 = require("./services/InventoryService");
+const ItemService_1 = require("./services/ItemService");
+const UserService_1 = require("./services/UserService");
 const LobbyService_1 = require("./services/LobbyService");
 const TradeService_1 = require("./services/TradeService");
 const GameService_1 = require("./services/GameService");

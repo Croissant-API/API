@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 let LobbyService = class LobbyService {
     constructor(databaseService, userService) {
@@ -47,14 +48,11 @@ let LobbyService = class LobbyService {
             await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers), lobbyId]);
         }
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const users = await Promise
-                .all(JSON.parse(row.users).map((u) => this.userService.getUser(u)))
-                .catch(() => []);
-            if (users.find(user => user?.user_id === userId)) {
+            const users = await Promise.all(JSON.parse(row.users).map((u) => this.userService.getUser(u))).catch(() => []);
+            if (users.find((user) => user?.user_id === userId)) {
                 // Si l'utilisateur fait partie de la lobby, on retourne la lobby
                 return { lobbyId: row.lobbyId, users };
             }
@@ -65,7 +63,9 @@ let LobbyService = class LobbyService {
         await this.databaseService.update("INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)", [lobbyId, JSON.stringify(users)]);
     }
     async deleteLobby(lobbyId) {
-        await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [lobbyId]);
+        await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [
+            lobbyId,
+        ]);
     }
 };
 LobbyService = __decorate([

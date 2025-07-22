@@ -5,7 +5,6 @@ export interface IOAuth2Service {
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;
     getAppByClientId(client_id: string): Promise<OAuth2App | null>;
     generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string>;
-    exchangeCodeForToken(code: string, client_id: string, client_secret: string, redirect_uri: string): Promise<string | null>;
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: {
         name?: string;
@@ -20,7 +19,6 @@ export declare class OAuth2Service implements IOAuth2Service {
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;
     getAppByClientId(client_id: string): Promise<OAuth2App | null>;
     generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string>;
-    exchangeCodeForToken(code: string, client_id: string, client_secret: string, redirect_uri: string): Promise<string | null>;
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: {
         name?: string;

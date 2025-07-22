@@ -11,7 +11,9 @@ class LoggedCheck {
 exports.LoggedCheck = LoggedCheck;
 _a = LoggedCheck;
 LoggedCheck.middleware = async (req, res, next) => {
-    const authHeader = req.headers["authorization"] || "Bearer " + req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+    const authHeader = req.headers["authorization"] ||
+        "Bearer " +
+            req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).send({ message: "Unauthorized" });
     }

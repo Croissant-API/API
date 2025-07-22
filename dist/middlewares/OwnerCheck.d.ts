@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { User } from '../interfaces/User';
+import { Request, Response, NextFunction } from "express";
+import { User } from "../interfaces/User";
 export interface AuthenticatedRequestWithOwner extends Request {
     owner: User;
+    originalUser?: User;
     user?: User;
 }
 export declare class OwnerCheck {

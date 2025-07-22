@@ -1,6 +1,6 @@
-import { Response } from 'express';
-import { ITradeService } from '../services/TradeService';
-import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { Response } from "express";
+import { ITradeService } from "../services/TradeService";
+import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 export declare class Trades {
     private tradeService;
     constructor(tradeService: ITradeService);

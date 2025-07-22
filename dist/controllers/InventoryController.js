@@ -23,15 +23,13 @@ let Inventories = class Inventories {
         this.inventoryService = inventoryService;
         this.itemService = itemService;
     }
-    async getAllInventories(req, res) {
-        res.send({ message: "Please specify /api/inventory/<userId>" });
-    }
+    // --- Inventaire de l'utilisateur courant ---
     async getMyInventory(req, res) {
         const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
             const seen = new Set();
-            const uniqueInventory = inventory.filter(item => {
+            const uniqueInventory = inventory.filter((item) => {
                 if (seen.has(item.item_id))
                     return false;
                 seen.add(item.item_id);
@@ -47,22 +45,27 @@ let Inventories = class Inventories {
                     name: itemDetails.name,
                     description: itemDetails.description,
                     amount: item.amount,
-                    iconHash: itemDetails.iconHash
+                    iconHash: itemDetails.iconHash,
                 };
             }))).filter(Boolean); // Remove nulls
             res.send(filteredInventory);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching inventory", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching inventory", error: message });
         }
     }
+    // --- Inventaire d'un utilisateur spécifique ---
     async getInventory(req, res) {
         try {
             await InventoryValidator_1.userIdParamSchema.validate({ userId: req.params.userId });
         }
         catch (err) {
-            return res.status(400).send({ message: err instanceof Error ? err.message : String(err) });
+            return res
+                .status(400)
+                .send({ message: err instanceof Error ? err.message : String(err) });
         }
         const userId = req.params.userId;
         try {
@@ -77,30 +80,37 @@ let Inventories = class Inventories {
                     name: itemDetails.name,
                     description: itemDetails.description,
                     amount: item.amount,
-                    iconHash: itemDetails.iconHash
+                    iconHash: itemDetails.iconHash,
                 };
             }))).filter(Boolean); // Remove nulls
             res.send(filteredInventory);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching inventory", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching inventory", error: message });
         }
     }
+    // --- Route générique (prompt) ---
+    async getAllInventories(req, res) {
+        res.send({ message: "Please specify /api/inventory/<userId>" });
+    }
 };
-__decorate([
-    (0, inversify_express_utils_1.httpGet)("/"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Inventories.prototype, "getAllInventories", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/inventory/",
         method: "GET",
         description: "Prompt to specify a userId for inventory lookup",
-        responseType: [{ itemId: "string", name: "string", description: "string", amount: "number" }],
-        example: "GET /api/inventory/"
+        responseType: [
+            {
+                itemId: "string",
+                name: "string",
+                description: "string",
+                amount: "number",
+            },
+        ],
+        example: "GET /api/inventory/",
     }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -113,14 +123,27 @@ __decorate([
         method: "GET",
         description: "Get the inventory of a user",
         params: { userId: "The id of the user" },
-        responseType: [{ itemId: "string", name: "string", description: "string", amount: "number" }],
-        example: "GET /api/inventory/123"
+        responseType: [
+            {
+                itemId: "string",
+                name: "string",
+                description: "string",
+                amount: "number",
+            },
+        ],
+        example: "GET /api/inventory/123",
     }),
     (0, inversify_express_utils_1.httpGet)("/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getInventory", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Inventories.prototype, "getAllInventories", null);
 Inventories = __decorate([
     (0, inversify_express_utils_1.controller)("/inventory"),
     __param(0, (0, inversify_1.inject)("InventoryService")),

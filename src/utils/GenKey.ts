@@ -1,17 +1,20 @@
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import path from 'path';
-dotenv.config({path: path.join(__dirname, "..", ".env")});
+import crypto from "crypto";
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+function createHash(userId: string, secret: string | undefined): string {
+    if (!userId) throw new Error("userId is required for key generation");
+    if (!secret) throw new Error("Secret is not defined in environment variables");
+    return crypto
+        .createHash("md5")
+        .update(userId + userId + secret)
+        .digest("hex");
+}
 
 export function genKey(userId: string): string {
-    if (!userId) throw new Error('userId is required for key generation');
-    return crypto.createHash('md5').update(userId + userId + process.env.HASH_SECRET).digest('hex');
+    return createHash(userId, process.env.HASH_SECRET);
 }
 
 export function genVerificationKey(userId: string): string {
-    if (!userId) throw new Error('userId is required for key generation');
-    return crypto.createHash('md5').update(userId + userId + process.env.VERIFICATION_SECRET).digest('hex');
+    return createHash(userId, process.env.VERIFICATION_SECRET);
 }
-
-// console.log('Key generation function loaded successfully.');
-// console.log(genKey('724847846897221642')); // Example usage, should be removed in production

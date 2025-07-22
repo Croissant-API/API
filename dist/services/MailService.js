@@ -10,49 +10,52 @@ const path_1 = __importDefault(require("path"));
 class MailService {
     constructor() {
         this.transporter = nodemailer_1.default.createTransport({
-            host: process.env.SMTP_HOST || 'ssl0.ovh.net',
+            host: process.env.SMTP_HOST || "ssl0.ovh.net",
             port: Number(process.env.SMTP_PORT) || 465,
             secure: true,
             auth: {
-                user: process.env.SMTP_USER || 'contact@croissant-api.fr',
+                user: process.env.SMTP_USER || "contact@croissant-api.fr",
                 pass: process.env.SMTP_PASS,
-            }
+            },
         });
     }
     async sendPasswordResetMail(to, resetToken) {
-        const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', 'passwordReset.ejs');
+        const templatePath = path_1.default.join(process.cwd(), "mailTemplates", "passwordReset.ejs");
         const html = await ejs_1.default.renderFile(templatePath, { resetToken });
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'Croissant API <contact@croissant-api.fr>',
+            from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
             to,
-            subject: 'Password Reset Request',
-            html
+            subject: "Password Reset Request",
+            html,
         };
         await this.transporter.sendMail(mailOptions);
     }
     async sendAccountConfirmationMail(to) {
-        const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', 'accountConfirmation.ejs');
+        const templatePath = path_1.default.join(process.cwd(), "mailTemplates", "accountConfirmation.ejs");
         const html = await ejs_1.default.renderFile(templatePath);
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'Croissant API <contact@croissant-api.fr>',
+            from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
             to,
-            subject: 'Account Creation notification',
-            html
+            subject: "Account Creation notification",
+            html,
         };
         await this.transporter.sendMail(mailOptions);
     }
     async sendConnectionNotificationMail(to, username) {
-        const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', 'connectionNotification.ejs');
+        const templatePath = path_1.default.join(process.cwd(), "mailTemplates", "connectionNotification.ejs");
         const html = await ejs_1.default.renderFile(templatePath, { username });
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'Croissant API <contact@croissant-api.fr>',
+            from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
             to,
-            subject: 'New login to your account',
-            html
+            subject: "New login to your account",
+            html,
         };
-        this.transporter.sendMail(mailOptions).then(() => {
+        this.transporter
+            .sendMail(mailOptions)
+            .then(() => {
             console.log(`Connection notification sent to ${to}`);
-        }).catch(error => {
+        })
+            .catch((error) => {
             console.error(`Failed to send connection notification to ${to}:`, error);
         });
     }

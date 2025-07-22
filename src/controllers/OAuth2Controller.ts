@@ -16,12 +16,13 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 export class OAuth2 {
   constructor(@inject("OAuth2Service") private oauth2Service: IOAuth2Service) {}
 
+  // --- Application Management ---
+
   @httpGet("/app/:client_id")
   async getAppByClientId(req: Request, res: Response) {
     const { client_id } = req.params;
     const app = await this.oauth2Service.getAppByClientId(client_id);
     if (!app) return res.status(404).send({ message: "App not found" });
-    // On parse les redirect_urls pour retourner un tableau
     res.send({
       client_id: app.client_id,
       client_secret: app.client_secret,
@@ -49,12 +50,34 @@ export class OAuth2 {
     res.send(
       apps.map((a) => ({
         client_id: a.client_id,
-        client_secret: a.client_secret, // Ajout ici
+        client_secret: a.client_secret,
         name: a.name,
         redirect_urls: JSON.parse(a.redirect_urls),
       }))
     );
   }
+
+  @httpPatch("/app/:client_id", LoggedCheck.middleware)
+  async updateApp(req: AuthenticatedRequest, res: Response) {
+    const { client_id } = req.params;
+    const { name, redirect_urls } = req.body;
+    const userId = req.user.user_id;
+    await this.oauth2Service.updateApp(client_id, userId, {
+      name,
+      redirect_urls,
+    });
+    res.status(200).send({ success: true });
+  }
+
+  @httpDelete("/app/:client_id", LoggedCheck.middleware)
+  async deleteApp(req: AuthenticatedRequest, res: Response) {
+    const { client_id } = req.params;
+    const userId = req.user.user_id;
+    await this.oauth2Service.deleteApp(client_id, userId);
+    res.status(204).send();
+  }
+
+  // --- Authorization & User ---
 
   @httpGet("/authorize", LoggedCheck.middleware)
   async authorize(req: AuthenticatedRequest, res: Response) {
@@ -71,26 +94,6 @@ export class OAuth2 {
       userId
     );
     res.send({ code });
-  }
-
-  @httpDelete("/app/:client_id", LoggedCheck.middleware)
-  async deleteApp(req: AuthenticatedRequest, res: Response) {
-    const { client_id } = req.params;
-    const userId = req.user.user_id;
-    await this.oauth2Service.deleteApp(client_id, userId);
-    res.status(204).send();
-  }
-
-  @httpPatch("/app/:client_id", LoggedCheck.middleware)
-  async updateApp(req: AuthenticatedRequest, res: Response) {
-    const { client_id } = req.params;
-    const { name, redirect_urls } = req.body;
-    const userId = req.user.user_id;
-    await this.oauth2Service.updateApp(client_id, userId, {
-      name,
-      redirect_urls,
-    });
-    res.status(200).send({ success: true });
   }
 
   @describe({

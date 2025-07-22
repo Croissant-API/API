@@ -76,7 +76,7 @@ let UserService = class UserService {
                 headers["Authorization"] = "Bot " + BOT_TOKEN;
             }
             const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-                headers
+                headers,
             });
             if (!response.ok) {
                 return null;
@@ -112,13 +112,20 @@ let UserService = class UserService {
             return existing;
         }
         // Création du nouvel utilisateur
-        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [user_id, username, email, password, provider === "discord" ? providerId : null, provider === "google" ? providerId : null]);
-        return await this.getUser(user_id);
+        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
+            user_id,
+            username,
+            email,
+            password,
+            provider === "discord" ? providerId : null,
+            provider === "google" ? providerId : null,
+        ]);
+        return (await this.getUser(user_id));
     }
     async createBrandUser(user_id, username) {
         // Crée un utilisateur de marque sans email ni mot de passe
         await this.databaseService.create("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
-        return await this.getUser(user_id);
+        return (await this.getUser(user_id));
     }
     async getUser(user_id) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE user_id = ? AND (disabled = 0 OR disabled IS NULL)", [user_id]);
@@ -156,7 +163,9 @@ let UserService = class UserService {
         await this.databaseService.update(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
     }
     async deleteUser(user_id) {
-        await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [user_id]);
+        await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
+            user_id,
+        ]);
     }
     async authenticateUser(api_key) {
         const users = await this.getAllUsersWithDisabled();
@@ -182,7 +191,7 @@ let UserService = class UserService {
         await this.databaseService.update("UPDATE users SET password = ? WHERE user_id = ?", [hashedPassword, user_id]);
     }
     async generatePasswordResetToken(email) {
-        const token = crypto_1.default.randomBytes(32).toString('hex');
+        const token = crypto_1.default.randomBytes(32).toString("hex");
         await this.databaseService.update("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
         return token;
     }

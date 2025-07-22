@@ -18,13 +18,13 @@ const sqlite_1 = require("sqlite");
 const inversify_1 = require("inversify");
 let DatabaseService = class DatabaseService {
     constructor() {
-        this.init().then(db => this.db = db);
+        this.init().then((db) => (this.db = db));
     }
     async init() {
         try {
             this.db = await (0, sqlite_1.open)({
-                filename: __dirname + '/../../database.db',
-                driver: sqlite3_1.default.Database
+                filename: __dirname + "/../../database.db",
+                driver: sqlite3_1.default.Database,
             });
             return this.db;
         }

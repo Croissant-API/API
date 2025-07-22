@@ -24,6 +24,20 @@ let Lobbies = class Lobbies {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;
     }
+    // --- Création de lobby ---
+    async createLobby(req, res) {
+        try {
+            const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
+            await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
+            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
+            res.status(201).send({ message: "Lobby created" });
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            res.status(500).send({ message: "Error creating lobby", error: message });
+        }
+    }
+    // --- Récupération d’un lobby ---
     async getLobby(req, res) {
         try {
             await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
@@ -36,40 +50,12 @@ let Lobbies = class Lobbies {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching lobby", error: message });
-        }
-    }
-    async joinLobby(req, res) {
-        try {
-            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            const lobbyId = req.params.lobbyId;
-            await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
-            res.status(200).send({ message: "Joined lobby" });
-        }
-        catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error joining lobby", error: message });
-        }
-    }
-    async leaveLobby(req, res) {
-        try {
-            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            const lobbyId = req.params.lobbyId;
-            await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
-            res.status(200).send({ message: "Left lobby" });
-        }
-        catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error leaving lobby", error: message });
         }
     }
     async getMyLobby(req, res) {
@@ -83,10 +69,14 @@ let Lobbies = class Lobbies {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user lobby", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching user lobby", error: message });
         }
     }
     async getUserLobby(req, res) {
@@ -101,25 +91,66 @@ let Lobbies = class Lobbies {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user lobby", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching user lobby", error: message });
         }
     }
-    async createLobby(req, res) {
+    // --- Actions sur un lobby ---
+    async joinLobby(req, res) {
         try {
-            const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
-            await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
+            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
+            const lobbyId = req.params.lobbyId;
             await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
-            res.status(201).send({ message: "Lobby created" });
+            res.status(200).send({ message: "Joined lobby" });
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error creating lobby", error: message });
+            if (error instanceof yup_1.ValidationError) {
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
+            }
+            const message = error instanceof Error ? error.message : String(error);
+            res.status(500).send({ message: "Error joining lobby", error: message });
+        }
+    }
+    async leaveLobby(req, res) {
+        try {
+            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
+            const lobbyId = req.params.lobbyId;
+            await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
+            res.status(200).send({ message: "Left lobby" });
+        }
+        catch (error) {
+            if (error instanceof yup_1.ValidationError) {
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
+            }
+            const message = error instanceof Error ? error.message : String(error);
+            res.status(500).send({ message: "Error leaving lobby", error: message });
         }
     }
 };
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies",
+        method: "POST",
+        description: "Create a new lobby.",
+        responseType: { message: "string" },
+        example: "POST /api/lobbies",
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "createLobby", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId",
@@ -127,7 +158,7 @@ __decorate([
         description: "Get a lobby by lobbyId",
         params: { lobbyId: "The id of the lobby" },
         responseType: { lobbyId: "string", users: ["string"] },
-        example: "GET /api/lobbies/123"
+        example: "GET /api/lobbies/123",
     }),
     (0, inversify_express_utils_1.httpGet)("/:lobbyId"),
     __metadata("design:type", Function),
@@ -136,13 +167,41 @@ __decorate([
 ], Lobbies.prototype, "getLobby", null);
 __decorate([
     (0, describe_1.describe)({
+        endpoint: "/lobbies/user/@me",
+        method: "GET",
+        description: "Get the lobby the authenticated user is in.",
+        responseType: { lobbyId: "string", users: ["string"] },
+        example: "GET /api/lobbies/user/@me",
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "getMyLobby", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/lobbies/user/:userId",
+        method: "GET",
+        description: "Get the lobby a user is in",
+        params: { userId: "The id of the user" },
+        responseType: { lobbyId: "string", users: ["string"] },
+        example: "GET /api/lobbies/user/123",
+    }),
+    (0, inversify_express_utils_1.httpGet)("/user/:userId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "getUserLobby", null);
+__decorate([
+    (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/join",
         method: "POST",
         description: "Join a lobby.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
         example: "POST /api/lobbies/123/join",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/join", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -157,55 +216,13 @@ __decorate([
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
         example: "POST /api/lobbies/123/leave",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/:lobbyId/leave", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "leaveLobby", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies/user/@me",
-        method: "GET",
-        description: "Get the lobby the authenticated user is in.",
-        responseType: { lobbyId: "string", users: ["string"] },
-        example: "GET /api/lobbies/user/@me",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Lobbies.prototype, "getMyLobby", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies/user/:userId",
-        method: "GET",
-        description: "Get the lobby a user is in",
-        params: { userId: "The id of the user" },
-        responseType: { lobbyId: "string", users: ["string"] },
-        example: "GET /api/lobbies/user/123"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/user/:userId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Lobbies.prototype, "getUserLobby", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/lobbies",
-        method: "POST",
-        description: "Create a new lobby.",
-        responseType: { message: "string" },
-        example: "POST /api/lobbies",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Lobbies.prototype, "createLobby", null);
 Lobbies = __decorate([
     (0, inversify_express_utils_1.controller)("/lobbies"),
     __param(0, (0, inversify_1.inject)("LobbyService")),

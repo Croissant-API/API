@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { User } from '../interfaces/User';
+import { Request, Response, NextFunction } from "express";
+import { User } from "../interfaces/User";
 export interface AuthenticatedRequest extends Request {
     user: User;
     originalUser?: User;

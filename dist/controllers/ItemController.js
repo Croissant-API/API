@@ -26,17 +26,18 @@ let Items = class Items {
         this.inventoryService = inventoryService;
         this.userService = userService;
     }
+    // --- LECTURE ---
     async getAllItems(req, res) {
         const items = await this.itemService.getAllItems();
-        const filteredItems = items.filter(item => !item.deleted && item.showInStore);
-        const filteredItemsMap = filteredItems.map(item => {
+        const filteredItems = items.filter((item) => !item.deleted && item.showInStore);
+        const filteredItemsMap = filteredItems.map((item) => {
             return {
-                "itemId": item.itemId,
-                "name": item.name,
-                "description": item.description,
-                "owner": item.owner,
-                "price": item.price,
-                "iconHash": item.iconHash,
+                itemId: item.itemId,
+                name: item.name,
+                description: item.description,
+                owner: item.owner,
+                price: item.price,
+                iconHash: item.iconHash,
             };
         });
         res.send(filteredItemsMap);
@@ -47,8 +48,8 @@ let Items = class Items {
             return res.status(401).send({ message: "Unauthorized" });
         }
         const items = await this.itemService.getAllItems();
-        const myItems = items.filter(item => !item.deleted && item.owner === userId);
-        const myItemsMap = myItems.map(item => ({
+        const myItems = items.filter((item) => !item.deleted && item.owner === userId);
+        const myItemsMap = myItems.map((item) => ({
             itemId: item.itemId,
             name: item.name,
             description: item.description,
@@ -59,13 +60,63 @@ let Items = class Items {
         }));
         res.send(myItemsMap);
     }
+    async searchItems(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const items = await this.itemService.searchItemsByName(query);
+            const filtered = items.map((item) => ({
+                itemId: item.itemId,
+                name: item.name,
+                description: item.description,
+                owner: item.owner,
+                price: item.price,
+                iconHash: item.iconHash,
+                showInStore: !!item.showInStore,
+            }));
+            res.send(filtered);
+        }
+        catch {
+            res.status(500).send({ message: "Error searching items" });
+        }
+    }
+    async healthCheck(req, res) {
+        try {
+            await ItemValidator_1.itemIdParamValidator.validate(req.params);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return res
+                .status(400)
+                .send({ message: "Invalid itemId", error: message });
+        }
+        const { itemId } = req.params;
+        const item = await this.itemService.getItem(itemId);
+        if (!item || item.deleted) {
+            return res.status(404).send({ message: "Item not found" });
+        }
+        const filteredItem = {
+            name: item.name,
+            description: item.description,
+            owner: item.owner,
+            price: item.price,
+            showInStore: item.showInStore,
+            iconHash: item.iconHash,
+        };
+        res.send(filteredItem);
+    }
+    // --- CREATION / MODIFICATION / SUPPRESSION ---
     async createItem(req, res) {
         try {
             await ItemValidator_1.createItemValidator.validate(req.body);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid item data", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            return res
+                .status(400)
+                .send({ message: "Invalid item data", error: message });
         }
         const itemId = (0, uuid_1.v4)();
         const { name, description, price, iconHash, showInStore } = req.body;
@@ -78,13 +129,13 @@ let Items = class Items {
                 owner: req.user.user_id,
                 iconHash: iconHash ?? null,
                 showInStore: showInStore ?? false,
-                deleted: false
+                deleted: false,
             });
             res.status(200).send({ message: "Item created" });
         }
         catch (error) {
             console.error("Error creating item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error creating item", error: message });
         }
     }
@@ -94,8 +145,10 @@ let Items = class Items {
             await ItemValidator_1.updateItemValidator.validate(req.body);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid update data", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            return res
+                .status(400)
+                .send({ message: "Invalid update data", error: message });
         }
         const { itemId } = req.params;
         const { name, description, price, iconHash, showInStore } = req.body;
@@ -105,13 +158,13 @@ let Items = class Items {
                 ...(description !== undefined && { description }),
                 ...(price !== undefined && { price }),
                 ...(iconHash !== undefined && { iconHash }),
-                ...(showInStore !== undefined && { showInStore })
+                ...(showInStore !== undefined && { showInStore }),
             });
             res.status(200).send({ message: "Item updated" });
         }
         catch (error) {
             console.error("Error updating item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error updating item", error: message });
         }
     }
@@ -120,8 +173,10 @@ let Items = class Items {
             await ItemValidator_1.itemIdParamValidator.validate(req.params);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid itemId", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            return res
+                .status(400)
+                .send({ message: "Invalid itemId", error: message });
         }
         const { itemId } = req.params;
         try {
@@ -130,10 +185,11 @@ let Items = class Items {
         }
         catch (error) {
             console.error("Error deleting item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error deleting item", error: message });
         }
     }
+    // --- ACTIONS INVENTAIRE ---
     async buyItem(req, res) {
         const { itemId } = req.params;
         const { amount } = req.body;
@@ -159,7 +215,7 @@ let Items = class Items {
                     return res.status(400).send({ message: "Insufficient balance" });
                 }
                 await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
-                await this.userService.updateUserBalance(owner.user_id, owner.balance + (item.price * amount) * 0.75);
+                await this.userService.updateUserBalance(owner.user_id, owner.balance + item.price * amount * 0.75);
             }
             // If user is owner, skip balance check and update
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
@@ -173,7 +229,7 @@ let Items = class Items {
         }
         catch (error) {
             console.error("Error buying item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error buying item", error: message });
         }
     }
@@ -194,14 +250,14 @@ let Items = class Items {
             }
             // Only increase balance if the user is NOT the owner
             if (user.user_id !== item.owner) {
-                await this.userService.updateUserBalance(user.user_id, user.balance + (item.price * amount * 0.75));
+                await this.userService.updateUserBalance(user.user_id, user.balance + item.price * amount * 0.75);
             }
             await this.inventoryService.removeItem(user.user_id, itemId, amount);
             res.status(200).send({ message: "Item sold" });
         }
         catch (error) {
             console.error("Error selling item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error selling item", error: message });
         }
     }
@@ -218,18 +274,16 @@ let Items = class Items {
             }
             const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
             if (currentAmount) {
-                // L'utilisateur a déjà cet item, on augmente la quantité
                 await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
             }
             else {
-                // L'utilisateur n'a pas cet item, on l'ajoute
                 await this.inventoryService.addItem(user.user_id, itemId, amount);
             }
             res.status(200).send({ message: "Item given" });
         }
         catch (error) {
             console.error("Error giving item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error giving item", error: message });
         }
     }
@@ -249,7 +303,7 @@ let Items = class Items {
         }
         catch (error) {
             console.error("Error consuming item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error consuming item", error: message });
         }
     }
@@ -269,7 +323,7 @@ let Items = class Items {
         }
         catch (error) {
             console.error("Error dropping item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error dropping item", error: message });
         }
     }
@@ -290,7 +344,9 @@ let Items = class Items {
             // Check sender inventory
             const senderAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
             if (!senderAmount || senderAmount < amount) {
-                return res.status(400).send({ message: "Not enough items to transfer" });
+                return res
+                    .status(400)
+                    .send({ message: "Not enough items to transfer" });
             }
             // Remove from sender
             await this.inventoryService.removeItem(user.user_id, itemId, amount);
@@ -306,54 +362,11 @@ let Items = class Items {
         }
         catch (error) {
             console.error("Error transferring item", error);
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error transferring item", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error transferring item", error: message });
         }
-    }
-    async searchItems(req, res) {
-        const query = req.query.q?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            const items = await this.itemService.searchItemsByName(query);
-            const filtered = items.map(item => ({
-                itemId: item.itemId,
-                name: item.name,
-                description: item.description,
-                owner: item.owner,
-                price: item.price,
-                iconHash: item.iconHash,
-                showInStore: !!item.showInStore
-            }));
-            res.send(filtered);
-        }
-        catch {
-            res.status(500).send({ message: "Error searching items" });
-        }
-    }
-    async healthCheck(req, res) {
-        try {
-            await ItemValidator_1.itemIdParamValidator.validate(req.params);
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            return res.status(400).send({ message: "Invalid itemId", error: message });
-        }
-        const { itemId } = req.params;
-        const item = await this.itemService.getItem(itemId);
-        if (!item || item.deleted) {
-            return res.status(404).send({ message: "Item not found" });
-        }
-        const filteredItem = {
-            name: item.name,
-            description: item.description,
-            owner: item.owner,
-            price: item.price,
-            showInStore: item.showInStore,
-            iconHash: item.iconHash,
-        };
-        res.send(filteredItem);
     }
 };
 __decorate([
@@ -361,8 +374,17 @@ __decorate([
         endpoint: "/items",
         method: "GET",
         description: "Get all non-deleted items",
-        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string" }],
-        example: "GET /api/items"
+        responseType: [
+            {
+                itemId: "string",
+                name: "string",
+                description: "string",
+                owner: "string",
+                price: "number",
+                iconHash: "string",
+            },
+        ],
+        example: "GET /api/items",
     }),
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
@@ -374,15 +396,70 @@ __decorate([
         endpoint: "/items/@mine",
         method: "GET",
         description: "Get all items owned by the authenticated user.",
-        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
+        responseType: [
+            {
+                itemId: "string",
+                name: "string",
+                description: "string",
+                owner: "string",
+                price: "number",
+                iconHash: "string",
+                showInStore: "boolean",
+            },
+        ],
         example: "GET /api/items/@mine",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "getMyItems", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/search",
+        method: "GET",
+        description: "Search for items by name (only those visible in store)",
+        query: { q: "The search query" },
+        responseType: [
+            {
+                itemId: "string",
+                name: "string",
+                description: "string",
+                owner: "string",
+                price: "number",
+                iconHash: "string",
+                showInStore: "boolean",
+            },
+        ],
+        example: "GET /api/items/search?q=Apple",
+    }),
+    (0, inversify_express_utils_1.httpGet)("/search"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "searchItems", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/:itemId",
+        method: "GET",
+        description: "Get a single item by itemId",
+        params: { itemId: "The id of the item" },
+        responseType: {
+            name: "string",
+            description: "string",
+            owner: "string",
+            price: "number",
+            showInStore: "boolean",
+            iconHash: "string",
+        },
+        example: "GET /api/items/123",
+    }),
+    (0, inversify_express_utils_1.httpGet)("/:itemId"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "healthCheck", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",
@@ -393,11 +470,11 @@ __decorate([
             description: "Description of the item",
             price: "Price of the item",
             iconHash: "Hash of the icon (optional)",
-            showInStore: "Show in store (optional, boolean)"
+            showInStore: "Show in store (optional, boolean)",
         },
         responseType: { message: "string" },
-        example: "POST /api/items/create {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}",
-        requiresAuth: true
+        example: 'POST /api/items/create {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -415,11 +492,11 @@ __decorate([
             description: "Description of the item",
             price: "Price of the item",
             iconHash: "Hash of the icon (optional)",
-            showInStore: "Show in store (optional, boolean)"
+            showInStore: "Show in store (optional, boolean)",
         },
         responseType: { message: "string" },
-        example: "PUT /api/items/update/123 {\"name\": \"Apple\", \"description\": \"A fruit\", \"price\": 100, \"iconHash\": \"abc123\", \"showInStore\": true}",
-        requiresAuth: true
+        example: 'PUT /api/items/update/123 {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPut)("/update/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -434,7 +511,7 @@ __decorate([
         params: { itemId: "The id of the item" },
         responseType: { message: "string" },
         example: "DELETE /api/items/delete/123",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpDelete)("/delete/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -449,8 +526,8 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to buy" },
         responseType: { message: "string" },
-        example: "POST /api/items/buy/item_1 {\"amount\": 2}",
-        requiresAuth: true
+        example: 'POST /api/items/buy/item_1 {"amount": 2}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/buy/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -465,8 +542,8 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to sell" },
         responseType: { message: "string" },
-        example: "POST /api/items/sell/item_1 {\"amount\": 1}",
-        requiresAuth: true
+        example: 'POST /api/items/sell/item_1 {"amount": 1}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/sell/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -481,8 +558,8 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to give" },
         responseType: { message: "string" },
-        example: "POST /api/items/give/item_1 {\"amount\": 1}",
-        requiresAuth: true
+        example: 'POST /api/items/give/item_1 {"amount": 1}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -497,8 +574,8 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to consume" },
         responseType: { message: "string" },
-        example: "POST /api/items/consume/item_1 {\"amount\": 1}",
-        requiresAuth: true
+        example: 'POST /api/items/consume/item_1 {"amount": 1}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/consume/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),
@@ -513,8 +590,8 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to drop" },
         responseType: { message: "string" },
-        example: "POST /api/items/drop/item_1 {\"amount\": 1}",
-        requiresAuth: true
+        example: 'POST /api/items/drop/item_1 {"amount": 1}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -529,45 +606,17 @@ __decorate([
         params: { itemId: "The id of the item" },
         body: {
             amount: "The amount of the item to transfer",
-            targetUserId: "The user ID of the recipient"
+            targetUserId: "The user ID of the recipient",
         },
         responseType: { message: "string" },
-        example: "POST /api/items/transfer/item_1 {\"amount\": 1, \"targetUserId\": \"user_2\"}",
-        requiresAuth: true
+        example: 'POST /api/items/transfer/item_1 {"amount": 1, "targetUserId": "user_2"}',
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/transfer/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "transferItem", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/search",
-        method: "GET",
-        description: "Search for items by name (only those visible in store)",
-        query: { q: "The search query" },
-        responseType: [{ itemId: "string", name: "string", description: "string", owner: "string", price: "number", iconHash: "string", showInStore: "boolean" }],
-        example: "GET /api/items/search?q=Apple"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/search"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Items.prototype, "searchItems", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/:itemId",
-        method: "GET",
-        description: "Get a single item by itemId",
-        params: { itemId: "The id of the item" },
-        responseType: { name: "string", description: "string", owner: "string", price: "number", showInStore: "boolean", iconHash: "string" },
-        example: "GET /api/items/123"
-    }),
-    (0, inversify_express_utils_1.httpGet)("/:itemId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Items.prototype, "healthCheck", null);
 Items = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),

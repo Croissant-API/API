@@ -50,7 +50,7 @@ let TradeService = class TradeService {
             approvedToUser: false,
             status: "pending",
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
         };
         await this.databaseService.create(`INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
@@ -63,7 +63,7 @@ let TradeService = class TradeService {
             0,
             newTrade.status,
             newTrade.createdAt,
-            newTrade.updatedAt
+            newTrade.updatedAt,
         ]);
         return newTrade;
     }
@@ -94,7 +94,7 @@ let TradeService = class TradeService {
     async getTradesByUser(userId) {
         const trades = await this.databaseService.read("SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC", [userId, userId]);
         const deserialized = trades.map(this.deserializeTrade);
-        return Promise.all(deserialized.map(t => this.enrichTradeItems(t)));
+        return Promise.all(deserialized.map((t) => this.enrichTradeItems(t)));
     }
     async addItemToTrade(tradeId, userId, tradeItem) {
         const trade = await this.getTradeById(tradeId);
@@ -115,7 +115,7 @@ let TradeService = class TradeService {
             throw new Error("User does not have enough of the item");
         // Ajoute ou update l'item dans la liste
         const items = [...trade[userKey]];
-        const idx = items.findIndex(i => i.itemId === tradeItem.itemId);
+        const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
         if (idx >= 0)
             items[idx].amount += tradeItem.amount;
         else
@@ -140,7 +140,7 @@ let TradeService = class TradeService {
         else
             throw new Error("User not part of this trade");
         const items = [...trade[userKey]];
-        const idx = items.findIndex(i => i.itemId === tradeItem.itemId);
+        const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
         if (idx === -1)
             throw new Error("Item not found in trade");
         if (items[idx].amount < tradeItem.amount)

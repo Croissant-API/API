@@ -1,5 +1,5 @@
 import { Item } from "interfaces/Item";
-import { IDatabaseService } from './DatabaseService';
+import { IDatabaseService } from "./DatabaseService";
 export interface IItemService {
     createItem(item: Omit<Item, "id">): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;

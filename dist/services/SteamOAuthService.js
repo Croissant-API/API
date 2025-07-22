@@ -16,7 +16,8 @@ const axios_1 = __importDefault(require("axios"));
 const querystring_1 = __importDefault(require("querystring"));
 const STEAM_API_KEY = process.env.STEAM_API_KEY || "BE084FB89CC0FF28AC790A9CC5D008A1";
 const STEAM_REALM = process.env.STEAM_REALM || "http://localhost:8580/";
-const STEAM_RETURN_URL = process.env.STEAM_RETURN_URL || "http://localhost:8580/api/users/steam-associate";
+const STEAM_RETURN_URL = process.env.STEAM_RETURN_URL ||
+    "http://localhost:8580/api/users/steam-associate";
 let SteamOAuthService = class SteamOAuthService {
     /**
      * Génère l'URL d'authentification Steam (OpenID)
@@ -28,7 +29,7 @@ let SteamOAuthService = class SteamOAuthService {
             "openid.return_to": STEAM_RETURN_URL,
             "openid.realm": STEAM_REALM,
             "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
-            "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select"
+            "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
         };
         return `https://steamcommunity.com/openid/login?${querystring_1.default.stringify(params)}`;
     }
@@ -39,7 +40,7 @@ let SteamOAuthService = class SteamOAuthService {
         // On renvoie la requête à Steam pour validation
         const body = {
             ...query,
-            "openid.mode": "check_authentication"
+            "openid.mode": "check_authentication",
         };
         const response = await axios_1.default.post("https://steamcommunity.com/openid/login", querystring_1.default.stringify(body), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
         if (response.data && response.data.includes("is_valid:true")) {
@@ -47,7 +48,8 @@ let SteamOAuthService = class SteamOAuthService {
             const claimedId = typeof query["openid.claimed_id"] === "string"
                 ? query["openid.claimed_id"]
                 : (query["openid.claimed_id"] || [])[0];
-            const match = claimedId?.match(/\/id\/(\d+)$/) || claimedId?.match(/\/profiles\/(\d+)$/);
+            const match = claimedId?.match(/\/id\/(\d+)$/) ||
+                claimedId?.match(/\/profiles\/(\d+)$/);
             return match ? match[1] : null;
         }
         return null;
@@ -65,7 +67,7 @@ let SteamOAuthService = class SteamOAuthService {
             steamid: player.steamid,
             personaname: player.personaname,
             avatarfull: player.avatarfull,
-            profileurl: player.profileurl
+            profileurl: player.profileurl,
         };
     }
 };

@@ -33,12 +33,13 @@ let ItemService = class ItemService {
             item.owner,
             item.iconHash ?? null,
             item.showInStore ? 1 : 0,
-            item.deleted ? 1 : 0
+            item.deleted ? 1 : 0,
         ]);
     }
     getItem(itemId) {
         return new Promise((resolve, reject) => {
-            this.databaseService.read("SELECT * FROM items")
+            this.databaseService
+                .read("SELECT * FROM items")
                 .then((items) => {
                 const item = items.find((item) => item.itemId === itemId) || null;
                 resolve(item);
@@ -48,7 +49,8 @@ let ItemService = class ItemService {
     }
     getAllItems() {
         return new Promise((resolve, reject) => {
-            this.databaseService.read("SELECT * FROM items")
+            this.databaseService
+                .read("SELECT * FROM items")
                 .then(resolve)
                 .catch(reject);
         });
@@ -67,7 +69,10 @@ let ItemService = class ItemService {
     }
     deleteItem(itemId) {
         return new Promise((resolve, reject) => {
-            this.databaseService.delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]).then(resolve).catch(reject);
+            this.databaseService
+                .delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId])
+                .then(resolve)
+                .catch(reject);
         });
     }
     /**

@@ -21,55 +21,52 @@ let OAuth2 = class OAuth2 {
     constructor(oauth2Service) {
         this.oauth2Service = oauth2Service;
     }
+    // --- Application Management ---
     async getAppByClientId(req, res) {
         const { client_id } = req.params;
         const app = await this.oauth2Service.getAppByClientId(client_id);
         if (!app)
             return res.status(404).send({ message: "App not found" });
-        // On parse les redirect_urls pour retourner un tableau
         res.send({
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
-            redirect_urls: JSON.parse(app.redirect_urls)
+            redirect_urls: JSON.parse(app.redirect_urls),
         });
     }
-    // @describe({
-    //     endpoint: "/oauth2/app",
-    //     method: "POST",
-    //     description: "Créer une application OAuth2",
-    //     body: { name: "Nom de l'app", redirect_urls: "Array<string>" },
-    //     responseType: { client_id: "string", client_secret: "string" },
-    //     requiresAuth: true
-    // })
     async createApp(req, res) {
         const { name, redirect_urls } = req.body;
         const app = await this.oauth2Service.createApp(req.user.user_id, name, redirect_urls);
-        res.status(201).send({ client_id: app.client_id, client_secret: app.client_secret });
+        res
+            .status(201)
+            .send({ client_id: app.client_id, client_secret: app.client_secret });
     }
-    // @describe({
-    //     endpoint: "/oauth2/apps",
-    //     method: "GET",
-    //     description: "Lister mes applications OAuth2",
-    //     responseType: [{ client_id: "string", name: "string", redirect_urls: "string[]" }],
-    //     requiresAuth: true
-    // })
     async getMyApps(req, res) {
         const apps = await this.oauth2Service.getAppsByOwner(req.user.user_id);
-        res.send(apps.map(a => ({
+        res.send(apps.map((a) => ({
             client_id: a.client_id,
             client_secret: a.client_secret,
             name: a.name,
-            redirect_urls: JSON.parse(a.redirect_urls)
+            redirect_urls: JSON.parse(a.redirect_urls),
         })));
     }
-    // @describe({
-    //     endpoint: "/oauth2/authorize",
-    //     method: "GET",
-    //     description: "Générer un code d'auth (flow code)",
-    //     query: { client_id: "string", redirect_uri: "string" },
-    //     responseType: { code: "string" }
-    // })
+    async updateApp(req, res) {
+        const { client_id } = req.params;
+        const { name, redirect_urls } = req.body;
+        const userId = req.user.user_id;
+        await this.oauth2Service.updateApp(client_id, userId, {
+            name,
+            redirect_urls,
+        });
+        res.status(200).send({ success: true });
+    }
+    async deleteApp(req, res) {
+        const { client_id } = req.params;
+        const userId = req.user.user_id;
+        await this.oauth2Service.deleteApp(client_id, userId);
+        res.status(204).send();
+    }
+    // --- Authorization & User ---
     async authorize(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
@@ -81,7 +78,6 @@ let OAuth2 = class OAuth2 {
         const code = await this.oauth2Service.generateAuthCode(client_id, redirect_uri, userId);
         res.send({ code });
     }
-    // Get user by code
     async getUserByCode(req, res) {
         const { code, client_id, client_secret } = req.query;
         if (!code || !client_id || !client_secret) {
@@ -91,19 +87,6 @@ let OAuth2 = class OAuth2 {
         if (!user)
             return res.status(404).send({ message: "User not found" });
         res.send(user);
-    }
-    async deleteApp(req, res) {
-        const { client_id } = req.params;
-        const userId = req.user.user_id;
-        await this.oauth2Service.deleteApp(client_id, userId);
-        res.status(204).send();
-    }
-    async updateApp(req, res) {
-        const { client_id } = req.params;
-        const { name, redirect_urls } = req.body;
-        const userId = req.user.user_id;
-        await this.oauth2Service.updateApp(client_id, userId, { name, redirect_urls });
-        res.status(200).send({ success: true });
     }
 };
 __decorate([
@@ -125,6 +108,18 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OAuth2.prototype, "getMyApps", null);
 __decorate([
+    (0, inversify_express_utils_1.httpPatch)("/app/:client_id", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], OAuth2.prototype, "updateApp", null);
+__decorate([
+    (0, inversify_express_utils_1.httpDelete)("/app/:client_id", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], OAuth2.prototype, "deleteApp", null);
+__decorate([
     (0, inversify_express_utils_1.httpGet)("/authorize", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -135,26 +130,19 @@ __decorate([
         endpoint: "/oauth2/user",
         method: "GET",
         description: "Get user by code",
-        query: { code: "string", client_id: "string", client_secret: "string", redirect_uri: "string" },
-        responseType: { user: "object" }
+        query: {
+            code: "string",
+            client_id: "string",
+            client_secret: "string",
+            redirect_uri: "string",
+        },
+        responseType: { user: "object" },
     }),
     (0, inversify_express_utils_1.httpGet)("/user"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], OAuth2.prototype, "getUserByCode", null);
-__decorate([
-    (0, inversify_express_utils_1.httpDelete)("/app/:client_id", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], OAuth2.prototype, "deleteApp", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPatch)("/app/:client_id", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], OAuth2.prototype, "updateApp", null);
 OAuth2 = __decorate([
     (0, inversify_express_utils_1.controller)("/oauth2"),
     __param(0, (0, inversify_1.inject)("OAuth2Service")),

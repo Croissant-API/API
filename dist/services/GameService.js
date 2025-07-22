@@ -60,7 +60,7 @@ let GameService = class GameService {
             game.rating ?? 0,
             game.website ?? null,
             game.trailer_link ?? null,
-            game.multiplayer ? 1 : 0
+            game.multiplayer ? 1 : 0,
         ]);
     }
     async updateGame(gameId, game) {
@@ -71,7 +71,9 @@ let GameService = class GameService {
                 continue; // Ne pas updater les owners ici
             fields.push(`${key} = ?`);
             values.push(key === "showInStore"
-                ? (game[key] ? 1 : 0)
+                ? game[key]
+                    ? 1
+                    : 0
                 : game[key]);
         }
         if (fields.length === 0)
@@ -80,7 +82,9 @@ let GameService = class GameService {
         await this.databaseService.update(`UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`, values);
     }
     async deleteGame(gameId) {
-        await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [gameId]);
+        await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [
+            gameId,
+        ]);
         await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
     }
     // Méthodes pour gérer les owners secondaires

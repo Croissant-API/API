@@ -1,13 +1,13 @@
 import { Container } from "inversify";
 
-import { IItemService, ItemService } from "./services/ItemService";
-import { DatabaseService, IDatabaseService } from "./services/DatabaseService";
-import { IUserService, UserService } from "./services/UserService";
+import { IDatabaseService, DatabaseService } from "./services/DatabaseService";
 import { IInventoryService, InventoryService } from "./services/InventoryService";
+import { IItemService, ItemService } from "./services/ItemService";
+import { IUserService, UserService } from "./services/UserService";
 import { ILobbyService, LobbyService } from "./services/LobbyService";
 import { ITradeService, TradeService } from "./services/TradeService";
 import { IGameService, GameService } from "./services/GameService";
-import { OAuth2Service, IOAuth2Service } from "./services/OAuth2Service";
+import { IOAuth2Service, OAuth2Service } from "./services/OAuth2Service";
 import { ISteamOAuthService, SteamOAuthService } from "./services/SteamOAuthService";
 import { IMailService, MailService } from "./services/MailService";
 import { IStudioService, StudioService } from "./services/StudioService";

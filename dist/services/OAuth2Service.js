@@ -21,7 +21,6 @@ let OAuth2Service = class OAuth2Service {
         this.db = db;
     }
     async createApp(owner_id, name, redirect_urls) {
-        // Utilise un vrai identifiant unique pour client_id (remplace par ton générateur de snowflake si besoin)
         const client_id = (0, uuid_1.v4)();
         const client_secret = (0, uuid_1.v4)();
         await this.db.create("INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)", [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
@@ -38,18 +37,6 @@ let OAuth2Service = class OAuth2Service {
         const code = (0, uuid_1.v4)();
         await this.db.create("INSERT INTO oauth2_codes (code, client_id, redirect_uri, user_id) VALUES (?, ?, ?, ?)", [code, client_id, redirect_uri, user_id]);
         return code;
-    }
-    async exchangeCodeForToken(code, client_id, client_secret, redirect_uri) {
-        const rows = await this.db.read("SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ? AND redirect_uri = ?", [code, client_id, redirect_uri]);
-        if (!rows.length)
-            return null;
-        const app = await this.getAppByClientId(client_id);
-        if (!app || app.client_secret !== client_secret)
-            return null;
-        // Ici tu peux générer un vrai JWT, pour l'exemple on retourne juste un token random
-        const token = (0, uuid_1.v4)();
-        await this.db.create("INSERT INTO oauth2_tokens (token, user_id, client_id) VALUES (?, ?, ?)", [token, rows[0].user_id, client_id]);
-        return token;
     }
     async deleteApp(client_id, owner_id) {
         await this.db.delete("DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?", [client_id, owner_id]);
@@ -71,15 +58,12 @@ let OAuth2Service = class OAuth2Service {
         await this.db.update(`UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`, values);
     }
     async getUserByCode(code, client_id, client_secret) {
-        // Vérifie le code et récupère l'user_id
         const codeRows = await this.db.read("SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?", [code, client_id]);
         if (!codeRows.length)
             return null;
-        // Vérifie le client_secret
         const appRows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
         if (!appRows.length || appRows[0].client_secret !== client_secret)
             return null;
-        // Récupère l'utilisateur
         const userRows = await this.db.read("SELECT * FROM users WHERE user_id = ?", [codeRows[0].user_id]);
         if (!userRows.length)
             return null;

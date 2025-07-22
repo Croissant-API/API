@@ -41,7 +41,9 @@ function filterGame(game, userId) {
         website: game.website,
         trailer_link: game.trailer_link,
         multiplayer: game.multiplayer,
-        ...(userId && game.owner_id === userId ? { download_link: game.download_link } : {}),
+        ...(userId && game.owner_id === userId
+            ? { download_link: game.download_link }
+            : {}),
     };
 }
 let Games = class Games {
@@ -49,28 +51,72 @@ let Games = class Games {
         this.gameService = gameService;
         this.userService = userService;
     }
+    // --- LISTING & SEARCH ---
     async listGames(req, res) {
         try {
             const games = await this.gameService.listGames();
-            const filteredGames = games.filter(game => game.showInStore).map(game => filterGame(game));
+            const filteredGames = games
+                .filter((game) => game.showInStore)
+                .map((game) => filterGame(game));
             res.send(filteredGames);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error listing games", error: message });
+        }
+    }
+    async searchGames(req, res) {
+        const query = req.query.q?.trim();
+        if (!query) {
+            return res.status(400).send({ message: "Missing search query" });
+        }
+        try {
+            const games = await this.gameService.listGames();
+            const filtered = games
+                .filter((game) => game.showInStore &&
+                ((game.name &&
+                    game.name.toLowerCase().includes(query.toLowerCase())) ||
+                    (game.description &&
+                        game.description.toLowerCase().includes(query.toLowerCase())) ||
+                    (game.genre &&
+                        game.genre.toLowerCase().includes(query.toLowerCase()))))
+                .map((game) => filterGame(game));
+            res.send(filtered);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error searching games", error: message });
+        }
+    }
+    async getGamesByUserId(req, res) {
+        try {
+            const { userId } = req.params;
+            const games = await this.gameService.getUserGames(userId);
+            const filteredGames = games.map((game) => filterGame(game, userId));
+            res.send(filteredGames);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching user games", error: message });
         }
     }
     async getMyCreatedGames(req, res) {
         try {
             const userId = req.user.user_id;
             const games = await this.gameService.listGames();
-            const myGames = games.filter(game => game.owner_id === userId);
-            const filteredGames = myGames.map(game => filterGame(game, userId));
+            const myGames = games.filter((game) => game.owner_id === userId);
+            const filteredGames = myGames.map((game) => filterGame(game, userId));
             res.send(filteredGames);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching your created games", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching your created games", error: message });
         }
     }
     async getUserGames(req, res) {
@@ -80,38 +126,10 @@ let Games = class Games {
             res.send(games);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user games", error: message });
-        }
-    }
-    async searchGames(req, res) {
-        const query = req.query.q?.trim();
-        if (!query) {
-            return res.status(400).send({ message: "Missing search query" });
-        }
-        try {
-            // Recherche insensible à la casse sur le nom, la description ou le genre, et seulement les jeux visibles en boutique
-            const games = await this.gameService.listGames();
-            const filtered = games.filter(game => game.showInStore && ((game.name && game.name.toLowerCase().includes(query.toLowerCase())) ||
-                (game.description && game.description.toLowerCase().includes(query.toLowerCase())) ||
-                (game.genre && game.genre.toLowerCase().includes(query.toLowerCase())))).map(game => filterGame(game));
-            res.send(filtered);
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error searching games", error: message });
-        }
-    }
-    async getGamesByUserId(req, res) {
-        try {
-            const { userId } = req.params;
-            const games = await this.gameService.getUserGames(userId);
-            const filteredGames = games.map(game => filterGame(game, userId));
-            res.send(filteredGames);
-        }
-        catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching user games", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching user games", error: message });
         }
     }
     async getGame(req, res) {
@@ -126,16 +144,19 @@ let Games = class Games {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching game", error: message });
         }
     }
+    // --- CREATION & MODIFICATION ---
     async createGame(req, res) {
         try {
             await GameValidator_1.createGameBodySchema.validate(req.body);
-            const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer } = req.body;
+            const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer, } = req.body;
             const gameId = (0, uuid_1.v4)();
             const ownerId = req.user.user_id;
             await this.gameService.createGame({
@@ -157,7 +178,7 @@ let Games = class Games {
                 rating: rating ?? 0,
                 website: website ?? null,
                 trailer_link: trailer_link ?? null,
-                multiplayer: multiplayer ?? false
+                multiplayer: multiplayer ?? false,
             });
             // Ajoute automatiquement le créateur comme propriétaire
             await this.gameService.addOwner(gameId, ownerId);
@@ -166,9 +187,11 @@ let Games = class Games {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error creating game", error: message });
         }
     }
@@ -181,21 +204,26 @@ let Games = class Games {
                 return res.status(404).send({ message: "Game not found" });
             }
             if (req.user.user_id !== game.owner_id) {
-                return res.status(403).send({ message: "You are not the owner of this game" });
+                return res
+                    .status(403)
+                    .send({ message: "You are not the owner of this game" });
             }
             const { gameId } = req.params;
             await this.gameService.updateGame(gameId, req.body);
-            const updatedGame = await this.gameService.getGame(gameId);
+            const updatedGame = (await this.gameService.getGame(gameId));
             res.status(200).send(filterGame(updatedGame, req.user.user_id));
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error updating game", error: message });
         }
     }
+    // --- ACHAT ---
     async buyGame(req, res) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
@@ -221,14 +249,16 @@ let Games = class Games {
                 if (!owner) {
                     return res.status(404).send({ message: "Owner not found" });
                 }
-                await this.userService.updateUserBalance(game.owner_id, owner.balance + (game.price * 0.75));
+                await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
                 await this.gameService.addOwner(gameId, userId);
                 res.status(200).send({ message: "Game purchased" });
             }
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error purchasing game", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error purchasing game", error: message });
         }
     }
 };
@@ -237,7 +267,8 @@ __decorate([
         endpoint: "/games",
         method: "GET",
         description: "List all games visible in the store.",
-        responseType: [{
+        responseType: [
+            {
                 gameId: "string",
                 name: "string",
                 description: "string",
@@ -255,9 +286,10 @@ __decorate([
                 rating: "number",
                 website: "string",
                 trailer_link: "string",
-                multiplayer: "boolean"
-            }],
-        example: "GET /api/games"
+                multiplayer: "boolean",
+            },
+        ],
+        example: "GET /api/games",
     }),
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
@@ -266,79 +298,12 @@ __decorate([
 ], Games.prototype, "listGames", null);
 __decorate([
     (0, describe_1.describe)({
-        endpoint: "/games/@mine",
-        method: "GET",
-        description: "Get all games created by the authenticated user.",
-        responseType: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean",
-                download_link: "string"
-            }],
-        example: "GET /api/games/@mine",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Games.prototype, "getMyCreatedGames", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/list/@me",
-        method: "GET",
-        description: "Get all games owned by the authenticated user. Requires authentication via header \"Authorization: Bearer <token>\".",
-        responseType: [{
-                gameId: "string",
-                name: "string",
-                description: "string",
-                price: "number",
-                owner_id: "string",
-                showInStore: "boolean",
-                iconHash: "string",
-                splashHash: "string",
-                bannerHash: "string",
-                genre: "string",
-                release_date: "string",
-                developer: "string",
-                publisher: "string",
-                platforms: ["string"],
-                rating: "number",
-                website: "string",
-                trailer_link: "string",
-                multiplayer: "boolean",
-                download_link: "string"
-            }],
-        example: "GET /api/games/list/@me",
-        requiresAuth: true
-    }),
-    (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Games.prototype, "getUserGames", null);
-__decorate([
-    (0, describe_1.describe)({
         endpoint: "/games/search",
         method: "GET",
         description: "Search for games by name, genre, or description.",
         query: { q: "The search query" },
-        responseType: [{
+        responseType: [
+            {
                 gameId: "string",
                 name: "string",
                 description: "string",
@@ -356,9 +321,10 @@ __decorate([
                 rating: "number",
                 website: "string",
                 trailer_link: "string",
-                multiplayer: "boolean"
-            }],
-        example: "GET /api/games/search?q=Minecraft"
+                multiplayer: "boolean",
+            },
+        ],
+        example: "GET /api/games/search?q=Minecraft",
     }),
     (0, inversify_express_utils_1.httpGet)("/search"),
     __metadata("design:type", Function),
@@ -371,7 +337,8 @@ __decorate([
         method: "GET",
         description: "List all games owned by a specific user.",
         params: { userId: "The id of the user" },
-        responseType: [{
+        responseType: [
+            {
                 gameId: "string",
                 name: "string",
                 description: "string",
@@ -389,15 +356,88 @@ __decorate([
                 rating: "number",
                 website: "string",
                 trailer_link: "string",
-                multiplayer: "boolean"
-            }],
-        example: "GET /api/games/list/123"
+                multiplayer: "boolean",
+            },
+        ],
+        example: "GET /api/games/list/123",
     }),
     (0, inversify_express_utils_1.httpGet)("/list/:userId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGamesByUserId", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/@mine",
+        method: "GET",
+        description: "Get all games created by the authenticated user.",
+        responseType: [
+            {
+                gameId: "string",
+                name: "string",
+                description: "string",
+                price: "number",
+                owner_id: "string",
+                showInStore: "boolean",
+                iconHash: "string",
+                splashHash: "string",
+                bannerHash: "string",
+                genre: "string",
+                release_date: "string",
+                developer: "string",
+                publisher: "string",
+                platforms: ["string"],
+                rating: "number",
+                website: "string",
+                trailer_link: "string",
+                multiplayer: "boolean",
+                download_link: "string",
+            },
+        ],
+        example: "GET /api/games/@mine",
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getMyCreatedGames", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/games/list/@me",
+        method: "GET",
+        description: 'Get all games owned by the authenticated user. Requires authentication via header "Authorization: Bearer <token>".',
+        responseType: [
+            {
+                gameId: "string",
+                name: "string",
+                description: "string",
+                price: "number",
+                owner_id: "string",
+                showInStore: "boolean",
+                iconHash: "string",
+                splashHash: "string",
+                bannerHash: "string",
+                genre: "string",
+                release_date: "string",
+                developer: "string",
+                publisher: "string",
+                platforms: ["string"],
+                rating: "number",
+                website: "string",
+                trailer_link: "string",
+                multiplayer: "boolean",
+                download_link: "string",
+            },
+        ],
+        example: "GET /api/games/list/@me",
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getUserGames", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/games/:gameId",
@@ -422,9 +462,9 @@ __decorate([
             rating: "number",
             website: "string",
             trailer_link: "string",
-            multiplayer: "boolean"
+            multiplayer: "boolean",
         },
-        example: "GET /api/games/123"
+        example: "GET /api/games/123",
     }),
     (0, inversify_express_utils_1.httpGet)("/:gameId"),
     __metadata("design:type", Function),

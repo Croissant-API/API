@@ -1,12 +1,15 @@
 import { Item } from "interfaces/Item";
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from './DatabaseService';
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IItemService {
   createItem(item: Omit<Item, "id">): Promise<void>;
   getItem(itemId: string): Promise<Item | null>;
   getAllItems(): Promise<Item[]>;
-  updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
+  updateItem(
+    itemId: string,
+    item: Partial<Omit<Item, "id" | "itemId" | "owner">>
+  ): Promise<void>;
   deleteItem(itemId: string): Promise<void>;
   searchItemsByName(query: string): Promise<Item[]>;
 }
@@ -15,7 +18,7 @@ export interface IItemService {
 export class ItemService implements IItemService {
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
-  ) { }
+  ) {}
 
   async createItem(item: Omit<Item, "id">): Promise<void> {
     // Check if itemId already exists (even if deleted)
@@ -37,31 +40,36 @@ export class ItemService implements IItemService {
         item.owner,
         item.iconHash ?? null,
         item.showInStore ? 1 : 0,
-        item.deleted ? 1 : 0
+        item.deleted ? 1 : 0,
       ]
     );
   }
 
   getItem(itemId: string): Promise<Item | null> {
     return new Promise((resolve, reject) => {
-      this.databaseService.read<Item[]>("SELECT * FROM items")
-      .then((items) => {
-        const item = items.find((item) => item.itemId === itemId) || null;
-        resolve(item);
-      })
-      .catch(reject);
+      this.databaseService
+        .read<Item[]>("SELECT * FROM items")
+        .then((items) => {
+          const item = items.find((item) => item.itemId === itemId) || null;
+          resolve(item);
+        })
+        .catch(reject);
     });
   }
 
   getAllItems(): Promise<Item[]> {
     return new Promise((resolve, reject) => {
-      this.databaseService.read<Item[]>("SELECT * FROM items")
+      this.databaseService
+        .read<Item[]>("SELECT * FROM items")
         .then(resolve)
         .catch(reject);
     });
   }
 
-  async updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void> {
+  async updateItem(
+    itemId: string,
+    item: Partial<Omit<Item, "id" | "itemId" | "owner">>
+  ): Promise<void> {
     const fields = [];
     const values = [];
     for (const key in item) {
@@ -78,10 +86,10 @@ export class ItemService implements IItemService {
 
   deleteItem(itemId: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.databaseService.delete(
-        "UPDATE items SET deleted = 1 WHERE itemId = ?",
-        [itemId]
-      ).then(resolve).catch(reject);
+      this.databaseService
+        .delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId])
+        .then(resolve)
+        .catch(reject);
     });
   }
 

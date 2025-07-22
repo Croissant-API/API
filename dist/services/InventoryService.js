@@ -20,8 +20,7 @@ let InventoryService = class InventoryService {
     }
     async getInventory(userId) {
         const items = await this.databaseService.read("SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?", [userId]);
-        const filteredItems = items
-            .filter(item => item.amount > 0); // Filter out items with amount <= 0
+        const filteredItems = items.filter((item) => item.amount > 0); // Filter out items with amount <= 0
         return { user_id: userId, inventory: filteredItems };
     }
     async getItemAmount(userId, itemId) {
@@ -52,7 +51,7 @@ let InventoryService = class InventoryService {
     }
     async hasItem(userId, itemId, amount = 1) {
         const items = await this.getInventory(userId);
-        const item = items.inventory.find(item => item.item_id === itemId);
+        const item = items.inventory.find((item) => item.item_id === itemId);
         if (!item)
             return false;
         return item.amount >= amount;

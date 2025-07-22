@@ -22,7 +22,7 @@ let Trades = class Trades {
     constructor(tradeService) {
         this.tradeService = tradeService;
     }
-    // Commencer ou récupérer la dernière trade pending entre deux users
+    // --- Démarrage ou récupération de trade ---
     async startOrGetPendingTrade(req, res) {
         try {
             const fromUserId = req.user.user_id;
@@ -34,10 +34,13 @@ let Trades = class Trades {
             res.status(200).send(trade);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error starting or getting trade", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error starting or getting trade", error: message });
         }
     }
+    // --- Lecture ---
     async getTradeById(req, res) {
         try {
             const id = req.params.id;
@@ -45,21 +48,20 @@ let Trades = class Trades {
             if (!trade) {
                 return res.status(404).send({ message: "Trade not found" });
             }
-            // Sécurité : seuls les users concernés peuvent voir la trade
-            if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
+            if (trade.fromUserId !== req.user.user_id &&
+                trade.toUserId !== req.user.user_id) {
                 return res.status(403).send({ message: "Forbidden" });
             }
             res.send(trade);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching trade", error: message });
         }
     }
     async getTradesByUser(req, res) {
         try {
             const userId = req.params.userId;
-            // Sécurité : un user ne peut voir que ses propres trades
             if (userId !== req.user.user_id) {
                 return res.status(403).send({ message: "Forbidden" });
             }
@@ -67,10 +69,13 @@ let Trades = class Trades {
             res.send(trades);
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching trades", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error fetching trades", error: message });
         }
     }
+    // --- Actions sur une trade ---
     async addItemToTrade(req, res) {
         try {
             await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
@@ -81,10 +86,14 @@ let Trades = class Trades {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error adding item to trade", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error adding item to trade", error: message });
         }
     }
     async removeItemFromTrade(req, res) {
@@ -97,10 +106,14 @@ let Trades = class Trades {
         }
         catch (error) {
             if (error instanceof yup_1.ValidationError) {
-                return res.status(400).send({ message: "Validation failed", errors: error.errors });
+                return res
+                    .status(400)
+                    .send({ message: "Validation failed", errors: error.errors });
             }
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error removing item from trade", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error removing item from trade", error: message });
         }
     }
     async approveTrade(req, res) {
@@ -110,8 +123,10 @@ let Trades = class Trades {
             res.status(200).send({ message: "Trade approved" });
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error approving trade", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error approving trade", error: message });
         }
     }
     async cancelTrade(req, res) {
@@ -121,8 +136,10 @@ let Trades = class Trades {
             res.status(200).send({ message: "Trade canceled" });
         }
         catch (error) {
-            const message = (error instanceof Error) ? error.message : String(error);
-            res.status(500).send({ message: "Error canceling trade", error: message });
+            const message = error instanceof Error ? error.message : String(error);
+            res
+                .status(500)
+                .send({ message: "Error canceling trade", error: message });
         }
     }
 };

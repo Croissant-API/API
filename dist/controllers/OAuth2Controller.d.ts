@@ -7,8 +7,8 @@ export declare class OAuth2 {
     getAppByClientId(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     createApp(req: AuthenticatedRequest, res: Response): Promise<void>;
     getMyApps(req: AuthenticatedRequest, res: Response): Promise<void>;
+    updateApp(req: AuthenticatedRequest, res: Response): Promise<void>;
+    deleteApp(req: AuthenticatedRequest, res: Response): Promise<void>;
     authorize(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUserByCode(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    deleteApp(req: AuthenticatedRequest, res: Response): Promise<void>;
-    updateApp(req: AuthenticatedRequest, res: Response): Promise<void>;
 }
