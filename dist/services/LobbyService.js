@@ -52,7 +52,7 @@ let LobbyService = class LobbyService {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
             const users = await Promise.all(JSON.parse(row.users)
-                .map((u) => this.userService.getUser(u))
+                .map(async (u) => await this.userService.getUser(u))
                 .map((user) => {
                 return {
                     username: user.username,

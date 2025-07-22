@@ -70,7 +70,7 @@ export class LobbyService implements ILobbyService {
     for (const row of rows) {
       const users: (User | null)[] = await Promise.all(
         JSON.parse(row.users)
-          .map((u: string) => this.userService.getUser(u))
+          .map(async (u: string) => await this.userService.getUser(u))
           .map((user: User) => {
             return {
               username: user.username,
