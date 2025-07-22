@@ -19,6 +19,7 @@ exports.StudioService = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const crypto_1 = __importDefault(require("crypto"));
+const GenKey_1 = require("../utils/GenKey");
 let StudioService = class StudioService {
     constructor(databaseService, userService) {
         this.databaseService = databaseService;
@@ -73,6 +74,7 @@ let StudioService = class StudioService {
                     username: studioUser?.username,
                     verified: studioUser?.verified,
                     users,
+                    apiKey: studio.admin_id == user_id ? (0, GenKey_1.genKey)(studio.user_id) : null,
                 });
             }
         }

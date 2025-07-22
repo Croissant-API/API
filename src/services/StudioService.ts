@@ -6,6 +6,7 @@ import { User } from "../interfaces/User";
 import { IUserService } from "./UserService";
 
 import crypto from "crypto";
+import { genKey } from "../utils/GenKey";
 
 export interface IStudioService {
   getStudio(user_id: string): Promise<Studio | null>;
@@ -105,6 +106,7 @@ export class StudioService implements IStudioService {
           username: studioUser?.username,
           verified: studioUser?.verified,
           users,
+          apiKey: studio.admin_id == user_id ? genKey(studio.user_id) : null,
         });
       }
     }
