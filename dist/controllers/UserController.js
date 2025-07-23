@@ -27,108 +27,7 @@ const GenKey_1 = require("../utils/GenKey");
 const SteamOAuthService_1 = require("../services/SteamOAuthService");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
-function sendError(res, status, message, error) {
-    return res.status(status).send({ message, error });
-}
-function findUserByResetToken(users, reset_token) {
-    return users.find((u) => u.forgot_password_token === reset_token);
-}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function requireFields(obj, fields) {
-    for (const f of fields)
-        if (!obj[f])
-            return f;
-    return null;
-}
-function mapUser(user) {
-    return {
-        id: user.user_id,
-        userId: user.user_id,
-        username: user.username,
-        email: user.email,
-        balance: user.balance !== undefined ? Math.floor(user.balance) : undefined,
-        verified: !!user.verified,
-        steam_id: user.steam_id,
-        steam_username: user.steam_username,
-        steam_avatar_url: user.steam_avatar_url,
-        isStudio: !!user.isStudio,
-        admin: !!user.admin,
-        disabled: !!user.disabled,
-    };
-}
-function mapUserSearch(user) {
-    return {
-        id: user.user_id,
-        userId: user.user_id,
-        username: user.username,
-        verified: user.verified,
-        steam_id: user.steam_id,
-        steam_username: user.steam_username,
-        steam_avatar_url: user.steam_avatar_url,
-        isStudio: user.isStudio,
-        admin: !!user.admin,
-    };
-}
-function mapItem(item) {
-    return {
-        itemId: item.itemId,
-        name: item.name,
-        description: item.description,
-        owner: item.owner,
-        price: item.price,
-        iconHash: item.iconHash,
-        ...(typeof item.showInStore !== "undefined" && {
-            showInStore: item.showInStore,
-        }),
-    };
-}
-function filterGame(game, userId, myId) {
-    return {
-        gameId: game.gameId,
-        name: game.name,
-        description: game.description,
-        price: game.price,
-        owner_id: game.owner_id,
-        showInStore: game.showInStore,
-        iconHash: game.iconHash,
-        splashHash: game.splashHash,
-        bannerHash: game.bannerHash,
-        genre: game.genre,
-        release_date: game.release_date,
-        developer: game.developer,
-        publisher: game.publisher,
-        platforms: game.platforms,
-        rating: game.rating,
-        website: game.website,
-        trailer_link: game.trailer_link,
-        multiplayer: game.multiplayer,
-        ...(userId && game.owner_id === myId
-            ? { download_link: game.download_link }
-            : {}),
-    };
-}
-async function formatInventory(inventory, itemService) {
-    const seen = new Set();
-    return (await Promise.all(inventory
-        .filter((item) => {
-        if (seen.has(item.item_id))
-            return false;
-        seen.add(item.item_id);
-        return true;
-    })
-        .map(async (item) => {
-        const itemDetails = await itemService.getItem(item.item_id);
-        if (!itemDetails || itemDetails.deleted)
-            return null;
-        return {
-            itemId: itemDetails.itemId,
-            name: itemDetails.name,
-            description: itemDetails.description,
-            amount: item.amount,
-            iconHash: itemDetails.iconHash,
-        };
-    }))).filter(Boolean);
-}
+const helpers_1 = require("../utils/helpers");
 let Users = class Users {
     constructor(userService, steamOAuthService, mailService, studioService, inventoryService, itemService, gameService) {
         this.userService = userService;
@@ -185,13 +84,13 @@ let Users = class Users {
         });
     }
     async register(req, res) {
-        const missing = requireFields(req.body, ["username", "email"]);
+        const missing = (0, helpers_1.requireFields)(req.body, ["username", "email"]);
         if (missing || (!req.body.password && !req.body.provider)) {
-            return sendError(res, 400, "Missing required fields");
+            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
         }
         const users = await this.userService.getAllUsersWithDisabled();
         if (users.find((u) => u.email === req.body.email)) {
-            return sendError(res, 400, "Email already exists");
+            return (0, helpers_1.sendError)(res, 400, "Email already exists");
         }
         let userId = req.body.userId;
         if (!userId) {
@@ -199,7 +98,7 @@ let Users = class Users {
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(req.body.email)) {
-            return sendError(res, 400, "Invalid email address");
+            return (0, helpers_1.sendError)(res, 400, "Invalid email address");
         }
         let hashedPassword = null;
         if (req.body.password) {
@@ -216,26 +115,26 @@ let Users = class Users {
         catch (error) {
             console.error("Error registering user", error);
             const message = error instanceof Error ? error.message : String(error);
-            sendError(res, 500, "Error registering user", message);
+            (0, helpers_1.sendError)(res, 500, "Error registering user", message);
         }
     }
     async login(req, res) {
-        const missing = requireFields(req.body, ["email", "password"]);
+        const missing = (0, helpers_1.requireFields)(req.body, ["email", "password"]);
         if (missing)
-            return sendError(res, 400, "Missing email or password");
+            return (0, helpers_1.sendError)(res, 400, "Missing email or password");
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.email === req.body.email);
         if (!user || !user.password) {
-            return sendError(res, 401, "Invalid credentials");
+            return (0, helpers_1.sendError)(res, 401, "Invalid credentials");
         }
         // bcrypt importé en haut
         const valid = await bcryptjs_1.default.compare(req.body.password, user.password);
         if (!valid) {
-            return sendError(res, 401, "Invalid credentials");
+            return (0, helpers_1.sendError)(res, 401, "Invalid credentials");
         }
         // Check si le compte est désactivé
         if (user.disabled) {
-            return sendError(res, 403, "Account is disabled");
+            return (0, helpers_1.sendError)(res, 403, "Account is disabled");
         }
         this.mailService
             .sendConnectionNotificationMail(user.email, user.username)
@@ -256,69 +155,69 @@ let Users = class Users {
     async getMe(req, res) {
         const userId = req.user?.user_id;
         if (!userId)
-            return sendError(res, 401, "Unauthorized");
+            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
         const user = await this.userService.getUser(userId);
         if (!user)
-            return sendError(res, 404, "User not found");
+            return (0, helpers_1.sendError)(res, 404, "User not found");
         const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
         const roles = [req.originalUser?.user_id, ...studios.map((s) => s.user_id)];
         const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await formatInventory(inventory, this.itemService);
+        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, userId));
-        res.send({ ...mapUser(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), studios, roles, inventory: formattedInventory, ownedItems, createdGames });
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, userId));
+        res.send({ ...(0, helpers_1.mapUser)(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), studios, roles, inventory: formattedInventory, ownedItems, createdGames });
     }
     async changeUsername(req, res) {
         const userId = req.user?.user_id;
         const { username } = req.body;
         if (!userId)
-            return sendError(res, 401, "Unauthorized");
+            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
         if (!username || typeof username !== "string" || username.trim().length < 3) {
-            return sendError(res, 400, "Invalid username (min 3 characters)");
+            return (0, helpers_1.sendError)(res, 400, "Invalid username (min 3 characters)");
         }
         try {
             await this.userService.updateUser(userId, username.trim());
             res.status(200).send({ message: "Username updated" });
         }
         catch (error) {
-            sendError(res, 500, "Error updating username", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error updating username", error.message);
         }
     }
     async changePassword(req, res) {
         const { oldPassword, newPassword, confirmPassword } = req.body;
         if (!newPassword || !confirmPassword)
-            return sendError(res, 400, "Missing newPassword or confirmPassword");
+            return (0, helpers_1.sendError)(res, 400, "Missing newPassword or confirmPassword");
         if (newPassword !== confirmPassword)
-            return sendError(res, 400, "New password and confirm password do not match");
+            return (0, helpers_1.sendError)(res, 400, "New password and confirm password do not match");
         const userId = req.user?.user_id;
         if (!userId)
-            return sendError(res, 401, "Unauthorized");
+            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
         const user = await this.userService.getUser(userId);
         if (!user)
-            return sendError(res, 404, "User not found");
+            return (0, helpers_1.sendError)(res, 404, "User not found");
         let valid = true;
         if (user.password)
             valid = await bcryptjs_1.default.compare(oldPassword, user.password);
         if (!valid)
-            return sendError(res, 401, "Invalid current password");
+            return (0, helpers_1.sendError)(res, 401, "Invalid current password");
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         try {
             await this.userService.updateUserPassword(userId, hashedPassword);
             res.status(200).send({ message: "Password changed successfully" });
         }
         catch (error) {
-            sendError(res, 500, "Error changing password", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error changing password", error.message);
         }
     }
     async forgotPassword(req, res) {
         const { email } = req.body;
         if (!email)
-            return sendError(res, 400, "Email is required");
+            return (0, helpers_1.sendError)(res, 400, "Email is required");
         const user = await this.userService.findByEmail(email);
         if (!user)
-            return sendError(res, 404, "Invalid email");
+            return (0, helpers_1.sendError)(res, 404, "Invalid email");
         const passwordResetToken = await this.userService.generatePasswordResetToken(email);
         await this.mailService.sendPasswordResetMail(email, passwordResetToken);
         res.status(200).send({ message: "Password reset email sent" });
@@ -326,20 +225,20 @@ let Users = class Users {
     async resetPassword(req, res) {
         const { new_password, confirm_password, reset_token } = req.body;
         if (!new_password || !reset_token || !confirm_password)
-            return sendError(res, 400, "Missing required fields");
+            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
         if (new_password !== confirm_password)
-            return sendError(res, 400, "New password and confirm password do not match");
+            return (0, helpers_1.sendError)(res, 400, "New password and confirm password do not match");
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.forgot_password_token === reset_token);
         if (!user)
-            return sendError(res, 404, "Invalid user");
+            return (0, helpers_1.sendError)(res, 404, "Invalid user");
         const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
         try {
             await this.userService.updateUserPassword(user.user_id, hashedPassword);
             res.status(200).send({ message: "Password reset successfully", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
-            sendError(res, 500, "Error resetting password", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error resetting password", error.message);
         }
     }
     async steamRedirect(req, res) {
@@ -387,31 +286,31 @@ let Users = class Users {
         catch (error) {
             console.error("Error unlinking Steam account", error);
             const message = error instanceof Error ? error.message : String(error);
-            sendError(res, 500, "Error unlinking Steam account", message);
+            (0, helpers_1.sendError)(res, 500, "Error unlinking Steam account", message);
         }
     }
     // --- RECHERCHE & LECTURE D'UTILISATEURS ---
     async searchUsers(req, res) {
         const query = req.query.q?.trim();
         if (!query)
-            return sendError(res, 400, "Missing search query");
+            return (0, helpers_1.sendError)(res, 400, "Missing search query");
         try {
             const users = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
                 if (user.disabled)
                     return null; // Skip disabled users
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
-                const formattedInventory = await formatInventory(inventory, this.itemService);
+                const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
-                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
+                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(helpers_1.mapItem);
                 const games = await this.gameService.listGames();
-                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-                return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
+                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => (0, helpers_1.filterGame)(g, user?.user_id, ""));
+                return { ...(0, helpers_1.mapUserSearch)(user), inventory: formattedInventory, ownedItems, createdGames };
             }));
             res.send(detailledUsers);
         }
         catch (error) {
-            sendError(res, 500, "Error searching users", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error searching users", error.message);
         }
     }
     async getUser(req, res) {
@@ -419,19 +318,19 @@ let Users = class Users {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
-            return sendError(res, 400, "Invalid userId", err);
+            return (0, helpers_1.sendError)(res, 400, "Invalid userId", err);
         }
         const { userId } = req.params;
         const user = await this.userService.getUser(userId);
         if (!user)
-            return sendError(res, 404, "User not found");
+            return (0, helpers_1.sendError)(res, 404, "User not found");
         const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await formatInventory(inventory, this.itemService);
+        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
-        res.send({ ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames });
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, ""));
+        res.send({ ...(0, helpers_1.mapUserSearch)(user), inventory: formattedInventory, ownedItems, createdGames });
     }
     // --- ACTIONS ADMINISTRATIVES ---
     async adminSearchUsers(req, res) {
@@ -440,22 +339,22 @@ let Users = class Users {
         }
         const query = req.query.q?.trim();
         if (!query)
-            return sendError(res, 400, "Missing search query");
+            return (0, helpers_1.sendError)(res, 400, "Missing search query");
         try {
             const users = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
-                const formattedInventory = await formatInventory(inventory, this.itemService);
+                const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
-                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
+                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(helpers_1.mapItem);
                 const games = await this.gameService.listGames();
-                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-                return { ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
+                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => (0, helpers_1.filterGame)(g, user?.user_id, ""));
+                return { ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
             }));
             res.send(detailledUsers.filter(u => u !== null));
         }
         catch (error) {
-            sendError(res, 500, "Error searching users", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error searching users", error.message);
         }
     }
     async disableAccount(req, res) {
@@ -498,51 +397,51 @@ let Users = class Users {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
-            return sendError(res, 400, "Invalid userId", err);
+            return (0, helpers_1.sendError)(res, 400, "Invalid userId", err);
         }
         const { userId } = req.params;
         const user = await this.userService.adminGetUser(userId);
         if (!user)
-            return sendError(res, 404, "User not found");
+            return (0, helpers_1.sendError)(res, 404, "User not found");
         const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await formatInventory(inventory, this.itemService);
+        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
-        res.send({ ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, ""));
+        res.send({ ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
     }
     // --- ACTIONS DIVERSES ---
     async transferCredits(req, res) {
         const { targetUserId, amount } = req.body;
         if (!targetUserId || isNaN(amount) || amount <= 0)
-            return sendError(res, 400, "Invalid input");
+            return (0, helpers_1.sendError)(res, 400, "Invalid input");
         try {
             const sender = req.user;
             if (!sender)
-                return sendError(res, 401, "Unauthorized");
+                return (0, helpers_1.sendError)(res, 401, "Unauthorized");
             if (sender.user_id === targetUserId)
-                return sendError(res, 400, "Cannot transfer credits to yourself");
+                return (0, helpers_1.sendError)(res, 400, "Cannot transfer credits to yourself");
             const recipient = await this.userService.getUser(targetUserId);
             if (!recipient)
-                return sendError(res, 404, "Recipient not found");
+                return (0, helpers_1.sendError)(res, 404, "Recipient not found");
             if (sender.balance < amount)
-                return sendError(res, 400, "Insufficient balance");
+                return (0, helpers_1.sendError)(res, 400, "Insufficient balance");
             await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
             await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
             res.status(200).send({ message: "Credits transferred" });
         }
         catch (error) {
-            sendError(res, 500, "Error transferring credits", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error transferring credits", error.message);
         }
     }
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey)
-            return sendError(res, 400, "Missing userId or verificationKey");
+            return (0, helpers_1.sendError)(res, 400, "Missing userId or verificationKey");
         const user = await this.userService.getUser(userId);
         if (!user)
-            return sendError(res, 404, "User not found");
+            return (0, helpers_1.sendError)(res, 404, "User not found");
         const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
         res.send({ success: verificationKey === expectedKey });
     }
@@ -550,14 +449,14 @@ let Users = class Users {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
         if (!userId)
-            return sendError(res, 401, "Unauthorized");
+            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
         if (!role || typeof role !== "string")
-            return sendError(res, 400, "Invalid role");
+            return (0, helpers_1.sendError)(res, 400, "Invalid role");
         try {
             const studios = await this.studioService.getUserStudios(userId);
             const roles = [userId, ...studios.map((s) => s.user_id)];
             if (!roles.includes(role))
-                return sendError(res, 403, "Forbidden: Invalid role");
+                return (0, helpers_1.sendError)(res, 403, "Forbidden: Invalid role");
             res.cookie("role", role, {
                 httpOnly: false,
                 sameSite: "lax",
@@ -567,17 +466,17 @@ let Users = class Users {
             return res.status(200).send({ message: "Role updated successfully" });
         }
         catch (error) {
-            sendError(res, 500, "Error setting role cookie", error.message);
+            (0, helpers_1.sendError)(res, 500, "Error setting role cookie", error.message);
         }
     }
     async isValidResetToken(req, res) {
         const { reset_token } = req.query;
         if (!reset_token)
-            return sendError(res, 400, "Missing required fields");
+            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
         const users = await this.userService.getAllUsersWithDisabled();
-        const user = findUserByResetToken(users, reset_token);
+        const user = (0, helpers_1.findUserByResetToken)(users, reset_token);
         if (!user)
-            return sendError(res, 404, "Invalid reset token");
+            return (0, helpers_1.sendError)(res, 404, "Invalid reset token");
         res.status(200).send({ message: "Valid reset token", user });
     }
 };
@@ -600,6 +499,24 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Users.prototype, "login", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/users/@me",
+        method: "GET",
+        description: "Get the current authenticated user's profile, including studios, roles, inventory, owned items, and created games.",
+        responseType: {
+            userId: "string",
+            username: "string",
+            email: "string",
+            verified: "boolean",
+            studios: "array",
+            roles: "array",
+            inventory: "array",
+            ownedItems: "array",
+            createdGames: "array",
+            verificationKey: "string"
+        },
+        example: "GET /api/users/@me"
+    }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -656,7 +573,6 @@ __decorate([
         responseType: [
             {
                 userId: "string",
-                balance: "number",
                 username: "string",
                 verified: "boolean",
                 steam_id: "string",
@@ -664,6 +580,9 @@ __decorate([
                 steam_avatar_url: "string",
                 isStudio: "boolean",
                 admin: "boolean",
+                inventory: "array",
+                ownedItems: "array",
+                createdGames: "array"
             },
         ],
         example: "GET /api/users/search?q=John",
@@ -681,7 +600,6 @@ __decorate([
         params: { userId: "The id of the user" },
         responseType: {
             userId: "string",
-            balance: "number",
             username: "string",
             verified: "boolean",
             steam_id: "string",
@@ -689,6 +607,9 @@ __decorate([
             steam_avatar_url: "string",
             isStudio: "boolean",
             admin: "boolean",
+            inventory: "array",
+            ownedItems: "array",
+            createdGames: "array"
         },
         example: "GET /api/users/123",
     }),
