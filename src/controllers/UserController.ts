@@ -217,7 +217,7 @@ export class Users {
     const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
     const games = await this.gameService.listGames();
     const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => filterGame(g, userId, userId));
-    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles, inventory: formattedInventory, ownedItems, createdGames });
+    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), google_id: user.google_id, discord_id: user.discord_id, studios, roles, inventory: formattedInventory, ownedItems, createdGames });
   }
 
   @httpPost("/change-username", LoggedCheck.middleware)
