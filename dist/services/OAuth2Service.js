@@ -42,17 +42,8 @@ let OAuth2Service = class OAuth2Service {
         await this.db.delete("DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?", [client_id, owner_id]);
     }
     async updateApp(client_id, owner_id, update) {
-        const fields = [];
-        const values = [];
-        if (update.name) {
-            fields.push("name = ?");
-            values.push(update.name);
-        }
-        if (update.redirect_urls) {
-            fields.push("redirect_urls = ?");
-            values.push(JSON.stringify(update.redirect_urls));
-        }
-        if (fields.length === 0)
+        const { fields, values } = buildUpdateFields(update, { redirect_urls: v => JSON.stringify(v) });
+        if (!fields.length)
             return;
         values.push(client_id, owner_id);
         await this.db.update(`UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`, values);
@@ -62,12 +53,10 @@ let OAuth2Service = class OAuth2Service {
         if (!codeRows.length)
             return null;
         const appRows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
-        if (!appRows.length /*|| appRows[0].client_secret !== client_secret*/)
+        if (!appRows.length)
             return null;
         const userRows = await this.db.read("SELECT * FROM users WHERE user_id = ?", [codeRows[0].user_id]);
-        if (!userRows.length)
-            return null;
-        return userRows[0];
+        return userRows[0] || null;
     }
 };
 OAuth2Service = __decorate([
@@ -76,3 +65,15 @@ OAuth2Service = __decorate([
     __metadata("design:paramtypes", [Object])
 ], OAuth2Service);
 exports.OAuth2Service = OAuth2Service;
+// Helper pour factoriser la génération des champs d'update
+function buildUpdateFields(obj, mapping = {}) {
+    const fields = [];
+    const values = [];
+    for (const key in obj) {
+        if (typeof obj[key] === "undefined")
+            continue;
+        fields.push(`${key} = ?`);
+        values.push(mapping[key] ? mapping[key](obj[key]) : obj[key]);
+    }
+    return { fields, values };
+}

@@ -22,26 +22,20 @@ let LobbyService = class LobbyService {
     }
     async getLobby(lobbyId) {
         const rows = await this.databaseService.read("SELECT users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
-        if (rows.length === 0)
-            return null;
-        const row = rows[0];
-        return row;
+        return rows[0] || null;
     }
     async joinLobby(lobbyId, userId) {
-        console.log("LobbyService: joinLobby", lobbyId, userId);
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const users = JSON.parse(lobby.users);
-        users.push(userId);
-        const uniqueUsers = [...new Set(users)];
-        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(uniqueUsers), lobbyId]);
+        const users = [...new Set([...parseUsers(lobby.users), userId])];
+        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(users), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const newUsers = JSON.parse(lobby.users).filter((u) => u !== userId);
+        const newUsers = parseUsers(lobby.users).filter((u) => u !== userId);
         if (newUsers.length === 0) {
             await this.deleteLobby(lobbyId);
         }
@@ -52,24 +46,13 @@ let LobbyService = class LobbyService {
     async getUserLobby(userId) {
         const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
         for (const row of rows) {
-            const promisedUsers = await Promise.all(JSON.parse(row.users).map((u) => this.userService.getUser(u)))
-                .catch(() => []);
-            const users = promisedUsers
+            const userIds = parseUsers(row.users);
+            if (!userIds.includes(userId))
+                continue;
+            const users = (await Promise.all(userIds.map((u) => this.userService.getUser(u))))
                 .filter((user) => user !== null)
-                .map((user) => {
-                return {
-                    username: user.username,
-                    user_id: user.user_id,
-                    verified: user.verified,
-                    steam_username: user.steam_username,
-                    steam_avatar_url: user.steam_avatar_url,
-                    steam_id: user.steam_id,
-                };
-            });
-            if (users.find((user) => user?.user_id === userId)) {
-                // Si l'utilisateur fait partie de la lobby, on retourne la lobby
-                return { lobbyId: row.lobbyId, users };
-            }
+                .map(mapLobbyUser);
+            return { lobbyId: row.lobbyId, users };
         }
         return null;
     }
@@ -89,3 +72,21 @@ LobbyService = __decorate([
     __metadata("design:paramtypes", [Object, Object])
 ], LobbyService);
 exports.LobbyService = LobbyService;
+function mapLobbyUser(user) {
+    return {
+        username: user.username,
+        user_id: user.user_id,
+        verified: user.verified,
+        steam_username: user.steam_username,
+        steam_avatar_url: user.steam_avatar_url,
+        steam_id: user.steam_id,
+    };
+}
+function parseUsers(users) {
+    try {
+        return JSON.parse(users);
+    }
+    catch {
+        return [];
+    }
+}

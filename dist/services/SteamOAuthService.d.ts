@@ -9,6 +9,7 @@ export interface ISteamOAuthService {
     } | null>;
 }
 export declare class SteamOAuthService implements ISteamOAuthService {
+    private extractSteamId;
     /**
      * Génère l'URL d'authentification Steam (OpenID)
      */

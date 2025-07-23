@@ -31,28 +31,31 @@ export class StudioService implements IStudioService {
     @inject("UserService") private userService: IUserService
   ) {}
 
+  private parseUserIds(users: string): string[] {
+    try {
+      return JSON.parse(users);
+    } catch {
+      return [];
+    }
+  }
+
+  private async getStudioUsers(userIds: string[]): Promise<User[]> {
+    if (!userIds.length) return [];
+    return this.databaseService.read<User[]>(
+      `SELECT user_id as userId, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
+      userIds
+    );
+  }
+
   async getStudio(user_id: string): Promise<Studio | null> {
-    // On suppose que la table studios a une colonne users (string[] sérialisé JSON)
     const studios = await this.databaseService.read<any[]>(
       "SELECT * FROM studios WHERE user_id = ?",
       [user_id]
     );
     if (studios.length === 0) return null;
     const studio = studios[0];
-    // Désérialise la colonne users (JSON.stringify([id1, id2, ...]))
-    let userIds: string[] = [];
-    try {
-      userIds = JSON.parse(studio.users);
-    } catch {
-      userIds = [];
-    }
-    let users: User[] = [];
-    if (userIds.length > 0) {
-      users = await this.databaseService.read<User[]>(
-        `SELECT * FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
-        userIds
-      );
-    }
+    const userIds = this.parseUserIds(studio.users);
+    const users = await this.getStudioUsers(userIds);
     return { ...studio, users };
   }
 
@@ -72,31 +75,14 @@ export class StudioService implements IStudioService {
   async getUserStudios(
     user_id: string
   ): Promise<Array<Studio & { isAdmin: boolean }>> {
-    // Studios où l'utilisateur est membre (user_id dans la colonne users)
-    const studios = await this.databaseService.read<any[]>(
-      `SELECT * FROM studios`,
-      []
-    );
+    const studios = await this.databaseService.read<any[]>(`SELECT * FROM studios`, []);
     const result: Array<Studio & { isAdmin: boolean }> = [];
     for (const studio of studios) {
-      let userIds: string[] = [];
-      try {
-        userIds = JSON.parse(studio.users);
-      } catch {
-        userIds = [];
-      }
-
+      const userIds = this.parseUserIds(studio.users);
       userIds.push(studio.admin_id);
       const studioUser = await this.userService.getUser(studio.user_id);
-
       if (userIds.includes(user_id)) {
-        let users: User[] = [];
-        if (userIds.length > 0) {
-          users = await this.databaseService.read<User[]>(
-            `SELECT user_id as userId, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
-            userIds
-          );
-        }
+        const users = await this.getStudioUsers(userIds);
         result.push({
           ...studio,
           username: studioUser?.username,
@@ -126,17 +112,11 @@ export class StudioService implements IStudioService {
    * @param user L'utilisateur à ajouter
    */
   async addUserToStudio(studioId: string, user: User): Promise<void> {
-    // Récupère le studio
     const studio = await this.getStudio(studioId);
     if (!studio) throw new Error("Studio not found");
-    // Récupère la liste des user_ids
     const userIds = studio.users.map((u) => u.user_id);
     if (!userIds.includes(user.user_id)) {
-      userIds.push(user.user_id);
-      await this.setStudioProperties(studioId, studio.admin_id, [
-        ...studio.users,
-        user,
-      ]);
+      await this.setStudioProperties(studioId, studio.admin_id, [...studio.users, user]);
     }
   }
 
@@ -146,12 +126,9 @@ export class StudioService implements IStudioService {
    * @param userId L'identifiant de l'utilisateur à retirer
    */
   async removeUserFromStudio(studioId: string, userId: string): Promise<void> {
-    // Récupère le studio
     const studio = await this.getStudio(studioId);
     if (!studio) throw new Error("Studio not found");
-    // Filtre la liste des users
-    const newUsers = studio.users.filter((u) => u.user_id !== userId);
-    await this.setStudioProperties(studioId, studio.admin_id, newUsers);
+    await this.setStudioProperties(studioId, studio.admin_id, studio.users.filter((u) => u.user_id !== userId));
   }
 
   async getUser(user_id: string): Promise<User | null> {

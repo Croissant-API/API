@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // filepath: src/services/SteamOAuthService.ts
 import { injectable } from "inversify";
 import axios from "axios";
@@ -25,6 +26,13 @@ export interface ISteamOAuthService {
 
 @injectable()
 export class SteamOAuthService implements ISteamOAuthService {
+  private extractSteamId(claimedId: string | undefined): string | null {
+    if (!claimedId) return null;
+    const match =
+      claimedId.match(/\/(id|profiles)\/(\d+)$/);
+    return match ? match[2] : null;
+  }
+
   /**
    * Génère l'URL d'authentification Steam (OpenID)
    */
@@ -46,26 +54,21 @@ export class SteamOAuthService implements ISteamOAuthService {
   async verifySteamOpenId(
     query: Record<string, string | string[]>
   ): Promise<string | null> {
-    // On renvoie la requête à Steam pour validation
-    const body = {
-      ...query,
-      "openid.mode": "check_authentication",
-    };
-    const response = await axios.post(
-      "https://steamcommunity.com/openid/login",
-      querystring.stringify(body),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-    );
-    if (response.data && response.data.includes("is_valid:true")) {
-      // Extraire le steamid de openid.claimed_id
-      const claimedId =
-        typeof query["openid.claimed_id"] === "string"
+    const body = { ...query, "openid.mode": "check_authentication" };
+    try {
+      const response = await axios.post(
+        "https://steamcommunity.com/openid/login",
+        querystring.stringify(body),
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+      if (response.data && response.data.includes("is_valid:true")) {
+        const claimedId = typeof query["openid.claimed_id"] === "string"
           ? query["openid.claimed_id"]
           : (query["openid.claimed_id"] || [])[0];
-      const match =
-        claimedId?.match(/\/id\/(\d+)$/) ||
-        claimedId?.match(/\/profiles\/(\d+)$/);
-      return match ? match[1] : null;
+        return this.extractSteamId(claimedId);
+      }
+    } catch (e) {
+      // Optionally log error
     }
     return null;
   }
@@ -80,14 +83,19 @@ export class SteamOAuthService implements ISteamOAuthService {
     profileurl: string;
   } | null> {
     const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`;
-    const response = await axios.get(url);
-    const player = response.data?.response?.players?.[0];
-    if (!player) return null;
-    return {
-      steamid: player.steamid,
-      personaname: player.personaname,
-      avatarfull: player.avatarfull,
-      profileurl: player.profileurl,
-    };
+    try {
+      const response = await axios.get(url);
+      const player = response.data?.response?.players?.[0];
+      if (!player) return null;
+      return {
+        steamid: player.steamid,
+        personaname: player.personaname,
+        avatarfull: player.avatarfull,
+        profileurl: player.profileurl,
+      };
+    } catch (e) {
+      // Optionally log error
+      return null;
+    }
   }
 }

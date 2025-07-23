@@ -8,8 +8,9 @@ export declare class DatabaseService {
     private db;
     constructor();
     private init;
+    private ensureDb;
     create(query: string, params?: unknown[]): Promise<void>;
-    read<T>(query: string, params?: unknown[]): Promise<Awaited<T> | []>;
+    read<T>(query: string, params?: unknown[]): Promise<T[]>;
     update(query: string, params?: unknown[]): Promise<void>;
     delete(query: string, params?: unknown[]): Promise<void>;
 }

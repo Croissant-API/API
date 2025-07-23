@@ -24,5 +24,5 @@ export declare class OAuth2Service implements IOAuth2Service {
         name?: string;
         redirect_urls?: string[];
     }): Promise<void>;
-    getUserByCode(code: string, client_id: string): Promise<any | null>;
+    getUserByCode(code: string, client_id: string): Promise<Record<string, unknown> | null>;
 }

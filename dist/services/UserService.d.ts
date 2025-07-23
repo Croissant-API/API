@@ -27,6 +27,22 @@ export declare class UserService implements IUserService {
     private databaseService;
     constructor(databaseService: IDatabaseService);
     /**
+     * Helper pour générer la clause WHERE pour les IDs (user_id, discord_id, google_id, steam_id)
+     */
+    private static getIdWhereClause;
+    /**
+     * Helper pour récupérer un utilisateur par n'importe quel ID
+     */
+    private fetchUserByAnyId;
+    /**
+     * Helper pour faire un SELECT * FROM users avec option disabled
+     */
+    private fetchAllUsers;
+    /**
+     * Helper pour faire un UPDATE users sur un ou plusieurs champs
+     */
+    private updateUserFields;
+    /**
      * Met à jour les champs Steam de l'utilisateur
      */
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
@@ -42,7 +58,6 @@ export declare class UserService implements IUserService {
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     getDiscordUser(userId: string): Promise<any>;
     searchUsersByUsername(query: string): Promise<User[]>;
-    updateUserBalance(user_id: string, balance: number): Promise<void>;
     /**
      * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
      * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
@@ -55,12 +70,13 @@ export declare class UserService implements IUserService {
     getAllUsers(): Promise<User[]>;
     getAllUsersWithDisabled(): Promise<User[]>;
     updateUser(user_id: string, username?: string, balance?: number): Promise<void>;
-    deleteUser(user_id: string): Promise<void>;
-    authenticateUser(api_key: string): Promise<User | null>;
+    updateUserBalance(user_id: string, balance: number): Promise<void>;
+    updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     /**
      * Récupère un utilisateur par son Steam ID
      */
     getUserBySteamId(steamId: string): Promise<User | null>;
-    updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     generatePasswordResetToken(email: string): Promise<string>;
+    deleteUser(user_id: string): Promise<void>;
+    authenticateUser(api_key: string): Promise<User | null>;
 }

@@ -117,6 +117,16 @@ export class TradeService implements ITradeService {
     return Promise.all(deserialized.map((t) => this.enrichTradeItems(t)));
   }
 
+  private getUserKey(trade: Trade, userId: string): "fromUserItems" | "toUserItems" {
+    if (trade.fromUserId === userId) return "fromUserItems";
+    if (trade.toUserId === userId) return "toUserItems";
+    throw new Error("User not part of this trade");
+  }
+
+  private assertPending(trade: Trade) {
+    if (trade.status !== "pending") throw new Error("Trade is not pending");
+  }
+
   async addItemToTrade(
     tradeId: string,
     userId: string,
@@ -124,21 +134,10 @@ export class TradeService implements ITradeService {
   ): Promise<void> {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
-    if (trade.status !== "pending") throw new Error("Trade is not pending");
-    let userKey: "fromUserItems" | "toUserItems";
-    if (trade.fromUserId === userId) userKey = "fromUserItems";
-    else if (trade.toUserId === userId) userKey = "toUserItems";
-    else throw new Error("User not part of this trade");
-
-    // Check if user has enough items
-    const hasItem = await this.inventoryService.hasItem(
-      userId,
-      tradeItem.itemId,
-      tradeItem.amount
-    );
+    this.assertPending(trade);
+    const userKey = this.getUserKey(trade, userId);
+    const hasItem = await this.inventoryService.hasItem(userId, tradeItem.itemId, tradeItem.amount);
     if (!hasItem) throw new Error("User does not have enough of the item");
-
-    // Ajoute ou update l'item dans la liste
     const items = [...trade[userKey]];
     const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
     if (idx >= 0) items[idx].amount += tradeItem.amount;
@@ -160,17 +159,12 @@ export class TradeService implements ITradeService {
   ): Promise<void> {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
-    if (trade.status !== "pending") throw new Error("Trade is not pending");
-    let userKey: "fromUserItems" | "toUserItems";
-    if (trade.fromUserId === userId) userKey = "fromUserItems";
-    else if (trade.toUserId === userId) userKey = "toUserItems";
-    else throw new Error("User not part of this trade");
-
+    this.assertPending(trade);
+    const userKey = this.getUserKey(trade, userId);
     const items = [...trade[userKey]];
     const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
     if (idx === -1) throw new Error("Item not found in trade");
-    if (items[idx].amount < tradeItem.amount)
-      throw new Error("Not enough amount to remove");
+    if (items[idx].amount < tradeItem.amount) throw new Error("Not enough amount to remove");
     items[idx].amount -= tradeItem.amount;
     if (items[idx].amount <= 0) items.splice(idx, 1);
     trade[userKey] = items;
@@ -186,20 +180,15 @@ export class TradeService implements ITradeService {
   async approveTrade(tradeId: string, userId: string): Promise<void> {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
-    if (trade.status !== "pending") throw new Error("Trade is not pending");
-    let updateField = "";
-    if (trade.fromUserId === userId) updateField = "approvedFromUser";
-    else if (trade.toUserId === userId) updateField = "approvedToUser";
-    else throw new Error("User not part of this trade");
-
-    trade[updateField as "approvedFromUser" | "approvedToUser"] = true;
+    this.assertPending(trade);
+    const updateField = trade.fromUserId === userId ? "approvedFromUser" : trade.toUserId === userId ? "approvedToUser" : null;
+    if (!updateField) throw new Error("User not part of this trade");
+    trade[updateField] = true;
     trade.updatedAt = new Date().toISOString();
     await this.databaseService.update(
       `UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`,
       [trade.updatedAt, tradeId]
     );
-
-    // Si les deux ont approuvé, on échange les items et on passe à completed
     if (trade.approvedFromUser && trade.approvedToUser) {
       await this.exchangeTradeItems(trade);
     }
@@ -208,9 +197,8 @@ export class TradeService implements ITradeService {
   async cancelTrade(tradeId: string, userId: string): Promise<void> {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
-    if (trade.status !== "pending") throw new Error("Trade is not pending");
-    if (trade.fromUserId !== userId && trade.toUserId !== userId)
-      throw new Error("User not part of this trade");
+    this.assertPending(trade);
+    if (trade.fromUserId !== userId && trade.toUserId !== userId) throw new Error("User not part of this trade");
     trade.status = "canceled";
     trade.updatedAt = new Date().toISOString();
     await this.databaseService.update(

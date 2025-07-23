@@ -1,11 +1,11 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
-import { genKey } from "../utils/GenKey";
 import { getCachedUser, setCachedUser } from "../utils/UserCache";
 import { config } from "dotenv";
 import path from "path";
 import crypto from "crypto";
+import { genKey } from "../utils/GenKey";
 
 config({ path: path.join(__dirname, "..", "..", ".env") });
 
@@ -61,6 +61,65 @@ export class UserService implements IUserService {
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
   ) {}
+
+  // --- Helpers privés ---
+  /**
+   * Helper pour générer la clause WHERE pour les IDs (user_id, discord_id, google_id, steam_id)
+   */
+  private static getIdWhereClause(includeDisabled = false) {
+    const base = "(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)";
+    if (includeDisabled) return base;
+    return base + " AND (disabled = 0 OR disabled IS NULL)";
+  }
+
+  /**
+   * Helper pour récupérer un utilisateur par n'importe quel ID
+   */
+  private async fetchUserByAnyId(user_id: string, includeDisabled = false): Promise<User | null> {
+    const users = await this.databaseService.read<User[]>(
+      `SELECT * FROM users WHERE ${UserService.getIdWhereClause(includeDisabled)}`,
+      [user_id, user_id, user_id, user_id]
+    );
+    return users.length > 0 ? users[0] : null;
+  }
+
+  /**
+   * Helper pour faire un SELECT * FROM users avec option disabled
+   */
+  private async fetchAllUsers(includeDisabled = false): Promise<User[]> {
+    if (includeDisabled) {
+      return await this.databaseService.read<User[]>("SELECT * FROM users");
+    }
+    return await this.databaseService.read<User[]>(
+      "SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)"
+    );
+  }
+
+  /**
+   * Helper pour faire un UPDATE users sur un ou plusieurs champs
+   */
+  private async updateUserFields(user_id: string, fields: Partial<Pick<User, 'username' | 'balance' | 'password'>>): Promise<void> {
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    if (fields.username !== undefined) {
+      updates.push("username = ?");
+      params.push(fields.username);
+    }
+    if (fields.balance !== undefined) {
+      updates.push("balance = ?");
+      params.push(fields.balance);
+    }
+    if (fields.password !== undefined) {
+      updates.push("password = ?");
+      params.push(fields.password);
+    }
+    if (updates.length === 0) return;
+    params.push(user_id);
+    await this.databaseService.update(
+      `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`,
+      params
+    );
+  }
 
   /**
    * Met à jour les champs Steam de l'utilisateur
@@ -169,13 +228,6 @@ export class UserService implements IUserService {
     return users;
   }
 
-  async updateUserBalance(user_id: string, balance: number): Promise<void> {
-    await this.databaseService.update(
-      "UPDATE users SET balance = ? WHERE user_id = ?",
-      [balance, user_id]
-    );
-  }
-
   /**
    * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
    * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
@@ -222,19 +274,11 @@ export class UserService implements IUserService {
   }
 
   async getUser(user_id: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)",
-      [user_id, user_id, user_id, user_id]
-    );
-    return users.length > 0 ? users[0] : null;
+    return this.fetchUserByAnyId(user_id, false);
   }
 
   async adminGetUser(user_id: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)",
-      [user_id, user_id, user_id, user_id]
-    );
-    return users.length > 0 ? users[0] : null;
+    return this.fetchUserByAnyId(user_id, true);
   }
 
   async adminSearchUsers(query: string): Promise<User[]> {
@@ -246,14 +290,11 @@ export class UserService implements IUserService {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)"
-    );
+    return this.fetchAllUsers(false);
   }
 
   async getAllUsersWithDisabled(): Promise<User[]> {
-    // This method retrieves all users, including those who are disabled
-    return await this.databaseService.read<User[]>("SELECT * FROM users");
+    return this.fetchAllUsers(true);
   }
 
   async updateUser(
@@ -261,43 +302,18 @@ export class UserService implements IUserService {
     username?: string,
     balance?: number
   ): Promise<void> {
-    const updates: string[] = [];
-    const params: unknown[] = [];
-    if (username !== undefined) {
-      updates.push("username = ?");
-      params.push(username);
-    }
-    if (balance !== undefined) {
-      updates.push("balance = ?");
-      params.push(balance);
-    }
-    if (updates.length === 0) return;
-    params.push(user_id);
-    await this.databaseService.update(
-      `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`,
-      params
-    );
+    await this.updateUserFields(user_id, { username, balance });
   }
 
-  async deleteUser(user_id: string): Promise<void> {
-    await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
-      user_id,
-    ]);
+  async updateUserBalance(user_id: string, balance: number): Promise<void> {
+    await this.updateUserFields(user_id, { balance });
   }
 
-  async authenticateUser(api_key: string): Promise<User | null> {
-    const users = await this.getAllUsersWithDisabled();
-
-    if (!users) {
-      console.error("Error fetching users", users);
-      return null;
-    }
-    const user = users.find((user) => genKey(user.user_id) === api_key) || null;
-    if (!user) {
-      // console.error("User not found or API key mismatch", api_key);
-      return null;
-    }
-    return user;
+  async updateUserPassword(
+    user_id: string,
+    hashedPassword: string
+  ): Promise<void> {
+    await this.updateUserFields(user_id, { password: hashedPassword });
   }
 
   /**
@@ -311,16 +327,6 @@ export class UserService implements IUserService {
     return users.length > 0 ? users[0] : null;
   }
 
-  async updateUserPassword(
-    user_id: string,
-    hashedPassword: string
-  ): Promise<void> {
-    await this.databaseService.update(
-      "UPDATE users SET password = ? WHERE user_id = ?",
-      [hashedPassword, user_id]
-    );
-  }
-
   async generatePasswordResetToken(email: string): Promise<string> {
     const token = crypto.randomBytes(32).toString("hex");
     await this.databaseService.update(
@@ -328,5 +334,24 @@ export class UserService implements IUserService {
       [token, email]
     );
     return token;
+  }
+
+  async deleteUser(user_id: string): Promise<void> {
+    await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
+      user_id,
+    ]);
+  }
+
+  async authenticateUser(api_key: string): Promise<User | null> {
+    const users = await this.getAllUsersWithDisabled();
+    if (!users) {
+      console.error("Error fetching users", users);
+      return null;
+    }
+    const user = users.find((user) => genKey(user.user_id) === api_key) || null;
+    if (!user) {
+      return null;
+    }
+    return user;
   }
 }

@@ -64,7 +64,7 @@ export class GameService implements IGameService {
         game.description,
         game.price,
         game.owner_id,
-        game.showInStore ? 1 : 0,
+        toDbBool(game.showInStore),
         game.download_link,
         game.iconHash ?? null,
         game.splashHash ?? null,
@@ -77,7 +77,7 @@ export class GameService implements IGameService {
         game.rating ?? 0,
         game.website ?? null,
         game.trailer_link ?? null,
-        game.multiplayer ? 1 : 0,
+        toDbBool(game.multiplayer),
       ]
     );
   }
@@ -86,20 +86,8 @@ export class GameService implements IGameService {
     gameId: string,
     game: Partial<Omit<Game, "id" | "gameId">>
   ): Promise<void> {
-    const fields = [];
-    const values = [];
-    for (const key in game) {
-      if (key === "owners") continue; // Ne pas updater les owners ici
-      fields.push(`${key} = ?`);
-      values.push(
-        key === "showInStore"
-          ? game[key as keyof typeof game]
-            ? 1
-            : 0
-          : game[key as keyof typeof game]
-      );
-    }
-    if (fields.length === 0) return;
+    const { fields, values } = buildUpdateFields(game, ["owners"]);
+    if (!fields.length) return;
     values.push(gameId);
     await this.databaseService.update(
       `UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`,
@@ -108,18 +96,11 @@ export class GameService implements IGameService {
   }
 
   async deleteGame(gameId: string): Promise<void> {
-    await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [
-      gameId,
-    ]);
-    await this.databaseService.update(
-      "DELETE FROM game_owners WHERE gameId = ?",
-      [gameId]
-    );
+    await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [gameId]);
+    await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
   }
 
-  // Méthodes pour gérer les owners secondaires
   async addOwner(gameId: string, ownerId: string): Promise<void> {
-    console.log(`Adding owner ${ownerId} to game ${gameId}`);
     await this.databaseService.update(
       "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
       [gameId, ownerId]
@@ -132,4 +113,23 @@ export class GameService implements IGameService {
       [gameId, ownerId]
     );
   }
+}
+
+function toDbBool(val: unknown) {
+  return val ? 1 : 0;
+}
+
+function buildUpdateFields(obj: Record<string, unknown>, skip: string[] = []) {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const key in obj) {
+    if (skip.includes(key)) continue;
+    fields.push(`${key} = ?`);
+    values.push(
+      ["showInStore", "multiplayer"].includes(key)
+        ? toDbBool(obj[key])
+        : obj[key]
+    );
+  }
+  return { fields, values };
 }

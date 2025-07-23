@@ -33,77 +33,47 @@ let DatabaseService = class DatabaseService {
             throw err;
         }
     }
-    create(query, params = []) {
-        return new Promise((resolve, reject) => {
-            if (!this.db) {
-                const error = new Error("Database not initialized");
-                console.error(error.message);
-                return reject(error);
-            }
-            try {
-                this.db.run(query, params);
-                resolve();
-            }
-            catch (err) {
-                console.error("Error creating data", err);
-                reject(err);
-            }
-        });
+    ensureDb() {
+        if (!this.db)
+            throw new Error("Database not initialized");
+        return this.db;
     }
-    read(query, params = []) {
-        // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async (resolve, reject) => {
-            if (!this.db) {
-                const error = new Error("Database not initialized");
-                console.error(error.message);
-                return reject(error);
-            }
-            try {
-                const rows = await this.db.all(query, params);
-                if (!rows) {
-                    return resolve([]);
-                }
-                resolve(rows);
-            }
-            catch (err) {
-                console.error("Error reading data", err);
-                reject(err);
-            }
-        });
+    async create(query, params = []) {
+        try {
+            await this.ensureDb().run(query, params);
+        }
+        catch (err) {
+            console.error("Error creating data", err);
+            throw err;
+        }
     }
-    update(query, params = []) {
-        return new Promise((resolve, reject) => {
-            if (!this.db) {
-                const error = new Error("Database not initialized");
-                console.error(error.message);
-                return reject(error);
-            }
-            try {
-                this.db.run(query, params);
-                resolve();
-            }
-            catch (err) {
-                console.error("Error updating data", err);
-                reject(err);
-            }
-        });
+    async read(query, params = []) {
+        try {
+            const rows = await this.ensureDb().all(query, params);
+            return rows || [];
+        }
+        catch (err) {
+            console.error("Error reading data", err);
+            throw err;
+        }
     }
-    delete(query, params = []) {
-        return new Promise((resolve, reject) => {
-            if (!this.db) {
-                const error = new Error("Database not initialized");
-                console.error(error.message);
-                return reject(error);
-            }
-            try {
-                this.db.run(query, params);
-                resolve();
-            }
-            catch (err) {
-                console.error("Error deleting data", err);
-                reject(err);
-            }
-        });
+    async update(query, params = []) {
+        try {
+            await this.ensureDb().run(query, params);
+        }
+        catch (err) {
+            console.error("Error updating data", err);
+            throw err;
+        }
+    }
+    async delete(query, params = []) {
+        try {
+            await this.ensureDb().run(query, params);
+        }
+        catch (err) {
+            console.error("Error deleting data", err);
+            throw err;
+        }
     }
 };
 DatabaseService = __decorate([

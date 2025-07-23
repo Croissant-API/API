@@ -10,6 +10,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SteamOAuthService = void 0;
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // filepath: src/services/SteamOAuthService.ts
 const inversify_1 = require("inversify");
 const axios_1 = __importDefault(require("axios"));
@@ -19,6 +20,12 @@ const STEAM_REALM = process.env.STEAM_REALM || "http://localhost:8580/";
 const STEAM_RETURN_URL = process.env.STEAM_RETURN_URL ||
     "http://localhost:8580/api/users/steam-associate";
 let SteamOAuthService = class SteamOAuthService {
+    extractSteamId(claimedId) {
+        if (!claimedId)
+            return null;
+        const match = claimedId.match(/\/(id|profiles)\/(\d+)$/);
+        return match ? match[2] : null;
+    }
     /**
      * Génère l'URL d'authentification Steam (OpenID)
      */
@@ -37,20 +44,18 @@ let SteamOAuthService = class SteamOAuthService {
      * Vérifie la réponse OpenID de Steam et retourne le steamid si succès
      */
     async verifySteamOpenId(query) {
-        // On renvoie la requête à Steam pour validation
-        const body = {
-            ...query,
-            "openid.mode": "check_authentication",
-        };
-        const response = await axios_1.default.post("https://steamcommunity.com/openid/login", querystring_1.default.stringify(body), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
-        if (response.data && response.data.includes("is_valid:true")) {
-            // Extraire le steamid de openid.claimed_id
-            const claimedId = typeof query["openid.claimed_id"] === "string"
-                ? query["openid.claimed_id"]
-                : (query["openid.claimed_id"] || [])[0];
-            const match = claimedId?.match(/\/id\/(\d+)$/) ||
-                claimedId?.match(/\/profiles\/(\d+)$/);
-            return match ? match[1] : null;
+        const body = { ...query, "openid.mode": "check_authentication" };
+        try {
+            const response = await axios_1.default.post("https://steamcommunity.com/openid/login", querystring_1.default.stringify(body), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+            if (response.data && response.data.includes("is_valid:true")) {
+                const claimedId = typeof query["openid.claimed_id"] === "string"
+                    ? query["openid.claimed_id"]
+                    : (query["openid.claimed_id"] || [])[0];
+                return this.extractSteamId(claimedId);
+            }
+        }
+        catch (e) {
+            // Optionally log error
         }
         return null;
     }
@@ -59,16 +64,22 @@ let SteamOAuthService = class SteamOAuthService {
      */
     async getSteamProfile(steamid) {
         const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`;
-        const response = await axios_1.default.get(url);
-        const player = response.data?.response?.players?.[0];
-        if (!player)
+        try {
+            const response = await axios_1.default.get(url);
+            const player = response.data?.response?.players?.[0];
+            if (!player)
+                return null;
+            return {
+                steamid: player.steamid,
+                personaname: player.personaname,
+                avatarfull: player.avatarfull,
+                profileurl: player.profileurl,
+            };
+        }
+        catch (e) {
+            // Optionally log error
             return null;
-        return {
-            steamid: player.steamid,
-            personaname: player.personaname,
-            avatarfull: player.avatarfull,
-            profileurl: player.profileurl,
-        };
+        }
     }
 };
 SteamOAuthService = __decorate([

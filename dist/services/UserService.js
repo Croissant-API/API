@@ -14,19 +14,69 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var UserService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const inversify_1 = require("inversify");
-const GenKey_1 = require("../utils/GenKey");
 const UserCache_1 = require("../utils/UserCache");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
+const GenKey_1 = require("../utils/GenKey");
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
-let UserService = class UserService {
+let UserService = UserService_1 = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+    }
+    // --- Helpers privés ---
+    /**
+     * Helper pour générer la clause WHERE pour les IDs (user_id, discord_id, google_id, steam_id)
+     */
+    static getIdWhereClause(includeDisabled = false) {
+        const base = "(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)";
+        if (includeDisabled)
+            return base;
+        return base + " AND (disabled = 0 OR disabled IS NULL)";
+    }
+    /**
+     * Helper pour récupérer un utilisateur par n'importe quel ID
+     */
+    async fetchUserByAnyId(user_id, includeDisabled = false) {
+        const users = await this.databaseService.read(`SELECT * FROM users WHERE ${UserService_1.getIdWhereClause(includeDisabled)}`, [user_id, user_id, user_id, user_id]);
+        return users.length > 0 ? users[0] : null;
+    }
+    /**
+     * Helper pour faire un SELECT * FROM users avec option disabled
+     */
+    async fetchAllUsers(includeDisabled = false) {
+        if (includeDisabled) {
+            return await this.databaseService.read("SELECT * FROM users");
+        }
+        return await this.databaseService.read("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
+    }
+    /**
+     * Helper pour faire un UPDATE users sur un ou plusieurs champs
+     */
+    async updateUserFields(user_id, fields) {
+        const updates = [];
+        const params = [];
+        if (fields.username !== undefined) {
+            updates.push("username = ?");
+            params.push(fields.username);
+        }
+        if (fields.balance !== undefined) {
+            updates.push("balance = ?");
+            params.push(fields.balance);
+        }
+        if (fields.password !== undefined) {
+            updates.push("password = ?");
+            params.push(fields.password);
+        }
+        if (updates.length === 0)
+            return;
+        params.push(user_id);
+        await this.databaseService.update(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
     }
     /**
      * Met à jour les champs Steam de l'utilisateur
@@ -94,9 +144,6 @@ let UserService = class UserService {
         const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${query}%`]);
         return users;
     }
-    async updateUserBalance(user_id, balance) {
-        await this.databaseService.update("UPDATE users SET balance = ? WHERE user_id = ?", [balance, user_id]);
-    }
     /**
      * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
      * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
@@ -128,39 +175,41 @@ let UserService = class UserService {
         return (await this.getUser(user_id));
     }
     async getUser(user_id) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id, user_id]);
-        return users.length > 0 ? users[0] : null;
+        return this.fetchUserByAnyId(user_id, false);
     }
     async adminGetUser(user_id) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id, user_id]);
-        return users.length > 0 ? users[0] : null;
+        return this.fetchUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);
         return users;
     }
     async getAllUsers() {
-        return await this.databaseService.read("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
+        return this.fetchAllUsers(false);
     }
     async getAllUsersWithDisabled() {
-        // This method retrieves all users, including those who are disabled
-        return await this.databaseService.read("SELECT * FROM users");
+        return this.fetchAllUsers(true);
     }
     async updateUser(user_id, username, balance) {
-        const updates = [];
-        const params = [];
-        if (username !== undefined) {
-            updates.push("username = ?");
-            params.push(username);
-        }
-        if (balance !== undefined) {
-            updates.push("balance = ?");
-            params.push(balance);
-        }
-        if (updates.length === 0)
-            return;
-        params.push(user_id);
-        await this.databaseService.update(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
+        await this.updateUserFields(user_id, { username, balance });
+    }
+    async updateUserBalance(user_id, balance) {
+        await this.updateUserFields(user_id, { balance });
+    }
+    async updateUserPassword(user_id, hashedPassword) {
+        await this.updateUserFields(user_id, { password: hashedPassword });
+    }
+    /**
+     * Récupère un utilisateur par son Steam ID
+     */
+    async getUserBySteamId(steamId) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)", [steamId]);
+        return users.length > 0 ? users[0] : null;
+    }
+    async generatePasswordResetToken(email) {
+        const token = crypto_1.default.randomBytes(32).toString("hex");
+        await this.databaseService.update("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
+        return token;
     }
     async deleteUser(user_id) {
         await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
@@ -175,28 +224,12 @@ let UserService = class UserService {
         }
         const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === api_key) || null;
         if (!user) {
-            // console.error("User not found or API key mismatch", api_key);
             return null;
         }
         return user;
     }
-    /**
-     * Récupère un utilisateur par son Steam ID
-     */
-    async getUserBySteamId(steamId) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)", [steamId]);
-        return users.length > 0 ? users[0] : null;
-    }
-    async updateUserPassword(user_id, hashedPassword) {
-        await this.databaseService.update("UPDATE users SET password = ? WHERE user_id = ?", [hashedPassword, user_id]);
-    }
-    async generatePasswordResetToken(email) {
-        const token = crypto_1.default.randomBytes(32).toString("hex");
-        await this.databaseService.update("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
-        return token;
-    }
 };
-UserService = __decorate([
+UserService = UserService_1 = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])

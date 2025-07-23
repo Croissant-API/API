@@ -20,6 +20,8 @@ export declare class TradeService implements ITradeService {
     private enrichTradeItems;
     getTradeById(id: string): Promise<Trade | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
+    private getUserKey;
+    private assertPending;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     approveTrade(tradeId: string, userId: string): Promise<void>;

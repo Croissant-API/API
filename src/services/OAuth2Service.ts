@@ -60,17 +60,8 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void> {
-        const fields: string[] = [];
-        const values: any[] = [];
-        if (update.name) {
-            fields.push("name = ?");
-            values.push(update.name);
-        }
-        if (update.redirect_urls) {
-            fields.push("redirect_urls = ?");
-            values.push(JSON.stringify(update.redirect_urls));
-        }
-        if (fields.length === 0) return;
+        const { fields, values } = buildUpdateFields(update, { redirect_urls: v => JSON.stringify(v) });
+        if (!fields.length) return;
         values.push(client_id, owner_id);
         await this.db.update(
             `UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`,
@@ -78,22 +69,33 @@ export class OAuth2Service implements IOAuth2Service {
         );
     }
 
-    async getUserByCode(code: string, client_id: string): Promise<any | null> {
-        const codeRows = await this.db.read<any[]>(
+    async getUserByCode(code: string, client_id: string): Promise<Record<string, unknown> | null> {
+        const codeRows = await this.db.read<{ user_id: string }[]>(
             "SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?",
             [code, client_id]
         );
         if (!codeRows.length) return null;
-        const appRows = await this.db.read<any[]>(
+        const appRows = await this.db.read<OAuth2App[]>(
             "SELECT * FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
-        if (!appRows.length /*|| appRows[0].client_secret !== client_secret*/) return null;
-        const userRows = await this.db.read<any[]>(
+        if (!appRows.length) return null;
+        const userRows = await this.db.read<Record<string, unknown>[]>(
             "SELECT * FROM users WHERE user_id = ?",
             [codeRows[0].user_id]
         );
-        if (!userRows.length) return null;
-        return userRows[0];
+        return userRows[0] || null;
     }
+}
+
+// Helper pour factoriser la génération des champs d'update
+function buildUpdateFields(obj: Record<string, unknown>, mapping: Record<string, (v: unknown) => unknown> = {}) {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const key in obj) {
+    if (typeof obj[key] === "undefined") continue;
+    fields.push(`${key} = ?`);
+    values.push(mapping[key] ? mapping[key](obj[key]) : obj[key]);
+  }
+  return { fields, values };
 }

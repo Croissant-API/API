@@ -45,38 +45,24 @@ export class ItemService implements IItemService {
     );
   }
 
-  getItem(itemId: string): Promise<Item | null> {
-    return new Promise((resolve, reject) => {
-      this.databaseService
-        .read<Item[]>("SELECT * FROM items")
-        .then((items) => {
-          const item = items.find((item) => item.itemId === itemId) || null;
-          resolve(item);
-        })
-        .catch(reject);
-    });
+  async getItem(itemId: string): Promise<Item | null> {
+    const items = await this.databaseService.read<Item[]>(
+      "SELECT * FROM items WHERE itemId = ?",
+      [itemId]
+    );
+    return items[0] || null;
   }
 
-  getAllItems(): Promise<Item[]> {
-    return new Promise((resolve, reject) => {
-      this.databaseService
-        .read<Item[]>("SELECT * FROM items")
-        .then(resolve)
-        .catch(reject);
-    });
+  async getAllItems(): Promise<Item[]> {
+    return this.databaseService.read<Item[]>("SELECT * FROM items");
   }
 
   async updateItem(
     itemId: string,
     item: Partial<Omit<Item, "id" | "itemId" | "owner">>
   ): Promise<void> {
-    const fields = [];
-    const values = [];
-    for (const key in item) {
-      fields.push(`${key} = ?`);
-      values.push(item[key as keyof typeof item]);
-    }
-    if (fields.length === 0) return;
+    const { fields, values } = buildUpdateFields(item);
+    if (!fields.length) return;
     values.push(itemId);
     await this.databaseService.update(
       `UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`,
@@ -84,13 +70,8 @@ export class ItemService implements IItemService {
     );
   }
 
-  deleteItem(itemId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.databaseService
-        .delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId])
-        .then(resolve)
-        .catch(reject);
-    });
+  async deleteItem(itemId: string): Promise<void> {
+    await this.databaseService.delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
   }
 
   /**
@@ -102,4 +83,19 @@ export class ItemService implements IItemService {
       [`%${query}%`]
     );
   }
+}
+
+function toDbBool(val: unknown) {
+  return val ? 1 : 0;
+}
+
+function buildUpdateFields(obj: Record<string, unknown>, skip: string[] = []) {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const key in obj) {
+    if (skip.includes(key)) continue;
+    fields.push(`${key} = ?`);
+    values.push(["showInStore", "deleted"].includes(key) ? toDbBool(obj[key]) : obj[key]);
+  }
+  return { fields, values };
 }

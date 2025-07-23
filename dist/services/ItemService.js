@@ -36,44 +36,22 @@ let ItemService = class ItemService {
             item.deleted ? 1 : 0,
         ]);
     }
-    getItem(itemId) {
-        return new Promise((resolve, reject) => {
-            this.databaseService
-                .read("SELECT * FROM items")
-                .then((items) => {
-                const item = items.find((item) => item.itemId === itemId) || null;
-                resolve(item);
-            })
-                .catch(reject);
-        });
+    async getItem(itemId) {
+        const items = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [itemId]);
+        return items[0] || null;
     }
-    getAllItems() {
-        return new Promise((resolve, reject) => {
-            this.databaseService
-                .read("SELECT * FROM items")
-                .then(resolve)
-                .catch(reject);
-        });
+    async getAllItems() {
+        return this.databaseService.read("SELECT * FROM items");
     }
     async updateItem(itemId, item) {
-        const fields = [];
-        const values = [];
-        for (const key in item) {
-            fields.push(`${key} = ?`);
-            values.push(item[key]);
-        }
-        if (fields.length === 0)
+        const { fields, values } = buildUpdateFields(item);
+        if (!fields.length)
             return;
         values.push(itemId);
         await this.databaseService.update(`UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`, values);
     }
-    deleteItem(itemId) {
-        return new Promise((resolve, reject) => {
-            this.databaseService
-                .delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId])
-                .then(resolve)
-                .catch(reject);
-        });
+    async deleteItem(itemId) {
+        await this.databaseService.delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
     }
     /**
      * Search items by name, only those with showInStore = true and not deleted
@@ -88,3 +66,17 @@ ItemService = __decorate([
     __metadata("design:paramtypes", [Object])
 ], ItemService);
 exports.ItemService = ItemService;
+function toDbBool(val) {
+    return val ? 1 : 0;
+}
+function buildUpdateFields(obj, skip = []) {
+    const fields = [];
+    const values = [];
+    for (const key in obj) {
+        if (skip.includes(key))
+            continue;
+        fields.push(`${key} = ?`);
+        values.push(["showInStore", "deleted"].includes(key) ? toDbBool(obj[key]) : obj[key]);
+    }
+    return { fields, values };
+}

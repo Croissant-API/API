@@ -25,61 +25,46 @@ export class MailService implements IMailService {
     });
   }
 
-  async sendPasswordResetMail(to: string, resetToken: string) {
-    const templatePath = path.join(
-      process.cwd(),
-      "mailTemplates",
-      "passwordReset.ejs"
-    );
-    const html = await ejs.renderFile(templatePath, { resetToken });
+  private async sendTemplateMail(
+    to: string,
+    template: string,
+    subject: string,
+    data?: Record<string, unknown>
+  ) {
+    const templatePath = path.join(process.cwd(), "mailTemplates", template);
+    const html = await ejs.renderFile(templatePath, data || {});
     const mailOptions = {
       from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
       to,
-      subject: "Password Reset Request",
+      subject,
       html,
     };
     await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendPasswordResetMail(to: string, resetToken: string) {
+    await this.sendTemplateMail(
+      to,
+      "passwordReset.ejs",
+      "Password Reset Request",
+      { resetToken }
+    );
   }
 
   async sendAccountConfirmationMail(to: string) {
-    const templatePath = path.join(
-      process.cwd(),
-      "mailTemplates",
-      "accountConfirmation.ejs"
-    );
-    const html = await ejs.renderFile(templatePath);
-    const mailOptions = {
-      from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
+    await this.sendTemplateMail(
       to,
-      subject: "Account Creation notification",
-      html,
-    };
-    await this.transporter.sendMail(mailOptions);
+      "accountConfirmation.ejs",
+      "Account Creation notification"
+    );
   }
 
   async sendConnectionNotificationMail(to: string, username: string) {
-    const templatePath = path.join(
-      process.cwd(),
-      "mailTemplates",
-      "connectionNotification.ejs"
-    );
-    const html = await ejs.renderFile(templatePath, { username });
-    const mailOptions = {
-      from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
+    await this.sendTemplateMail(
       to,
-      subject: "New login to your account",
-      html,
-    };
-    this.transporter
-      .sendMail(mailOptions)
-      .then(() => {
-        console.log(`Connection notification sent to ${to}`);
-      })
-      .catch((error) => {
-        console.error(
-          `Failed to send connection notification to ${to}:`,
-          error
-        );
-      });
+      "connectionNotification.ejs",
+      "New login to your account",
+      { username }
+    );
   }
 }

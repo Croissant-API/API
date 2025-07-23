@@ -28,31 +28,23 @@ export class LobbyService implements ILobbyService {
       "SELECT users FROM lobbies WHERE lobbyId = ?",
       [lobbyId]
     );
-    if (rows.length === 0) return null;
-    const row = rows[0];
-    return row;
+    return rows[0] || null;
   }
 
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
-    
-    console.log("LobbyService: joinLobby", lobbyId, userId);
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
-    const users: string[] = JSON.parse(lobby.users);
-    users.push(userId);
-    const uniqueUsers = [...new Set(users)];
+    const users = [...new Set([...parseUsers(lobby.users), userId])];
     await this.databaseService.update(
       "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
-      [JSON.stringify(uniqueUsers), lobbyId]
+      [JSON.stringify(users), lobbyId]
     );
   }
 
   async leaveLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
-    const newUsers = JSON.parse(lobby.users).filter(
-      (u: string) => u !== userId
-    );
+    const newUsers = parseUsers(lobby.users).filter((u) => u !== userId);
     if (newUsers.length === 0) {
       await this.deleteLobby(lobbyId);
     } else {
@@ -70,26 +62,12 @@ export class LobbyService implements ILobbyService {
       { lobbyId: string; users: string }[]
     >("SELECT lobbyId, users FROM lobbies");
     for (const row of rows) {
-      const promisedUsers: (User | null)[] = await Promise.all(
-        JSON.parse(row.users).map((u: string) => this.userService.getUser(u))
-      )
-        .catch(() => [])
-      const users = promisedUsers
+      const userIds = parseUsers(row.users);
+      if (!userIds.includes(userId)) continue;
+      const users = (await Promise.all(userIds.map((u) => this.userService.getUser(u))))
         .filter((user): user is User => user !== null)
-        .map((user: User) => {
-          return {
-            username: user.username,
-            user_id: user.user_id,
-            verified: user.verified,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url,
-            steam_id: user.steam_id,
-          };
-        });
-      if (users.find((user) => user?.user_id === userId)) {
-        // Si l'utilisateur fait partie de la lobby, on retourne la lobby
-        return { lobbyId: row.lobbyId, users };
-      }
+        .map(mapLobbyUser);
+      return { lobbyId: row.lobbyId, users };
     }
     return null;
   }
@@ -105,5 +83,24 @@ export class LobbyService implements ILobbyService {
     await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [
       lobbyId,
     ]);
+  }
+}
+
+function mapLobbyUser(user: User) {
+  return {
+    username: user.username,
+    user_id: user.user_id,
+    verified: user.verified,
+    steam_username: user.steam_username,
+    steam_avatar_url: user.steam_avatar_url,
+    steam_id: user.steam_id,
+  };
+}
+
+function parseUsers(users: string): string[] {
+  try {
+    return JSON.parse(users);
+  } catch {
+    return [];
   }
 }

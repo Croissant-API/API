@@ -47,7 +47,7 @@ let GameService = class GameService {
             game.description,
             game.price,
             game.owner_id,
-            game.showInStore ? 1 : 0,
+            toDbBool(game.showInStore),
             game.download_link,
             game.iconHash ?? null,
             game.splashHash ?? null,
@@ -60,36 +60,21 @@ let GameService = class GameService {
             game.rating ?? 0,
             game.website ?? null,
             game.trailer_link ?? null,
-            game.multiplayer ? 1 : 0,
+            toDbBool(game.multiplayer),
         ]);
     }
     async updateGame(gameId, game) {
-        const fields = [];
-        const values = [];
-        for (const key in game) {
-            if (key === "owners")
-                continue; // Ne pas updater les owners ici
-            fields.push(`${key} = ?`);
-            values.push(key === "showInStore"
-                ? game[key]
-                    ? 1
-                    : 0
-                : game[key]);
-        }
-        if (fields.length === 0)
+        const { fields, values } = buildUpdateFields(game, ["owners"]);
+        if (!fields.length)
             return;
         values.push(gameId);
         await this.databaseService.update(`UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`, values);
     }
     async deleteGame(gameId) {
-        await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [
-            gameId,
-        ]);
+        await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [gameId]);
         await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
     }
-    // Méthodes pour gérer les owners secondaires
     async addOwner(gameId, ownerId) {
-        console.log(`Adding owner ${ownerId} to game ${gameId}`);
         await this.databaseService.update("INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)", [gameId, ownerId]);
     }
     async removeOwner(gameId, ownerId) {
@@ -102,3 +87,19 @@ GameService = __decorate([
     __metadata("design:paramtypes", [Object])
 ], GameService);
 exports.GameService = GameService;
+function toDbBool(val) {
+    return val ? 1 : 0;
+}
+function buildUpdateFields(obj, skip = []) {
+    const fields = [];
+    const values = [];
+    for (const key in obj) {
+        if (skip.includes(key))
+            continue;
+        fields.push(`${key} = ?`);
+        values.push(["showInStore", "multiplayer"].includes(key)
+            ? toDbBool(obj[key])
+            : obj[key]);
+    }
+    return { fields, values };
+}

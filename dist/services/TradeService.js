@@ -95,24 +95,26 @@ let TradeService = class TradeService {
         const deserialized = trades.map(this.deserializeTrade);
         return Promise.all(deserialized.map((t) => this.enrichTradeItems(t)));
     }
+    getUserKey(trade, userId) {
+        if (trade.fromUserId === userId)
+            return "fromUserItems";
+        if (trade.toUserId === userId)
+            return "toUserItems";
+        throw new Error("User not part of this trade");
+    }
+    assertPending(trade) {
+        if (trade.status !== "pending")
+            throw new Error("Trade is not pending");
+    }
     async addItemToTrade(tradeId, userId, tradeItem) {
         const trade = await this.getTradeById(tradeId);
         if (!trade)
             throw new Error("Trade not found");
-        if (trade.status !== "pending")
-            throw new Error("Trade is not pending");
-        let userKey;
-        if (trade.fromUserId === userId)
-            userKey = "fromUserItems";
-        else if (trade.toUserId === userId)
-            userKey = "toUserItems";
-        else
-            throw new Error("User not part of this trade");
-        // Check if user has enough items
+        this.assertPending(trade);
+        const userKey = this.getUserKey(trade, userId);
         const hasItem = await this.inventoryService.hasItem(userId, tradeItem.itemId, tradeItem.amount);
         if (!hasItem)
             throw new Error("User does not have enough of the item");
-        // Ajoute ou update l'item dans la liste
         const items = [...trade[userKey]];
         const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
         if (idx >= 0)
@@ -129,15 +131,8 @@ let TradeService = class TradeService {
         const trade = await this.getTradeById(tradeId);
         if (!trade)
             throw new Error("Trade not found");
-        if (trade.status !== "pending")
-            throw new Error("Trade is not pending");
-        let userKey;
-        if (trade.fromUserId === userId)
-            userKey = "fromUserItems";
-        else if (trade.toUserId === userId)
-            userKey = "toUserItems";
-        else
-            throw new Error("User not part of this trade");
+        this.assertPending(trade);
+        const userKey = this.getUserKey(trade, userId);
         const items = [...trade[userKey]];
         const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
         if (idx === -1)
@@ -157,19 +152,13 @@ let TradeService = class TradeService {
         const trade = await this.getTradeById(tradeId);
         if (!trade)
             throw new Error("Trade not found");
-        if (trade.status !== "pending")
-            throw new Error("Trade is not pending");
-        let updateField = "";
-        if (trade.fromUserId === userId)
-            updateField = "approvedFromUser";
-        else if (trade.toUserId === userId)
-            updateField = "approvedToUser";
-        else
+        this.assertPending(trade);
+        const updateField = trade.fromUserId === userId ? "approvedFromUser" : trade.toUserId === userId ? "approvedToUser" : null;
+        if (!updateField)
             throw new Error("User not part of this trade");
         trade[updateField] = true;
         trade.updatedAt = new Date().toISOString();
         await this.databaseService.update(`UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`, [trade.updatedAt, tradeId]);
-        // Si les deux ont approuvé, on échange les items et on passe à completed
         if (trade.approvedFromUser && trade.approvedToUser) {
             await this.exchangeTradeItems(trade);
         }
@@ -178,8 +167,7 @@ let TradeService = class TradeService {
         const trade = await this.getTradeById(tradeId);
         if (!trade)
             throw new Error("Trade not found");
-        if (trade.status !== "pending")
-            throw new Error("Trade is not pending");
+        this.assertPending(trade);
         if (trade.fromUserId !== userId && trade.toUserId !== userId)
             throw new Error("User not part of this trade");
         trade.status = "canceled";

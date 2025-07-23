@@ -19,45 +19,36 @@ let InventoryService = class InventoryService {
         this.databaseService = databaseService;
         this.userService = userService;
     }
+    async getCorrectedUserId(userId) {
+        const user = await this.userService.getUser(userId);
+        return user?.user_id || userId;
+    }
     async getInventory(userId) {
-        const correctedUser = await this.userService.getUser(userId);
-        const correctedUserId = correctedUser?.user_id || userId;
+        const correctedUserId = await this.getCorrectedUserId(userId);
         const items = await this.databaseService.read("SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?", [correctedUserId]);
-        const filteredItems = items.filter((item) => item.amount > 0); // Filter out items with amount <= 0
-        return { user_id: userId, inventory: filteredItems };
+        return { user_id: userId, inventory: items.filter((item) => item.amount > 0) };
     }
     async getItemAmount(userId, itemId) {
-        const correctedUser = await this.userService.getUser(userId);
-        const correctedUserId = correctedUser?.user_id || userId;
+        const correctedUserId = await this.getCorrectedUserId(userId);
         const items = await this.databaseService.read("SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?", [correctedUserId, itemId]);
-        if (items.length === 0)
-            return 0;
-        return items[0].amount;
+        return items.length === 0 ? 0 : items[0].amount;
     }
     async addItem(userId, itemId, amount) {
-        // Check if the item already exists
-        const correctedUser = await this.userService.getUser(userId);
-        const correctedUserId = correctedUser?.user_id || userId;
+        const correctedUserId = await this.getCorrectedUserId(userId);
         const items = await this.databaseService.read("SELECT * FROM inventories WHERE user_id = ? AND item_id = ?", [correctedUserId, itemId]);
         if (items.length > 0) {
-            // Item exists, update the amount
-            await this.databaseService.update("UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ?", [amount, userId, itemId]);
+            await this.databaseService.update("UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ?", [amount, correctedUserId, itemId]);
         }
         else {
-            // Item does not exist, insert new row
-            await this.databaseService.update("INSERT INTO inventories (user_id, item_id, amount) VALUES (?, ?, ?)", [userId, itemId, amount]);
+            await this.databaseService.update("INSERT INTO inventories (user_id, item_id, amount) VALUES (?, ?, ?)", [correctedUserId, itemId, amount]);
         }
     }
     async removeItem(userId, itemId, amount) {
-        const correctedUser = await this.userService.getUser(userId);
-        const correctedUserId = correctedUser?.user_id || userId;
-        // Decrease amount, but not below zero
-        await this.databaseService.update(`UPDATE inventories SET amount = MAX(amount - ?, 0)
-             WHERE user_id = ? AND item_id = ?`, [amount, correctedUserId, itemId]);
+        const correctedUserId = await this.getCorrectedUserId(userId);
+        await this.databaseService.update(`UPDATE inventories SET amount = MAX(amount - ?, 0) WHERE user_id = ? AND item_id = ?`, [amount, correctedUserId, itemId]);
     }
     async setItemAmount(userId, itemId, amount) {
-        const correctedUser = await this.userService.getUser(userId);
-        const correctedUserId = correctedUser?.user_id || userId;
+        const correctedUserId = await this.getCorrectedUserId(userId);
         await this.databaseService.update(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`, [amount, correctedUserId, itemId]);
     }
     async hasItem(userId, itemId, amount = 1) {
