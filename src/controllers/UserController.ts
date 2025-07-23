@@ -375,17 +375,7 @@ export class Users {
     if (!query) return sendError(res, 400, "Missing search query");
     try {
       const users: User[] = await this.userService.searchUsersByUsername(query);
-      const detailledUsers = await Promise.all(users.map(async (user) => {
-        if (user.disabled) return null; // Skip disabled users
-        const { inventory } = await this.inventoryService.getInventory(user.user_id);
-        const formattedInventory = await formatInventory(inventory, this.itemService);
-        const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
-        const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-        return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
-      }));
-      res.send(detailledUsers);
+      res.send(users.map(mapUserSearch));
     } catch (error) {
       sendError(res, 500, "Error searching users", (error as Error).message);
     }
@@ -442,16 +432,7 @@ export class Users {
     if (!query) return sendError(res, 400, "Missing search query");
     try {
       const users: User[] = await this.userService.adminSearchUsers(query);
-      const detailledUsers = await Promise.all(users.map(async (user) => {
-        const { inventory } = await this.inventoryService.getInventory(user.user_id);
-        const formattedInventory = await formatInventory(inventory, this.itemService);
-        const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
-        const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-        return { ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
-      }));
-      res.send(detailledUsers.filter(u => u !== null));
+      res.send(users.map(mapUserSearch));
     } catch (error) {
       sendError(res, 500, "Error searching users", (error as Error).message);
     }
