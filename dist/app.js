@@ -44,6 +44,7 @@ require("./controllers/TradeController");
 require("./controllers/UserController");
 require("./controllers/OAuth2Controller");
 require("./controllers/StudioController");
+require("./controllers/SearchController");
 const server = new inversify_express_utils_1.InversifyExpressServer(container_1.default);
 server.setConfig((app) => {
     app.use(express_1.default.json({ limit: "50mb" }));

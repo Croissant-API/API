@@ -17,35 +17,8 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
-import { Game } from "../interfaces/Game";
 import { Schema } from "yup";
-
-// Utility to filter game fields based on the user
-function filterGame(game: Game, userId?: string) {
-  return {
-    gameId: game.gameId,
-    name: game.name,
-    description: game.description,
-    price: game.price,
-    owner_id: game.owner_id,
-    showInStore: game.showInStore,
-    iconHash: game.iconHash,
-    splashHash: game.splashHash,
-    bannerHash: game.bannerHash,
-    genre: game.genre,
-    release_date: game.release_date,
-    developer: game.developer,
-    publisher: game.publisher,
-    platforms: game.platforms,
-    rating: game.rating,
-    website: game.website,
-    trailer_link: game.trailer_link,
-    multiplayer: game.multiplayer,
-    ...(userId && game.owner_id === userId
-      ? { download_link: game.download_link }
-      : {}),
-  };
-}
+import { filterGame } from "../utils/helpers";
 
 // --- UTILS ---
 const gameResponseFields = {

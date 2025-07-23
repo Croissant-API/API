@@ -9,4 +9,5 @@ import "./controllers/TradeController";
 import "./controllers/UserController";
 import "./controllers/OAuth2Controller";
 import "./controllers/StudioController";
+import "./controllers/SearchController";
 export declare const app: express.Application;

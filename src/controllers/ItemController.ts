@@ -23,6 +23,7 @@ import {
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { ValidationError, Schema } from "yup";
+import { mapItem } from "../utils/helpers";
 
 function handleError(
   res: Response,
@@ -50,28 +51,6 @@ async function validateOr400(
     }
     throw error;
   }
-}
-
-function mapItem(item: {
-  itemId: string;
-  name: string;
-  description: string;
-  owner: string;
-  price: number;
-  iconHash?: string;
-  showInStore?: boolean;
-}) {
-  return {
-    itemId: item.itemId,
-    name: item.name,
-    description: item.description,
-    owner: item.owner,
-    price: item.price,
-    iconHash: item.iconHash,
-    ...(typeof item.showInStore !== "undefined" && {
-      showInStore: item.showInStore,
-    }),
-  };
 }
 
 @controller("/items")

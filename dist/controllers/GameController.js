@@ -20,32 +20,7 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-// Utility to filter game fields based on the user
-function filterGame(game, userId) {
-    return {
-        gameId: game.gameId,
-        name: game.name,
-        description: game.description,
-        price: game.price,
-        owner_id: game.owner_id,
-        showInStore: game.showInStore,
-        iconHash: game.iconHash,
-        splashHash: game.splashHash,
-        bannerHash: game.bannerHash,
-        genre: game.genre,
-        release_date: game.release_date,
-        developer: game.developer,
-        publisher: game.publisher,
-        platforms: game.platforms,
-        rating: game.rating,
-        website: game.website,
-        trailer_link: game.trailer_link,
-        multiplayer: game.multiplayer,
-        ...(userId && game.owner_id === userId
-            ? { download_link: game.download_link }
-            : {}),
-    };
-}
+const helpers_1 = require("../utils/helpers");
 // --- UTILS ---
 const gameResponseFields = {
     gameId: "string",
@@ -93,7 +68,7 @@ let Games = class Games {
     async listGames(req, res) {
         try {
             const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.showInStore).map(g => filterGame(g)));
+            res.send(games.filter(g => g.showInStore).map(g => (0, helpers_1.filterGame)(g)));
         }
         catch (error) {
             handleError(res, error, "Error listing games");
@@ -105,7 +80,7 @@ let Games = class Games {
             return res.status(400).send({ message: "Missing search query" });
         try {
             const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => filterGame(g)));
+            res.send(games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g)));
         }
         catch (error) {
             handleError(res, error, "Error searching games");
@@ -115,7 +90,7 @@ let Games = class Games {
         try {
             const userId = req.user.user_id;
             const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId)));
+            res.send(games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId)));
         }
         catch (error) {
             handleError(res, error, "Error fetching your created games");
@@ -137,7 +112,7 @@ let Games = class Games {
             const game = await this.gameService.getGame(gameId);
             if (!game)
                 return res.status(404).send({ message: "Game not found" });
-            res.send(filterGame(game));
+            res.send((0, helpers_1.filterGame)(game));
         }
         catch (error) {
             handleError(res, error, "Error fetching game");
@@ -189,7 +164,7 @@ let Games = class Games {
                 return res.status(403).send({ message: "You are not the owner of this game" });
             await this.gameService.updateGame(req.params.gameId, req.body);
             const updatedGame = await this.gameService.getGame(req.params.gameId);
-            res.status(200).send(updatedGame ? filterGame(updatedGame, req.user.user_id) : null);
+            res.status(200).send(updatedGame ? (0, helpers_1.filterGame)(updatedGame, req.user.user_id) : null);
         }
         catch (error) {
             handleError(res, error, "Error updating game");

@@ -18,6 +18,7 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+const helpers_1 = require("../utils/helpers");
 // --- UTILS ---
 const yup_1 = require("yup");
 function handleError(res, error, message, status = 500) {
@@ -40,28 +41,6 @@ async function validateOr400(schema, data, res) {
         throw error;
     }
 }
-async function formatInventory(inventory, itemService) {
-    const seen = new Set();
-    return (await Promise.all(inventory
-        .filter((item) => {
-        if (seen.has(item.item_id))
-            return false;
-        seen.add(item.item_id);
-        return true;
-    })
-        .map(async (item) => {
-        const itemDetails = await itemService.getItem(item.item_id);
-        if (!itemDetails || itemDetails.deleted)
-            return null;
-        return {
-            itemId: itemDetails.itemId,
-            name: itemDetails.name,
-            description: itemDetails.description,
-            amount: item.amount,
-            iconHash: itemDetails.iconHash,
-        };
-    }))).filter(Boolean);
-}
 let Inventories = class Inventories {
     constructor(inventoryService, itemService) {
         this.inventoryService = inventoryService;
@@ -72,7 +51,7 @@ let Inventories = class Inventories {
         const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
-            res.send(await formatInventory(inventory, this.itemService));
+            res.send(await (0, helpers_1.formatInventory)(inventory, this.itemService));
         }
         catch (error) {
             handleError(res, error, "Error fetching inventory");
@@ -85,7 +64,7 @@ let Inventories = class Inventories {
         const userId = req.params.userId;
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
-            res.send(await formatInventory(inventory, this.itemService));
+            res.send(await (0, helpers_1.formatInventory)(inventory, this.itemService));
         }
         catch (error) {
             handleError(res, error, "Error fetching inventory");

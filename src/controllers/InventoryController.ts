@@ -6,6 +6,7 @@ import { IItemService } from "../services/ItemService";
 import { userIdParamSchema } from "../validators/InventoryValidator";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { formatInventory } from "../utils/helpers";
 
 // --- UTILS ---
 import { ValidationError, Schema } from "yup";
@@ -38,34 +39,6 @@ async function validateOr400(
     }
     throw error;
   }
-}
-
-async function formatInventory(
-  inventory: Array<{ item_id: string; amount: number }>,
-  itemService: IItemService
-) {
-  const seen = new Set<string>();
-  return (
-    await Promise.all(
-      inventory
-        .filter((item) => {
-          if (seen.has(item.item_id)) return false;
-          seen.add(item.item_id);
-          return true;
-        })
-        .map(async (item) => {
-          const itemDetails = await itemService.getItem(item.item_id);
-          if (!itemDetails || itemDetails.deleted) return null;
-          return {
-            itemId: itemDetails.itemId,
-            name: itemDetails.name,
-            description: itemDetails.description,
-            amount: item.amount,
-            iconHash: itemDetails.iconHash,
-          };
-        })
-    )
-  ).filter(Boolean);
 }
 
 @controller("/inventory")
