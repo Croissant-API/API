@@ -47,7 +47,7 @@ export class LoggedCheck {
     const roles = [user.user_id, ...studios.map((s) => s.user_id)];
 
     let roleUser = null;
-    if (roleCookie && !roles.includes(roleCookie)) {
+    if (roleCookie && roles.includes(roleCookie)) {
       roleUser = await userService.getUser(roleCookie);
     } else {
       roleUser = user;

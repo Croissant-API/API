@@ -47,7 +47,7 @@ LoggedCheck.middleware = async (req, res, next) => {
     const studios = await studioService.getUserStudios(user.user_id);
     const roles = [user.user_id, ...studios.map((s) => s.user_id)];
     let roleUser = null;
-    if (roleCookie && !roles.includes(roleCookie)) {
+    if (roleCookie && roles.includes(roleCookie)) {
         roleUser = await userService.getUser(roleCookie);
     }
     else {
