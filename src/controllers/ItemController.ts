@@ -22,6 +22,57 @@ import {
 } from "../middlewares/OwnerCheck";
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
+import { ValidationError, Schema } from "yup";
+
+function handleError(
+  res: Response,
+  error: unknown,
+  message: string,
+  status = 500
+) {
+  const msg = error instanceof Error ? error.message : String(error);
+  res.status(status).send({ message, error: msg });
+}
+
+async function validateOr400(
+  schema: Schema<unknown>,
+  data: unknown,
+  res: Response,
+  message = "Invalid data"
+) {
+  try {
+    await schema.validate(data);
+    return true;
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      res.status(400).send({ message, errors: error.errors });
+      return false;
+    }
+    throw error;
+  }
+}
+
+function mapItem(item: {
+  itemId: string;
+  name: string;
+  description: string;
+  owner: string;
+  price: number;
+  iconHash?: string;
+  showInStore?: boolean;
+}) {
+  return {
+    itemId: item.itemId,
+    name: item.name,
+    description: item.description,
+    owner: item.owner,
+    price: item.price,
+    iconHash: item.iconHash,
+    ...(typeof item.showInStore !== "undefined" && {
+      showInStore: item.showInStore,
+    }),
+  };
+}
 
 @controller("/items")
 export class Items {
@@ -50,21 +101,14 @@ export class Items {
   })
   @httpGet("/")
   public async getAllItems(req: Request, res: Response) {
-    const items = await this.itemService.getAllItems();
-    const filteredItems = items.filter(
-      (item) => !item.deleted && item.showInStore
-    );
-    const filteredItemsMap = filteredItems.map((item) => {
-      return {
-        itemId: item.itemId,
-        name: item.name,
-        description: item.description,
-        owner: item.owner,
-        price: item.price,
-        iconHash: item.iconHash,
-      };
-    });
-    res.send(filteredItemsMap);
+    try {
+      const items = await this.itemService.getAllItems();
+      res.send(
+        items.filter((i) => !i.deleted && i.showInStore).map(mapItem)
+      );
+    } catch (error) {
+      handleError(res, error, "Error fetching items");
+    }
   }
 
   @describe({
@@ -88,23 +132,15 @@ export class Items {
   @httpGet("/@mine", LoggedCheck.middleware)
   public async getMyItems(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
-    if (!userId) {
-      return res.status(401).send({ message: "Unauthorized" });
+    if (!userId) return res.status(401).send({ message: "Unauthorized" });
+    try {
+      const items = await this.itemService.getAllItems();
+      res.send(
+        items.filter((i) => !i.deleted && i.owner === userId).map(mapItem)
+      );
+    } catch (error) {
+      handleError(res, error, "Error fetching your items");
     }
-    const items = await this.itemService.getAllItems();
-    const myItems = items.filter(
-      (item) => !item.deleted && item.owner === userId
-    );
-    const myItemsMap = myItems.map((item) => ({
-      itemId: item.itemId,
-      name: item.name,
-      description: item.description,
-      owner: item.owner,
-      price: item.price,
-      iconHash: item.iconHash,
-      showInStore: item.showInStore,
-    }));
-    res.send(myItemsMap);
   }
 
   @describe({
@@ -128,23 +164,12 @@ export class Items {
   @httpGet("/search")
   public async searchItems(req: Request, res: Response) {
     const query = (req.query.q as string)?.trim();
-    if (!query) {
-      return res.status(400).send({ message: "Missing search query" });
-    }
+    if (!query) return res.status(400).send({ message: "Missing search query" });
     try {
       const items = await this.itemService.searchItemsByName(query);
-      const filtered = items.map((item) => ({
-        itemId: item.itemId,
-        name: item.name,
-        description: item.description,
-        owner: item.owner,
-        price: item.price,
-        iconHash: item.iconHash,
-        showInStore: !!item.showInStore,
-      }));
-      res.send(filtered);
-    } catch {
-      res.status(500).send({ message: "Error searching items" });
+      res.send(items.map(mapItem));
+    } catch (error) {
+      handleError(res, error, "Error searching items");
     }
   }
 
@@ -163,30 +188,19 @@ export class Items {
     },
     example: "GET /api/items/123",
   })
-  @httpGet("/:itemId")
+  @httpGet(":itemId")
   public async healthCheck(req: Request, res: Response) {
+    if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId")))
+      return;
     try {
-      await itemIdParamValidator.validate(req.params);
+      const { itemId } = req.params;
+      const item = await this.itemService.getItem(itemId);
+      if (!item || item.deleted)
+        return res.status(404).send({ message: "Item not found" });
+      res.send(mapItem(item));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return res
-        .status(400)
-        .send({ message: "Invalid itemId", error: message });
+      handleError(res, error, "Error fetching item");
     }
-    const { itemId } = req.params;
-    const item = await this.itemService.getItem(itemId);
-    if (!item || item.deleted) {
-      return res.status(404).send({ message: "Item not found" });
-    }
-    const filteredItem = {
-      name: item.name,
-      description: item.description,
-      owner: item.owner,
-      price: item.price,
-      showInStore: item.showInStore,
-      iconHash: item.iconHash,
-    };
-    res.send(filteredItem);
   }
 
   // --- CREATION / MODIFICATION / SUPPRESSION ---
@@ -208,14 +222,8 @@ export class Items {
   })
   @httpPost("/create", LoggedCheck.middleware)
   public async createItem(req: AuthenticatedRequest, res: Response) {
-    try {
-      await createItemValidator.validate(req.body);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return res
-        .status(400)
-        .send({ message: "Invalid item data", error: message });
-    }
+    if (!(await validateOr400(createItemValidator, req.body, res, "Invalid item data")))
+      return;
     const itemId = v4();
     const { name, description, price, iconHash, showInStore } = req.body;
     try {
@@ -231,9 +239,7 @@ export class Items {
       });
       res.status(200).send({ message: "Item created" });
     } catch (error) {
-      console.error("Error creating item", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error creating item", error: message });
+      handleError(res, error, "Error creating item");
     }
   }
 
@@ -256,15 +262,10 @@ export class Items {
   })
   @httpPut("/update/:itemId", OwnerCheck.middleware)
   public async updateItem(req: AuthenticatedRequestWithOwner, res: Response) {
-    try {
-      await itemIdParamValidator.validate(req.params);
-      await updateItemValidator.validate(req.body);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return res
-        .status(400)
-        .send({ message: "Invalid update data", error: message });
-    }
+    if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId")))
+      return;
+    if (!(await validateOr400(updateItemValidator, req.body, res, "Invalid update data")))
+      return;
     const { itemId } = req.params;
     const { name, description, price, iconHash, showInStore } = req.body;
     try {
@@ -277,9 +278,7 @@ export class Items {
       });
       res.status(200).send({ message: "Item updated" });
     } catch (error) {
-      console.error("Error updating item", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error updating item", error: message });
+      handleError(res, error, "Error updating item");
     }
   }
 
@@ -294,22 +293,14 @@ export class Items {
   })
   @httpDelete("/delete/:itemId", OwnerCheck.middleware)
   public async deleteItem(req: AuthenticatedRequestWithOwner, res: Response) {
-    try {
-      await itemIdParamValidator.validate(req.params);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return res
-        .status(400)
-        .send({ message: "Invalid itemId", error: message });
-    }
+    if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId")))
+      return;
     const { itemId } = req.params;
     try {
       await this.itemService.deleteItem(itemId);
       res.status(200).send({ message: "Item deleted" });
     } catch (error) {
-      console.error("Error deleting item", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error deleting item", error: message });
+      handleError(res, error, "Error deleting item");
     }
   }
 

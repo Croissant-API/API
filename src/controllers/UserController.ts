@@ -12,7 +12,6 @@ import { User } from "../interfaces/User";
 import { SteamOAuthService } from "../services/SteamOAuthService";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
-import { Studio } from "../interfaces/Studio";
 
 function sendError(
   res: Response,
@@ -28,6 +27,43 @@ function findUserByResetToken(
   reset_token: string
 ): User | undefined {
   return users.find((u) => u.forgot_password_token === reset_token);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function requireFields(obj: any, fields: string[]): string | null {
+  for (const f of fields) if (!obj[f]) return f;
+  return null;
+}
+
+function mapUser(user: User) {
+  return {
+    id: user.user_id,
+    userId: user.user_id,
+    username: user.username,
+    email: user.email,
+    balance: user.balance !== undefined ? Math.floor(user.balance) : undefined,
+    verified: !!user.verified,
+    steam_id: user.steam_id,
+    steam_username: user.steam_username,
+    steam_avatar_url: user.steam_avatar_url,
+    isStudio: !!user.isStudio,
+    admin: !!user.admin,
+    disabled: !!user.disabled,
+  };
+}
+
+function mapUserSearch(user: User) {
+  return {
+    id: user.user_id,
+    userId: user.user_id,
+    username: user.username,
+    verified: user.verified,
+    steam_id: user.steam_id,
+    steam_username: user.steam_username,
+    steam_avatar_url: user.steam_avatar_url,
+    isStudio: user.isStudio,
+    admin: !!user.admin,
+  };
 }
 
 @controller("/users")
@@ -102,37 +138,37 @@ export class Users {
 
   @httpPost("/register")
   public async register(req: Request, res: Response) {
-    const { username, email, password, provider, providerId } = req.body;
-    let { userId } = req.body;
-    if (!username || !email || (!password && !provider)) {
-      return res.status(400).send({ message: "Missing required fields" });
+    const missing = requireFields(req.body, ["username", "email"]);
+    if (missing || (!req.body.password && !req.body.provider)) {
+      return sendError(res, 400, "Missing required fields");
     }
 
     const users = await this.userService.getAllUsersWithDisabled();
-    if (users.find((u) => u.email === email)) {
+    if (users.find((u) => u.email === req.body.email)) {
       return sendError(res, 400, "Email already exists");
     }
 
+    let userId = req.body.userId;
     if (!userId) {
       userId = crypto.randomUUID();
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(req.body.email)) {
       return sendError(res, 400, "Invalid email address");
     }
     let hashedPassword = null;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
+    if (req.body.password) {
+      hashedPassword = await bcrypt.hash(req.body.password, 10);
     }
     try {
       // Crée ou associe l'utilisateur selon l'email et provider
       const user = await this.userService.createUser(
         userId,
-        username,
-        email,
+        req.body.username,
+        req.body.email,
         hashedPassword,
-        provider,
-        providerId
+        req.body.provider,
+        req.body.providerId
       );
       await this.mailService.sendAccountConfirmationMail(user.email);
       res
@@ -147,17 +183,15 @@ export class Users {
 
   @httpPost("/login")
   public async login(req: Request, res: Response) {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).send({ message: "Missing email or password" });
-    }
+    const missing = requireFields(req.body, ["email", "password"]);
+    if (missing) return sendError(res, 400, "Missing email or password");
     const allUsers = await this.userService.getAllUsersWithDisabled();
-    const user = allUsers.find((u) => u.email === email);
+    const user = allUsers.find((u) => u.email === req.body.email);
     if (!user || !user.password) {
       return sendError(res, 401, "Invalid credentials");
     }
     // bcrypt importé en haut
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(req.body.password, user.password);
     if (!valid) {
       return sendError(res, 401, "Invalid credentials");
     }
@@ -185,136 +219,58 @@ export class Users {
   @httpGet("/@me", LoggedCheck.middleware)
   async getMe(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
-    if (!userId) {
-      return res.status(401).send({ message: "Unauthorized" });
-    }
+    if (!userId) return sendError(res, 401, "Unauthorized");
     const user = await this.userService.getUser(userId);
-    if (!user) {
-      return res.status(404).send({ message: "User not found" });
-    }
-    // Filter user to only expose allowed fields
-    // const discordUser = await this.userService.getDiscordUser(user.user_id)
-    const studios = await this.studioService.getUserStudios(
-      req.originalUser?.user_id || user.user_id
-    );
-    const roles = [
-      req.originalUser?.user_id as string,
-      ...studios.map((s) => s.user_id),
-    ];
-    const filteredUser: {
-      id: string;
-      userId: string;
-      email: string;
-      balance: number;
-      verified: boolean;
-      username: string;
-      verificationKey: string;
-      steam_id?: string;
-      steam_username?: string;
-      steam_avatar_url?: string;
-      admin?: boolean;
-      studios?: Studio[];
-      isStudio?: boolean;
-      roles?: string[];
-    } = {
-      // ...discordUser,
-      id: user.user_id,
-      userId: user.user_id,
-      email: user.email,
-      balance: Math.floor(user.balance),
-      verified: user.verified,
-      username: user.username,
-      verificationKey: genVerificationKey(user.user_id),
-      steam_id: user.steam_id,
-      steam_username: user.steam_username,
-      steam_avatar_url: user.steam_avatar_url,
-      studios: studios,
-      isStudio: user.isStudio,
-      roles,
-      admin: !!user.admin,
-    };
-    if (user.admin) {
-      filteredUser.admin = user.admin;
-    }
-    res.send(filteredUser);
+    if (!user) return sendError(res, 404, "User not found");
+    const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
+    const roles = [req.originalUser?.user_id as string, ...studios.map((s) => s.user_id)];
+    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles });
   }
 
   @httpPost("/change-username", LoggedCheck.middleware)
   public async changeUsername(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
     const { username } = req.body;
-    if (!userId) {
-      return sendError(res, 401, "Unauthorized");
-    }
-    if (
-      !username ||
-      typeof username !== "string" ||
-      username.trim().length < 3
-    ) {
+    if (!userId) return sendError(res, 401, "Unauthorized");
+    if (!username || typeof username !== "string" || username.trim().length < 3) {
       return sendError(res, 400, "Invalid username (min 3 characters)");
     }
     try {
       await this.userService.updateUser(userId, username.trim());
       res.status(200).send({ message: "Username updated" });
     } catch (error) {
-      console.error("Error updating username", error);
-      const message = error instanceof Error ? error.message : String(error);
-      sendError(res, 500, "Error updating username", message);
+      sendError(res, 500, "Error updating username", (error as Error).message);
     }
   }
 
   @httpPost("/change-password", LoggedCheck.middleware)
   public async changePassword(req: AuthenticatedRequest, res: Response) {
     const { oldPassword, newPassword, confirmPassword } = req.body;
-    if (!newPassword || !confirmPassword) {
-      return sendError(res, 400, "Missing newPassword or confirmPassword");
-    }
-    if (newPassword !== confirmPassword) {
-      return sendError(
-        res,
-        400,
-        "New password and confirm password do not match"
-      );
-    }
+    if (!newPassword || !confirmPassword) return sendError(res, 400, "Missing newPassword or confirmPassword");
+    if (newPassword !== confirmPassword) return sendError(res, 400, "New password and confirm password do not match");
     const userId = req.user?.user_id;
-    if (!userId) {
-      return sendError(res, 401, "Unauthorized");
-    }
+    if (!userId) return sendError(res, 401, "Unauthorized");
     const user = await this.userService.getUser(userId);
-    if (!user) {
-      return sendError(res, 404, "User not found");
-    }
+    if (!user) return sendError(res, 404, "User not found");
     let valid = true;
-    if (user.password) {
-      valid = await bcrypt.compare(oldPassword, user.password);
-    }
-    if (!valid) {
-      return sendError(res, 401, "Invalid current password");
-    }
+    if (user.password) valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) return sendError(res, 401, "Invalid current password");
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     try {
       await this.userService.updateUserPassword(userId, hashedPassword);
       res.status(200).send({ message: "Password changed successfully" });
     } catch (error) {
-      console.error("Error changing password", error);
-      const message = error instanceof Error ? error.message : String(error);
-      sendError(res, 500, "Error changing password", message);
+      sendError(res, 500, "Error changing password", (error as Error).message);
     }
   }
 
   @httpPost("/forgot-password")
   public async forgotPassword(req: Request, res: Response) {
     const { email } = req.body;
-    if (!email) {
-      return sendError(res, 400, "Email is required");
-    }
+    if (!email) return sendError(res, 400, "Email is required");
     const user = await this.userService.findByEmail(email);
-    if (!user) {
-      return sendError(res, 404, "Invalid email");
-    }
-    // Here you would typically generate a password reset token and send it via email
-    const passwordResetToken =
-      await this.userService.generatePasswordResetToken(email);
+    if (!user) return sendError(res, 404, "Invalid email");
+    const passwordResetToken = await this.userService.generatePasswordResetToken(email);
     await this.mailService.sendPasswordResetMail(email, passwordResetToken);
     res.status(200).send({ message: "Password reset email sent" });
   }
@@ -322,32 +278,17 @@ export class Users {
   @httpPost("/reset-password")
   public async resetPassword(req: Request, res: Response) {
     const { new_password, confirm_password, reset_token } = req.body;
-    if (!new_password || !reset_token || !confirm_password) {
-      return sendError(res, 400, "Missing required fields");
-    }
-    if (new_password !== confirm_password) {
-      return sendError(
-        res,
-        400,
-        "New password and confirm password do not match"
-      );
-    }
+    if (!new_password || !reset_token || !confirm_password) return sendError(res, 400, "Missing required fields");
+    if (new_password !== confirm_password) return sendError(res, 400, "New password and confirm password do not match");
     const allUsers = await this.userService.getAllUsersWithDisabled();
     const user = allUsers.find((u) => u.forgot_password_token === reset_token);
-    if (!user) {
-      return sendError(res, 404, "Invalid user");
-    }
+    if (!user) return sendError(res, 404, "Invalid user");
     const hashedPassword = await bcrypt.hash(new_password, 10);
     try {
       await this.userService.updateUserPassword(user.user_id, hashedPassword);
-      res.status(200).send({
-        message: "Password reset successfully",
-        token: genKey(user.user_id),
-      });
+      res.status(200).send({ message: "Password reset successfully", token: genKey(user.user_id) });
     } catch (error) {
-      console.error("Error resetting password", error);
-      const message = error instanceof Error ? error.message : String(error);
-      sendError(res, 500, "Error resetting password", message);
+      sendError(res, 500, "Error resetting password", (error as Error).message);
     }
   }
 
@@ -436,36 +377,12 @@ export class Users {
   @httpGet("/search")
   public async searchUsers(req: Request, res: Response) {
     const query = (req.query.q as string)?.trim();
-    if (!query) {
-      return res.status(400).send({ message: "Missing search query" });
-    }
+    if (!query) return sendError(res, 400, "Missing search query");
     try {
       const users: User[] = await this.userService.searchUsersByUsername(query);
-
-      const filtered = [];
-      for (const user of users) {
-        // const discordUser = await this.userService.getDiscordUser(user.user_id);
-        filtered.push({
-          // ...discordUser,
-          id: user.user_id,
-          userId: user.user_id,
-          username: user.username,
-          balance: Math.floor(user.balance),
-          verified: user.verified,
-          steam_id: user.steam_id,
-          steam_username: user.steam_username,
-          steam_avatar_url: user.steam_avatar_url,
-          isStudio: user.isStudio,
-          admin: !!user.admin,
-        });
-      }
-      res.send(filtered);
+      res.send(users.map(mapUserSearch));
     } catch (error) {
-      console.error("Error searching users", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error searching users", error: message });
+      sendError(res, 500, "Error searching users", (error as Error).message);
     }
   }
 
@@ -493,64 +410,27 @@ export class Users {
     try {
       await userIdParamValidator.validate(req.params);
     } catch (err) {
-      return res.status(400).send({ message: "Invalid userId", error: err });
+      return sendError(res, 400, "Invalid userId", err);
     }
     const { userId } = req.params;
     const user = await this.userService.getUser(userId);
-    if (!user) {
-      return res.status(404).send({ message: "User not found" });
-    }
-
-    const filteredUser = {
-      // ...discordUser,
-      id: user.user_id,
-      userId: user.user_id,
-      balance: Math.floor(user.balance),
-      username: user.username,
-      steam_id: user.steam_id,
-      steam_username: user.steam_username,
-      steam_avatar_url: user.steam_avatar_url,
-      verified: !!user.verified,
-      isStudio: !!user.isStudio,
-      admin: !!user.admin,
-    };
-    res.send(filteredUser);
+    if (!user) return sendError(res, 404, "User not found");
+    res.send(mapUserSearch(user));
   }
 
   // --- ACTIONS ADMINISTRATIVES ---
-  @httpGet("/admin/search")
-  public async adminSearchUsers(req: Request, res: Response) {
-    const query = (req.query.q as string)?.trim();
-    if (!query) {
-      return res.status(400).send({ message: "Missing search query" });
+  @httpGet("/admin/search", LoggedCheck.middleware)
+  public async adminSearchUsers(req: AuthenticatedRequest, res: Response) {
+    if (!req.user?.admin) {
+      return res.status(403).send({ message: "Forbidden" });
     }
+    const query = (req.query.q as string)?.trim();
+    if (!query) return sendError(res, 400, "Missing search query");
     try {
       const users: User[] = await this.userService.adminSearchUsers(query);
-
-      const filtered = [];
-      for (const user of users) {
-        // const discordUser = await this.userService.getDiscordUser(user.user_id);
-        filtered.push({
-          // ...discordUser,
-          id: user.user_id,
-          userId: user.user_id,
-          username: user.username,
-          balance: Math.floor(user.balance),
-          verified: user.verified,
-          steam_id: user.steam_id,
-          steam_username: user.steam_username,
-          steam_avatar_url: user.steam_avatar_url,
-          isStudio: user.isStudio,
-          admin: !!user.admin,
-        });
-      }
-      res.send(filtered);
+      res.send(users.map(mapUserSearch));
     } catch (error) {
-      console.error("Error searching users", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error searching users", error: message });
+      sendError(res, 500, "Error searching users", (error as Error).message);
     }
   }
 
@@ -588,44 +468,20 @@ export class Users {
     }
   }
 
-  @httpGet("/admin/:userId")
-  public async adminGetUser(req: Request, res: Response) {
+  @httpGet("/admin/:userId", LoggedCheck.middleware)
+  public async adminGetUser(req: AuthenticatedRequest, res: Response) {
+    if (!req.user?.admin) {
+      return res.status(403).send({ message: "Forbidden" });
+    }
     try {
       await userIdParamValidator.validate(req.params);
     } catch (err) {
-      return res.status(400).send({ message: "Invalid userId", error: err });
+      return sendError(res, 400, "Invalid userId", err);
     }
     const { userId } = req.params;
     const user = await this.userService.adminGetUser(userId);
-    if (!user) {
-      return res.status(404).send({ message: "User not found" });
-    }
-    // Filter user to only expose allowed fields
-    // const discordUser = await this.userService.getDiscordUser(user.user_id);
-    const filteredUser: {
-      id: string;
-      userId: string;
-      balance: number;
-      verified: boolean;
-      username: string;
-      admin?: boolean;
-      disabled?: boolean;
-      isStudio?: boolean;
-    } = {
-      // ...discordUser,
-      id: user.user_id,
-      userId: user.user_id,
-      balance: Math.floor(user.balance),
-      verified: user.verified,
-      username: user.username,
-      disabled: !!user.disabled,
-      admin: !!user.admin,
-      isStudio: !!user.isStudio,
-    };
-    if (user.admin) {
-      filteredUser.admin = user.admin;
-    }
-    res.send(filteredUser);
+    if (!user) return sendError(res, 404, "User not found");
+    res.send(mapUser(user));
   }
 
   // --- ACTIONS DIVERSES ---
@@ -645,41 +501,19 @@ export class Users {
   @httpPost("/transfer-credits", LoggedCheck.middleware)
   public async transferCredits(req: AuthenticatedRequest, res: Response) {
     const { targetUserId, amount } = req.body;
-    if (!targetUserId || isNaN(amount) || amount <= 0) {
-      return res.status(400).send({ message: "Invalid input" });
-    }
+    if (!targetUserId || isNaN(amount) || amount <= 0) return sendError(res, 400, "Invalid input");
     try {
       const sender = req.user;
-      if (!sender) {
-        return res.status(401).send({ message: "Unauthorized" });
-      }
-      if (sender.user_id === targetUserId) {
-        return sendError(res, 400, "Cannot transfer credits to yourself");
-      }
+      if (!sender) return sendError(res, 401, "Unauthorized");
+      if (sender.user_id === targetUserId) return sendError(res, 400, "Cannot transfer credits to yourself");
       const recipient = await this.userService.getUser(targetUserId);
-      if (!recipient) {
-        return res.status(404).send({ message: "Recipient not found" });
-      }
-      if (sender.balance < amount) {
-        return res.status(400).send({ message: "Insufficient balance" });
-      }
-
-      await this.userService.updateUserBalance(
-        sender.user_id,
-        sender.balance - Number(amount)
-      );
-      await this.userService.updateUserBalance(
-        recipient.user_id,
-        recipient.balance + Number(amount)
-      );
-
+      if (!recipient) return sendError(res, 404, "Recipient not found");
+      if (sender.balance < amount) return sendError(res, 400, "Insufficient balance");
+      await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
+      await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
       res.status(200).send({ message: "Credits transferred" });
     } catch (error) {
-      console.error("Error transferring credits", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error transferring credits", error: message });
+      sendError(res, 500, "Error transferring credits", (error as Error).message);
     }
   }
 
@@ -698,13 +532,9 @@ export class Users {
   @httpPost("/auth-verification")
   async checkVerificationKey(req: Request, res: Response) {
     const { userId, verificationKey } = req.body;
-    if (!userId || !verificationKey) {
-      return sendError(res, 400, "Missing userId or verificationKey");
-    }
+    if (!userId || !verificationKey) return sendError(res, 400, "Missing userId or verificationKey");
     const user = await this.userService.getUser(userId);
-    if (!user) {
-      return res.status(404).send({ message: "User not found" });
-    }
+    if (!user) return sendError(res, 404, "User not found");
     const expectedKey = genVerificationKey(user.user_id);
     res.send({ success: verificationKey === expectedKey });
   }
@@ -713,46 +543,31 @@ export class Users {
   async changeRole(req: AuthenticatedRequest, res: Response) {
     const userId = req.originalUser?.user_id;
     const { role } = req.body;
-    if (!userId) {
-      return sendError(res, 401, "Unauthorized");
-    }
-    if (!role || typeof role !== "string") {
-      return sendError(res, 400, "Invalid role");
-    }
+    if (!userId) return sendError(res, 401, "Unauthorized");
+    if (!role || typeof role !== "string") return sendError(res, 400, "Invalid role");
     try {
       const studios = await this.studioService.getUserStudios(userId);
       const roles = [userId, ...studios.map((s) => s.user_id)];
-      if (!roles.includes(role)) {
-        return sendError(res, 403, "Forbidden: Invalid role");
-      }
-      // Set a cookie named "role" with the value provided in the request
+      if (!roles.includes(role)) return sendError(res, 403, "Forbidden: Invalid role");
       res.cookie("role", role, {
         httpOnly: false,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
-      return res
-        .status(200)
-        .send({ message: "Role updated successfully" });
+      return res.status(200).send({ message: "Role updated successfully" });
     } catch (error) {
-      console.error("Error setting role cookie", error);
-      const message = error instanceof Error ? error.message : String(error);
-      return sendError(res, 500, "Error setting role cookie", message);
+      sendError(res, 500, "Error setting role cookie", (error as Error).message);
     }
   }
 
   @httpGet("/validate-reset-token")
   public async isValidResetToken(req: Request, res: Response) {
     const { reset_token } = req.query;
-    if (!reset_token) {
-      return sendError(res, 400, "Missing required fields");
-    }
+    if (!reset_token) return sendError(res, 400, "Missing required fields");
     const users = await this.userService.getAllUsersWithDisabled();
     const user = findUserByResetToken(users, reset_token as string);
-    if (!user) {
-      return sendError(res, 404, "Invalid reset token");
-    }
+    if (!user) return sendError(res, 404, "Invalid reset token");
     res.status(200).send({ message: "Valid reset token", user });
   }
 }

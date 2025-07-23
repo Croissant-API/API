@@ -7,6 +7,6 @@ export declare class Inventories {
     private itemService;
     constructor(inventoryService: IInventoryService, itemService: IItemService);
     getMyInventory(req: AuthenticatedRequest, res: Response): Promise<void>;
-    getInventory(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getInventory(req: Request, res: Response): Promise<void>;
     getAllInventories(req: Request, res: Response): Promise<void>;
 }

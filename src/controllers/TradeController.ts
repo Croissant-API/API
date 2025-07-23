@@ -11,6 +11,25 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { TradeItem } from "../interfaces/Trade";
 import { tradeItemActionSchema } from "../validators/TradeValidator";
 import { ValidationError } from "yup";
+import { Schema } from "yup";
+
+function handleError(res: Response, error: unknown, message: string, status = 500) {
+  const msg = error instanceof Error ? error.message : String(error);
+  res.status(status).send({ message, error: msg });
+}
+
+async function validateOr400(schema: Schema<unknown>, data: unknown, res: Response) {
+  try {
+    await schema.validate(data, { abortEarly: false });
+    return true;
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      res.status(400).send({ message: "Validation failed", errors: error.errors });
+      return false;
+    }
+    throw error;
+  }
+}
 
 @controller("/trades")
 export class Trades {
@@ -34,10 +53,7 @@ export class Trades {
       );
       res.status(200).send(trade);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error starting or getting trade", error: message });
+      handleError(res, error, "Error starting or getting trade");
     }
   }
 
@@ -58,8 +74,7 @@ export class Trades {
       }
       res.send(trade);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error fetching trade", error: message });
+      handleError(res, error, "Error fetching trade");
     }
   }
 
@@ -73,18 +88,15 @@ export class Trades {
       const trades = await this.tradeService.getTradesByUser(userId);
       res.send(trades);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error fetching trades", error: message });
+      handleError(res, error, "Error fetching trades");
     }
   }
 
   // --- Actions sur une trade ---
   @httpPost("/:id/add-item", LoggedCheck.middleware)
   public async addItemToTrade(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
     try {
-      await tradeItemActionSchema.validate(req.body, { abortEarly: false });
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
       await this.tradeService.addItemToTrade(
@@ -94,22 +106,14 @@ export class Trades {
       );
       res.status(200).send({ message: "Item added to trade" });
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return res
-          .status(400)
-          .send({ message: "Validation failed", errors: error.errors });
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error adding item to trade", error: message });
+      handleError(res, error, "Error adding item to trade");
     }
   }
 
   @httpPost("/:id/remove-item", LoggedCheck.middleware)
   public async removeItemFromTrade(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
     try {
-      await tradeItemActionSchema.validate(req.body, { abortEarly: false });
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
       await this.tradeService.removeItemFromTrade(
@@ -119,15 +123,7 @@ export class Trades {
       );
       res.status(200).send({ message: "Item removed from trade" });
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return res
-          .status(400)
-          .send({ message: "Validation failed", errors: error.errors });
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error removing item from trade", error: message });
+      handleError(res, error, "Error removing item from trade");
     }
   }
 
@@ -138,10 +134,7 @@ export class Trades {
       await this.tradeService.approveTrade(tradeId, req.user.user_id);
       res.status(200).send({ message: "Trade approved" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error approving trade", error: message });
+      handleError(res, error, "Error approving trade");
     }
   }
 
@@ -152,10 +145,7 @@ export class Trades {
       await this.tradeService.cancelTrade(tradeId, req.user.user_id);
       res.status(200).send({ message: "Trade canceled" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error canceling trade", error: message });
+      handleError(res, error, "Error canceling trade");
     }
   }
 }

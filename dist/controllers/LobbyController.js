@@ -20,6 +20,23 @@ const yup_1 = require("yup");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
+async function validateOr400(schema, data, res) {
+    try {
+        await schema.validate(data);
+        return true;
+    }
+    catch (error) {
+        if (error instanceof yup_1.ValidationError) {
+            res.status(400).send({ message: "Validation failed", errors: error.errors });
+            return false;
+        }
+        throw error;
+    }
+}
 let Lobbies = class Lobbies {
     constructor(lobbyService) {
         this.lobbyService = lobbyService;
@@ -103,46 +120,25 @@ let Lobbies = class Lobbies {
     }
     // --- Actions sur un lobby ---
     async joinLobby(req, res) {
+        if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res)))
+            return;
         try {
-            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            const lobbyId = req.params.lobbyId;
-            this.lobbyService.joinLobby(lobbyId, req.user.user_id).then(() => {
-                res.status(200).send({ message: "Joined lobby" });
-            }).catch((error) => {
-                if (error instanceof yup_1.ValidationError) {
-                    res.status(400).send({ message: "Validation failed", errors: error.errors });
-                }
-                else {
-                    const message = error instanceof Error ? error.message : String(error);
-                    res.status(500).send({ message: "Error joining lobby", error: message });
-                }
-            });
+            await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
+            res.status(200).send({ message: "Joined lobby" });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error joining lobby", error: message });
+            handleError(res, error, "Error joining lobby");
         }
     }
     async leaveLobby(req, res) {
+        if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res)))
+            return;
         try {
-            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
-            const lobbyId = req.params.lobbyId;
-            await this.lobbyService.leaveLobby(lobbyId, req.user.user_id);
+            await this.lobbyService.leaveLobby(req.params.lobbyId, req.user.user_id);
             res.status(200).send({ message: "Left lobby" });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error leaving lobby", error: message });
+            handleError(res, error, "Error leaving lobby");
         }
     }
 };

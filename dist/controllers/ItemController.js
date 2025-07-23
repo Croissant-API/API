@@ -20,6 +20,37 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
+const yup_1 = require("yup");
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
+async function validateOr400(schema, data, res, message = "Invalid data") {
+    try {
+        await schema.validate(data);
+        return true;
+    }
+    catch (error) {
+        if (error instanceof yup_1.ValidationError) {
+            res.status(400).send({ message, errors: error.errors });
+            return false;
+        }
+        throw error;
+    }
+}
+function mapItem(item) {
+    return {
+        itemId: item.itemId,
+        name: item.name,
+        description: item.description,
+        owner: item.owner,
+        price: item.price,
+        iconHash: item.iconHash,
+        ...(typeof item.showInStore !== "undefined" && {
+            showInStore: item.showInStore,
+        }),
+    };
+}
 let Items = class Items {
     constructor(itemService, inventoryService, userService) {
         this.itemService = itemService;
@@ -28,96 +59,56 @@ let Items = class Items {
     }
     // --- LECTURE ---
     async getAllItems(req, res) {
-        const items = await this.itemService.getAllItems();
-        const filteredItems = items.filter((item) => !item.deleted && item.showInStore);
-        const filteredItemsMap = filteredItems.map((item) => {
-            return {
-                itemId: item.itemId,
-                name: item.name,
-                description: item.description,
-                owner: item.owner,
-                price: item.price,
-                iconHash: item.iconHash,
-            };
-        });
-        res.send(filteredItemsMap);
+        try {
+            const items = await this.itemService.getAllItems();
+            res.send(items.filter((i) => !i.deleted && i.showInStore).map(mapItem));
+        }
+        catch (error) {
+            handleError(res, error, "Error fetching items");
+        }
     }
     async getMyItems(req, res) {
         const userId = req.user?.user_id;
-        if (!userId) {
+        if (!userId)
             return res.status(401).send({ message: "Unauthorized" });
+        try {
+            const items = await this.itemService.getAllItems();
+            res.send(items.filter((i) => !i.deleted && i.owner === userId).map(mapItem));
         }
-        const items = await this.itemService.getAllItems();
-        const myItems = items.filter((item) => !item.deleted && item.owner === userId);
-        const myItemsMap = myItems.map((item) => ({
-            itemId: item.itemId,
-            name: item.name,
-            description: item.description,
-            owner: item.owner,
-            price: item.price,
-            iconHash: item.iconHash,
-            showInStore: item.showInStore,
-        }));
-        res.send(myItemsMap);
+        catch (error) {
+            handleError(res, error, "Error fetching your items");
+        }
     }
     async searchItems(req, res) {
         const query = req.query.q?.trim();
-        if (!query) {
+        if (!query)
             return res.status(400).send({ message: "Missing search query" });
-        }
         try {
             const items = await this.itemService.searchItemsByName(query);
-            const filtered = items.map((item) => ({
-                itemId: item.itemId,
-                name: item.name,
-                description: item.description,
-                owner: item.owner,
-                price: item.price,
-                iconHash: item.iconHash,
-                showInStore: !!item.showInStore,
-            }));
-            res.send(filtered);
+            res.send(items.map(mapItem));
         }
-        catch {
-            res.status(500).send({ message: "Error searching items" });
+        catch (error) {
+            handleError(res, error, "Error searching items");
         }
     }
     async healthCheck(req, res) {
+        if (!(await validateOr400(ItemValidator_1.itemIdParamValidator, req.params, res, "Invalid itemId")))
+            return;
         try {
-            await ItemValidator_1.itemIdParamValidator.validate(req.params);
+            const { itemId } = req.params;
+            const item = await this.itemService.getItem(itemId);
+            if (!item || item.deleted)
+                return res.status(404).send({ message: "Item not found" });
+            res.send(mapItem(item));
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return res
-                .status(400)
-                .send({ message: "Invalid itemId", error: message });
+            handleError(res, error, "Error fetching item");
         }
-        const { itemId } = req.params;
-        const item = await this.itemService.getItem(itemId);
-        if (!item || item.deleted) {
-            return res.status(404).send({ message: "Item not found" });
-        }
-        const filteredItem = {
-            name: item.name,
-            description: item.description,
-            owner: item.owner,
-            price: item.price,
-            showInStore: item.showInStore,
-            iconHash: item.iconHash,
-        };
-        res.send(filteredItem);
     }
     // --- CREATION / MODIFICATION / SUPPRESSION ---
     async createItem(req, res) {
-        try {
-            await ItemValidator_1.createItemValidator.validate(req.body);
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return res
-                .status(400)
-                .send({ message: "Invalid item data", error: message });
-        }
+        if (!(await validateOr400(ItemValidator_1.createItemValidator, req.body, res, "Invalid item data")))
+            return;
         const itemId = (0, uuid_1.v4)();
         const { name, description, price, iconHash, showInStore } = req.body;
         try {
@@ -134,22 +125,14 @@ let Items = class Items {
             res.status(200).send({ message: "Item created" });
         }
         catch (error) {
-            console.error("Error creating item", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error creating item", error: message });
+            handleError(res, error, "Error creating item");
         }
     }
     async updateItem(req, res) {
-        try {
-            await ItemValidator_1.itemIdParamValidator.validate(req.params);
-            await ItemValidator_1.updateItemValidator.validate(req.body);
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return res
-                .status(400)
-                .send({ message: "Invalid update data", error: message });
-        }
+        if (!(await validateOr400(ItemValidator_1.itemIdParamValidator, req.params, res, "Invalid itemId")))
+            return;
+        if (!(await validateOr400(ItemValidator_1.updateItemValidator, req.body, res, "Invalid update data")))
+            return;
         const { itemId } = req.params;
         const { name, description, price, iconHash, showInStore } = req.body;
         try {
@@ -163,30 +146,19 @@ let Items = class Items {
             res.status(200).send({ message: "Item updated" });
         }
         catch (error) {
-            console.error("Error updating item", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error updating item", error: message });
+            handleError(res, error, "Error updating item");
         }
     }
     async deleteItem(req, res) {
-        try {
-            await ItemValidator_1.itemIdParamValidator.validate(req.params);
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return res
-                .status(400)
-                .send({ message: "Invalid itemId", error: message });
-        }
+        if (!(await validateOr400(ItemValidator_1.itemIdParamValidator, req.params, res, "Invalid itemId")))
+            return;
         const { itemId } = req.params;
         try {
             await this.itemService.deleteItem(itemId);
             res.status(200).send({ message: "Item deleted" });
         }
         catch (error) {
-            console.error("Error deleting item", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error deleting item", error: message });
+            handleError(res, error, "Error deleting item");
         }
     }
     // --- ACTIONS INVENTAIRE ---
@@ -455,7 +427,7 @@ __decorate([
         },
         example: "GET /api/items/123",
     }),
-    (0, inversify_express_utils_1.httpGet)("/:itemId"),
+    (0, inversify_express_utils_1.httpGet)(":itemId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

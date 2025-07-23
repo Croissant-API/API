@@ -18,6 +18,7 @@ import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
 import { Game } from "../interfaces/Game";
+import { Schema } from "yup";
 
 // Utility to filter game fields based on the user
 function filterGame(game: Game, userId?: string) {
@@ -46,6 +47,46 @@ function filterGame(game: Game, userId?: string) {
   };
 }
 
+// --- UTILS ---
+const gameResponseFields = {
+  gameId: "string",
+  name: "string",
+  description: "string",
+  price: "number",
+  owner_id: "string",
+  showInStore: "boolean",
+  iconHash: "string",
+  splashHash: "string",
+  bannerHash: "string",
+  genre: "string",
+  release_date: "string",
+  developer: "string",
+  publisher: "string",
+  platforms: ["string"],
+  rating: "number",
+  website: "string",
+  trailer_link: "string",
+  multiplayer: "boolean",
+};
+
+function handleError(res: Response, error: unknown, message: string, status = 500) {
+  const msg = error instanceof Error ? error.message : String(error);
+  res.status(status).send({ message, error: msg });
+}
+
+async function validateOr400(schema: Schema<unknown>, data: unknown, res: Response) {
+  try {
+    await schema.validate(data);
+    return true;
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      res.status(400).send({ message: "Validation failed", errors: error.errors });
+      return false;
+    }
+    throw error;
+  }
+}
+
 @controller("/games")
 export class Games {
   constructor(
@@ -59,41 +100,16 @@ export class Games {
     endpoint: "/games",
     method: "GET",
     description: "List all games visible in the store.",
-    responseType: [
-      {
-        gameId: "string",
-        name: "string",
-        description: "string",
-        price: "number",
-        owner_id: "string",
-        showInStore: "boolean",
-        iconHash: "string",
-        splashHash: "string",
-        bannerHash: "string",
-        genre: "string",
-        release_date: "string",
-        developer: "string",
-        publisher: "string",
-        platforms: ["string"],
-        rating: "number",
-        website: "string",
-        trailer_link: "string",
-        multiplayer: "boolean",
-      },
-    ],
+    responseType: [gameResponseFields],
     example: "GET /api/games",
   })
   @httpGet("/")
   public async listGames(req: Request, res: Response) {
     try {
       const games = await this.gameService.listGames();
-      const filteredGames = games
-        .filter((game) => game.showInStore)
-        .map((game) => filterGame(game));
-      res.send(filteredGames);
+      res.send(games.filter(g => g.showInStore).map(g => filterGame(g)));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error listing games", error: message });
+      handleError(res, error, "Error listing games");
     }
   }
 
@@ -102,56 +118,24 @@ export class Games {
     method: "GET",
     description: "Search for games by name, genre, or description.",
     query: { q: "The search query" },
-    responseType: [
-      {
-        gameId: "string",
-        name: "string",
-        description: "string",
-        price: "number",
-        owner_id: "string",
-        showInStore: "boolean",
-        iconHash: "string",
-        splashHash: "string",
-        bannerHash: "string",
-        genre: "string",
-        release_date: "string",
-        developer: "string",
-        publisher: "string",
-        platforms: ["string"],
-        rating: "number",
-        website: "string",
-        trailer_link: "string",
-        multiplayer: "boolean",
-      },
-    ],
+    responseType: [gameResponseFields],
     example: "GET /api/games/search?q=Minecraft",
   })
   @httpGet("/search")
   public async searchGames(req: Request, res: Response) {
     const query = (req.query.q as string)?.trim();
-    if (!query) {
-      return res.status(400).send({ message: "Missing search query" });
-    }
+    if (!query) return res.status(400).send({ message: "Missing search query" });
     try {
       const games = await this.gameService.listGames();
-      const filtered = games
-        .filter(
-          (game) =>
-            game.showInStore &&
-            ((game.name &&
-              game.name.toLowerCase().includes(query.toLowerCase())) ||
-              (game.description &&
-                game.description.toLowerCase().includes(query.toLowerCase())) ||
-              (game.genre &&
-                game.genre.toLowerCase().includes(query.toLowerCase())))
-        )
-        .map((game) => filterGame(game));
-      res.send(filtered);
+      res.send(
+        games.filter(
+          g => g.showInStore && [g.name, g.description, g.genre].some(
+            v => v && v.toLowerCase().includes(query.toLowerCase())
+          )
+        ).map(g => filterGame(g))
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error searching games", error: message });
+      handleError(res, error, "Error searching games");
     }
   }
 
@@ -159,29 +143,7 @@ export class Games {
     endpoint: "/games/@mine",
     method: "GET",
     description: "Get all games created by the authenticated user.",
-    responseType: [
-      {
-        gameId: "string",
-        name: "string",
-        description: "string",
-        price: "number",
-        owner_id: "string",
-        showInStore: "boolean",
-        iconHash: "string",
-        splashHash: "string",
-        bannerHash: "string",
-        genre: "string",
-        release_date: "string",
-        developer: "string",
-        publisher: "string",
-        platforms: ["string"],
-        rating: "number",
-        website: "string",
-        trailer_link: "string",
-        multiplayer: "boolean",
-        download_link: "string",
-      },
-    ],
+    responseType: [{ ...gameResponseFields, download_link: "string" }],
     example: "GET /api/games/@mine",
     requiresAuth: true,
   })
@@ -190,14 +152,9 @@ export class Games {
     try {
       const userId = req.user.user_id;
       const games = await this.gameService.listGames();
-      const myGames = games.filter((game) => game.owner_id === userId);
-      const filteredGames = myGames.map((game) => filterGame(game, userId));
-      res.send(filteredGames);
+      res.send(games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId)));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error fetching your created games", error: message });
+      handleError(res, error, "Error fetching your created games");
     }
   }
 
@@ -206,43 +163,16 @@ export class Games {
     method: "GET",
     description:
       'Get all games owned by the authenticated user. Requires authentication via header "Authorization: Bearer <token>".',
-    responseType: [
-      {
-        gameId: "string",
-        name: "string",
-        description: "string",
-        price: "number",
-        owner_id: "string",
-        showInStore: "boolean",
-        iconHash: "string",
-        splashHash: "string",
-        bannerHash: "string",
-        genre: "string",
-        release_date: "string",
-        developer: "string",
-        publisher: "string",
-        platforms: ["string"],
-        rating: "number",
-        website: "string",
-        trailer_link: "string",
-        multiplayer: "boolean",
-        download_link: "string",
-      },
-    ],
+    responseType: [{ ...gameResponseFields, download_link: "string" }],
     example: "GET /api/games/list/@me",
     requiresAuth: true,
   })
   @httpGet("/list/@me", LoggedCheck.middleware)
   public async getUserGames(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user.user_id;
-      const games = await this.gameService.getUserGames(userId);
-      res.send(games);
+      res.send(await this.gameService.getUserGames(req.user.user_id));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error fetching user games", error: message });
+      handleError(res, error, "Error fetching user games");
     }
   }
 
@@ -251,46 +181,19 @@ export class Games {
     method: "GET",
     description: "Get a game by gameId.",
     params: { gameId: "The id of the game" },
-    responseType: {
-      gameId: "string",
-      name: "string",
-      description: "string",
-      price: "number",
-      owner_id: "string",
-      showInStore: "boolean",
-      iconHash: "string",
-      splashHash: "string",
-      bannerHash: "string",
-      genre: "string",
-      release_date: "string",
-      developer: "string",
-      publisher: "string",
-      platforms: ["string"],
-      rating: "number",
-      website: "string",
-      trailer_link: "string",
-      multiplayer: "boolean",
-    },
+    responseType: gameResponseFields,
     example: "GET /api/games/123",
   })
-  @httpGet("/:gameId")
+  @httpGet(":gameId")
   public async getGame(req: Request, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
     try {
-      await gameIdParamSchema.validate(req.params);
       const { gameId } = req.params;
       const game = await this.gameService.getGame(gameId);
-      if (!game) {
-        return res.status(404).send({ message: "Game not found" });
-      }
+      if (!game) return res.status(404).send({ message: "Game not found" });
       res.send(filterGame(game));
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return res
-          .status(400)
-          .send({ message: "Validation failed", errors: error.errors });
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error fetching game", error: message });
+      handleError(res, error, "Error fetching game");
     }
   }
 
@@ -298,35 +201,13 @@ export class Games {
 
   @httpPost("/", LoggedCheck.middleware)
   public async createGame(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(createGameBodySchema, req.body, res))) return;
     try {
-      await createGameBodySchema.validate(req.body);
-      const {
-        name,
-        description,
-        price,
-        download_link,
-        showInStore,
-        iconHash,
-        splashHash,
-        bannerHash,
-        genre,
-        release_date,
-        developer,
-        publisher,
-        platforms,
-        rating,
-        website,
-        trailer_link,
-        multiplayer,
-      } = req.body;
+      const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer } = req.body;
       const gameId = v4();
       const ownerId = req.user.user_id;
-
       await this.gameService.createGame({
-        gameId,
-        name,
-        description,
-        price,
+        gameId, name, description, price,
         download_link: download_link ?? null,
         showInStore: showInStore ?? false,
         owner_id: ownerId,
@@ -343,97 +224,55 @@ export class Games {
         trailer_link: trailer_link ?? null,
         multiplayer: multiplayer ?? false,
       });
-      // Ajoute automatiquement le créateur comme propriétaire
       await this.gameService.addOwner(gameId, ownerId);
-
-      const game = await this.gameService.getGame(gameId);
-      res.status(201).send({ message: "Game created", game: game });
+      res.status(201).send({ message: "Game created", game: await this.gameService.getGame(gameId) });
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return res
-          .status(400)
-          .send({ message: "Validation failed", errors: error.errors });
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error creating game", error: message });
+      handleError(res, error, "Error creating game");
     }
   }
 
-  @httpPut("/:gameId", LoggedCheck.middleware)
+  @httpPut(":gameId", LoggedCheck.middleware)
   public async updateGame(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
+    if (!(await validateOr400(updateGameBodySchema, req.body, res))) return;
     try {
-      await gameIdParamSchema.validate(req.params);
-      await updateGameBodySchema.validate(req.body);
       const game = await this.gameService.getGame(req.params.gameId);
-      if (!game) {
-        return res.status(404).send({ message: "Game not found" });
-      }
-      if (req.user.user_id !== game.owner_id) {
-        return res
-          .status(403)
-          .send({ message: "You are not the owner of this game" });
-      }
-      const { gameId } = req.params;
-      await this.gameService.updateGame(gameId, req.body);
-      const updatedGame = (await this.gameService.getGame(gameId)) as Game;
-      res.status(200).send(filterGame(updatedGame, req.user.user_id));
+      if (!game) return res.status(404).send({ message: "Game not found" });
+      if (req.user.user_id !== game.owner_id) return res.status(403).send({ message: "You are not the owner of this game" });
+      await this.gameService.updateGame(req.params.gameId, req.body);
+      const updatedGame = await this.gameService.getGame(req.params.gameId);
+      res.status(200).send(updatedGame ? filterGame(updatedGame, req.user.user_id) : null);
     } catch (error) {
-      if (error instanceof ValidationError) {
-        return res
-          .status(400)
-          .send({ message: "Validation failed", errors: error.errors });
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: "Error updating game", error: message });
+      handleError(res, error, "Error updating game");
     }
   }
 
   // --- ACHAT ---
 
-  @httpPost("/:gameId/buy", LoggedCheck.middleware)
+  @httpPost(":gameId/buy", LoggedCheck.middleware)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
     const userId = req.user.user_id;
     try {
       const game = await this.gameService.getGame(gameId);
-      if (!game) {
-        return res.status(404).send({ message: "Game not found" });
-      }
+      if (!game) return res.status(404).send({ message: "Game not found" });
       const userGames = await this.gameService.getUserGames(userId);
-      if (userGames.some((g) => g.gameId === gameId)) {
-        return res.status(400).send({ message: "Game already owned" });
-      }
+      if (userGames.some(g => g.gameId === gameId)) return res.status(400).send({ message: "Game already owned" });
       if (game.owner_id === userId) {
         await this.gameService.addOwner(gameId, userId);
-        res.status(200).send({ message: "Game obtained" });
-      } else {
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-          return res.status(404).send({ message: "User not found" });
-        }
-        if (user.balance < game.price) {
-          return res.status(400).send({ message: "Not enough balance" });
-        }
-        await this.userService.updateUserBalance(
-          userId,
-          user.balance - game.price
-        );
-        const owner = await this.userService.getUser(game.owner_id);
-        if (!owner) {
-          return res.status(404).send({ message: "Owner not found" });
-        }
-        await this.userService.updateUserBalance(
-          game.owner_id,
-          owner.balance + game.price * 0.75
-        );
-        await this.gameService.addOwner(gameId, userId);
-        res.status(200).send({ message: "Game purchased" });
+        return res.status(200).send({ message: "Game obtained" });
       }
+      const user = await this.userService.getUser(userId);
+      if (!user) return res.status(404).send({ message: "User not found" });
+      if (user.balance < game.price) return res.status(400).send({ message: "Not enough balance" });
+      await this.userService.updateUserBalance(userId, user.balance - game.price);
+      const owner = await this.userService.getUser(game.owner_id);
+      if (!owner) return res.status(404).send({ message: "Owner not found" });
+      await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
+      await this.gameService.addOwner(gameId, userId);
+      res.status(200).send({ message: "Game purchased" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error purchasing game", error: message });
+      handleError(res, error, "Error purchasing game");
     }
   }
 }

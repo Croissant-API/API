@@ -18,6 +18,23 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const TradeValidator_1 = require("../validators/TradeValidator");
 const yup_1 = require("yup");
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
+async function validateOr400(schema, data, res) {
+    try {
+        await schema.validate(data, { abortEarly: false });
+        return true;
+    }
+    catch (error) {
+        if (error instanceof yup_1.ValidationError) {
+            res.status(400).send({ message: "Validation failed", errors: error.errors });
+            return false;
+        }
+        throw error;
+    }
+}
 let Trades = class Trades {
     constructor(tradeService) {
         this.tradeService = tradeService;
@@ -34,10 +51,7 @@ let Trades = class Trades {
             res.status(200).send(trade);
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error starting or getting trade", error: message });
+            handleError(res, error, "Error starting or getting trade");
         }
     }
     // --- Lecture ---
@@ -55,8 +69,7 @@ let Trades = class Trades {
             res.send(trade);
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching trade", error: message });
+            handleError(res, error, "Error fetching trade");
         }
     }
     async getTradesByUser(req, res) {
@@ -69,51 +82,34 @@ let Trades = class Trades {
             res.send(trades);
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching trades", error: message });
+            handleError(res, error, "Error fetching trades");
         }
     }
     // --- Actions sur une trade ---
     async addItemToTrade(req, res) {
+        if (!(await validateOr400(TradeValidator_1.tradeItemActionSchema, req.body, res)))
+            return;
         try {
-            await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
             const { tradeItem } = req.body;
             await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item added to trade" });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error adding item to trade", error: message });
+            handleError(res, error, "Error adding item to trade");
         }
     }
     async removeItemFromTrade(req, res) {
+        if (!(await validateOr400(TradeValidator_1.tradeItemActionSchema, req.body, res)))
+            return;
         try {
-            await TradeValidator_1.tradeItemActionSchema.validate(req.body, { abortEarly: false });
             const tradeId = req.params.id;
             const { tradeItem } = req.body;
             await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item removed from trade" });
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error removing item from trade", error: message });
+            handleError(res, error, "Error removing item from trade");
         }
     }
     async approveTrade(req, res) {
@@ -123,10 +119,7 @@ let Trades = class Trades {
             res.status(200).send({ message: "Trade approved" });
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error approving trade", error: message });
+            handleError(res, error, "Error approving trade");
         }
     }
     async cancelTrade(req, res) {
@@ -136,10 +129,7 @@ let Trades = class Trades {
             res.status(200).send({ message: "Trade canceled" });
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error canceling trade", error: message });
+            handleError(res, error, "Error canceling trade");
         }
     }
 };

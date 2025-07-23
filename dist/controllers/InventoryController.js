@@ -18,6 +18,50 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+// --- UTILS ---
+const yup_1 = require("yup");
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
+async function validateOr400(schema, data, res) {
+    try {
+        await schema.validate(data);
+        return true;
+    }
+    catch (error) {
+        if (error instanceof yup_1.ValidationError) {
+            res.status(400).send({
+                message: "Validation failed",
+                errors: error.errors,
+            });
+            return false;
+        }
+        throw error;
+    }
+}
+async function formatInventory(inventory, itemService) {
+    const seen = new Set();
+    return (await Promise.all(inventory
+        .filter((item) => {
+        if (seen.has(item.item_id))
+            return false;
+        seen.add(item.item_id);
+        return true;
+    })
+        .map(async (item) => {
+        const itemDetails = await itemService.getItem(item.item_id);
+        if (!itemDetails || itemDetails.deleted)
+            return null;
+        return {
+            itemId: itemDetails.itemId,
+            name: itemDetails.name,
+            description: itemDetails.description,
+            amount: item.amount,
+            iconHash: itemDetails.iconHash,
+        };
+    }))).filter(Boolean);
+}
 let Inventories = class Inventories {
     constructor(inventoryService, itemService) {
         this.inventoryService = inventoryService;
@@ -28,68 +72,23 @@ let Inventories = class Inventories {
         const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
-            const seen = new Set();
-            const uniqueInventory = inventory.filter((item) => {
-                if (seen.has(item.item_id))
-                    return false;
-                seen.add(item.item_id);
-                return true;
-            });
-            const filteredInventory = (await Promise.all(uniqueInventory.map(async (item) => {
-                const itemDetails = await this.itemService.getItem(item.item_id);
-                if (!itemDetails || itemDetails.deleted) {
-                    return null; // Skip deleted items
-                }
-                return {
-                    itemId: itemDetails.itemId,
-                    name: itemDetails.name,
-                    description: itemDetails.description,
-                    amount: item.amount,
-                    iconHash: itemDetails.iconHash,
-                };
-            }))).filter(Boolean); // Remove nulls
-            res.send(filteredInventory);
+            res.send(await formatInventory(inventory, this.itemService));
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching inventory", error: message });
+            handleError(res, error, "Error fetching inventory");
         }
     }
     // --- Inventaire d'un utilisateur spécifique ---
     async getInventory(req, res) {
-        try {
-            await InventoryValidator_1.userIdParamSchema.validate({ userId: req.params.userId });
-        }
-        catch (err) {
-            return res
-                .status(400)
-                .send({ message: err instanceof Error ? err.message : String(err) });
-        }
+        if (!(await validateOr400(InventoryValidator_1.userIdParamSchema, { userId: req.params.userId }, res)))
+            return;
         const userId = req.params.userId;
         try {
             const { inventory } = await this.inventoryService.getInventory(userId);
-            const filteredInventory = (await Promise.all(inventory.map(async (item) => {
-                const itemDetails = await this.itemService.getItem(item.item_id);
-                if (!itemDetails || itemDetails.deleted) {
-                    return null; // Skip deleted items
-                }
-                return {
-                    itemId: itemDetails.itemId,
-                    name: itemDetails.name,
-                    description: itemDetails.description,
-                    amount: item.amount,
-                    iconHash: itemDetails.iconHash,
-                };
-            }))).filter(Boolean); // Remove nulls
-            res.send(filteredInventory);
+            res.send(await formatInventory(inventory, this.itemService));
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching inventory", error: message });
+            handleError(res, error, "Error fetching inventory");
         }
     }
     // --- Route générique (prompt) ---

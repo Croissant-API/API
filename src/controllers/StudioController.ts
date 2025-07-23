@@ -83,23 +83,14 @@ export class Studios {
   async addUserToStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).send({ message: "Missing userId" });
-    }
-    const user = await this.studioService.getUser(userId);
-    if (!user) {
-      return res.status(404).send({ message: "User not found" });
-    }
+    if (!userId) return res.status(400).send({ message: "Missing userId" });
     try {
+      const user = await this.studioService.getUser(userId);
+      if (!user) return res.status(404).send({ message: "User not found" });
       await this.studioService.addUserToStudio(studioId, user);
       res.send({ message: "User added to studio" });
     } catch (error) {
-      res
-        .status(500)
-        .send({
-          message: "Error adding user to studio",
-          error: (error as Error).message,
-        });
+      handleError(res, error, "Error adding user to studio");
     }
   }
 
@@ -107,36 +98,26 @@ export class Studios {
   async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).send({ message: "Missing userId" });
-    }
-    const studio = await this.studioService.getStudio(studioId);
-    if (!studio) {
-      return res.status(404).send({ message: "Studio not found" });
-    }
-    if (
-      studio.admin_id === req.originalUser?.user_id &&
-      studio.admin_id === userId
-    ) {
-      return res
-        .status(403)
-        .send({ message: "Cannot remove the studio admin" });
-    }
-    if (req.originalUser?.user_id !== studio.admin_id) {
-      return res
-        .status(403)
-        .send({ message: "Only the studio admin can remove users" });
-    }
+    if (!userId) return res.status(400).send({ message: "Missing userId" });
     try {
+      const studio = await this.studioService.getStudio(studioId);
+      if (!studio) return res.status(404).send({ message: "Studio not found" });
+      if (studio.admin_id === req.originalUser?.user_id && studio.admin_id === userId) {
+        return res.status(403).send({ message: "Cannot remove the studio admin" });
+      }
+      if (req.originalUser?.user_id !== studio.admin_id) {
+        return res.status(403).send({ message: "Only the studio admin can remove users" });
+      }
       await this.studioService.removeUserFromStudio(studioId, userId);
       res.send({ message: "User removed from studio" });
     } catch (error) {
-      res
-        .status(500)
-        .send({
-          message: "Error removing user from studio",
-          error: (error as Error).message,
-        });
+      handleError(res, error, "Error removing user from studio");
     }
   }
+}
+
+// --- UTILS ---
+function handleError(res: Response, error: unknown, message: string, status = 500) {
+  const msg = error instanceof Error ? error.message : String(error);
+  res.status(status).send({ message, error: msg });
 }

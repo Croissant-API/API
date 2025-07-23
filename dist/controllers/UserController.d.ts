@@ -23,12 +23,12 @@ export declare class Users {
     unlinkSteam(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    adminSearchUsers(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    adminSearchUsers(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     disableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     reenableAccount(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    adminGetUser(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    adminGetUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     transferCredits(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    changeRole(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>>>;
+    changeRole(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     isValidResetToken(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

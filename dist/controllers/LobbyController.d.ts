@@ -8,6 +8,6 @@ export declare class Lobbies {
     getLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyLobby(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getUserLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    joinLobby(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    leaveLobby(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    joinLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
+    leaveLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
 }

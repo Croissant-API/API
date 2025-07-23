@@ -13,9 +13,9 @@ export declare class Items {
     getMyItems(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchItems(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     healthCheck(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    createItem(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    updateItem(req: AuthenticatedRequestWithOwner, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    deleteItem(req: AuthenticatedRequestWithOwner, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    createItem(req: AuthenticatedRequest, res: Response): Promise<void>;
+    updateItem(req: AuthenticatedRequestWithOwner, res: Response): Promise<void>;
+    deleteItem(req: AuthenticatedRequestWithOwner, res: Response): Promise<void>;
     buyItem(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     sellItem(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     giveItem(req: AuthenticatedRequestWithOwner, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
