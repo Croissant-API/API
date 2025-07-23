@@ -80,6 +80,12 @@ let GameService = class GameService {
     async removeOwner(gameId, ownerId) {
         await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?", [gameId, ownerId]);
     }
+    async transferOwnership(gameId, newOwnerId) {
+        const game = await this.getGame(gameId);
+        if (!game)
+            throw new Error("Game not found");
+        await this.updateGame(gameId, { owner_id: newOwnerId });
+    }
 };
 GameService = __decorate([
     (0, inversify_1.injectable)(),

@@ -9,6 +9,7 @@ export interface IGameService {
     deleteGame(gameId: string): Promise<void>;
     addOwner(gameId: string, ownerId: string): Promise<void>;
     removeOwner(gameId: string, ownerId: string): Promise<void>;
+    transferOwnership(gameId: string, newOwnerId: string): Promise<void>;
 }
 export declare class GameService implements IGameService {
     private databaseService;
@@ -21,4 +22,5 @@ export declare class GameService implements IGameService {
     deleteGame(gameId: string): Promise<void>;
     addOwner(gameId: string, ownerId: string): Promise<void>;
     removeOwner(gameId: string, ownerId: string): Promise<void>;
+    transferOwnership(gameId: string, newOwnerId: string): Promise<void>;
 }

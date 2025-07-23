@@ -14,13 +14,14 @@ export interface IGameService {
   deleteGame(gameId: string): Promise<void>;
   addOwner(gameId: string, ownerId: string): Promise<void>;
   removeOwner(gameId: string, ownerId: string): Promise<void>;
+  transferOwnership(gameId: string, newOwnerId: string): Promise<void>;
 }
 
 @injectable()
 export class GameService implements IGameService {
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {}
+  ) { }
 
   async getGame(gameId: string): Promise<Game | null> {
     const rows = await this.databaseService.read<Game[]>(
@@ -112,6 +113,15 @@ export class GameService implements IGameService {
       "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
       [gameId, ownerId]
     );
+  }
+
+  async transferOwnership(
+    gameId: string,
+    newOwnerId: string
+  ): Promise<void> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new Error("Game not found");
+    await this.updateGame(gameId, { owner_id: newOwnerId });
   }
 }
 
