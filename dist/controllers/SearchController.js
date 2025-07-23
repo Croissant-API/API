@@ -16,6 +16,7 @@ exports.SearchController = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const helpers_1 = require("../utils/helpers");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let SearchController = class SearchController {
     constructor(userService, itemService, gameService, inventoryService) {
         this.userService = userService;
@@ -50,6 +51,34 @@ let SearchController = class SearchController {
             res.status(500).send({ message: "Error searching", error: msg });
         }
     }
+    async adminSearch(req, res) {
+        if (!req.user?.admin)
+            return (0, helpers_1.sendError)(res, 403, "Forbidden");
+        const query = req.query.q?.trim();
+        if (!query)
+            return (0, helpers_1.sendError)(res, 400, "Missing search query");
+        try {
+            const users = await this.userService.adminSearchUsers(query);
+            const detailledUsers = await Promise.all(users.map(async (user) => {
+                // if (user.disabled) return null; // Skip disabled users
+                const { inventory } = await this.inventoryService.getInventory(user.user_id);
+                const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
+                const items = await this.itemService.getAllItems();
+                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(helpers_1.mapItem);
+                const games = await this.gameService.listGames();
+                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => (0, helpers_1.filterGame)(g, user?.user_id));
+                return { ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
+            }));
+            const items = await this.itemService.searchItemsByName(query);
+            const games = await this.gameService.listGames();
+            const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
+            res.send({ users: detailledUsers, items, games: filteredGames });
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            res.status(500).send({ message: "Error searching", error: msg });
+        }
+    }
 };
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/"),
@@ -57,6 +86,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SearchController.prototype, "globalSearch", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/admin", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], SearchController.prototype, "adminSearch", null);
 SearchController = __decorate([
     (0, inversify_express_utils_1.controller)("/search"),
     __param(0, (0, inversify_1.inject)("UserService")),

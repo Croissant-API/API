@@ -542,7 +542,7 @@ export class Users {
             const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
             const games = await this.gameService.listGames();
             const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-            return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
+            return { ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
       }));
       res.send(detailledUsers.filter(u => u !== null));
     } catch (error) {
@@ -604,7 +604,7 @@ export class Users {
     const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
     const games = await this.gameService.listGames();
     const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
-    res.send({ ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames });
+    res.send({ ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
   }
 
   // --- ACTIONS DIVERSES ---
