@@ -41,7 +41,19 @@ export class Users {
     // Vérifie si l'utilisateur existe par email
     // let user = await this.userService.findByEmail(email);
     const users = await this.userService.getAllUsersWithDisabled();
-    let user = users.find((u) => u.discord_id === providerId || u.google_id === providerId);
+    const authHeader =
+      req.headers["authorization"] ||
+      "Bearer " +
+      req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+    const token = authHeader.split("Bearer ")[1];
+
+
+
+    let user = await this.userService.authenticateUser(token);
+    if (!user) {
+      user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
+    }
+
     if (!user) {
       // Création d'un nouvel utilisateur si non existant
       const userId = crypto.randomUUID();
@@ -199,13 +211,13 @@ export class Users {
     const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
     const roles = [req.originalUser?.user_id as string, ...studios.map((s) => s.user_id)];
 
-    const {inventory} = await this.inventoryService.getInventory(userId);
+    const { inventory } = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
     const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
     const games = await this.gameService.listGames();
     const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => filterGame(g, userId, userId));
-    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles, inventory: formattedInventory, ownedItems , createdGames });
+    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles, inventory: formattedInventory, ownedItems, createdGames });
   }
 
   @httpPost("/change-username", LoggedCheck.middleware)
@@ -364,14 +376,14 @@ export class Users {
     try {
       const users: User[] = await this.userService.searchUsersByUsername(query);
       const detailledUsers = await Promise.all(users.map(async (user) => {
-            if (user.disabled) return null; // Skip disabled users
-            const {inventory} = await this.inventoryService.getInventory(user.user_id);
-            const formattedInventory = await formatInventory(inventory, this.itemService);
-            const items = await this.itemService.getAllItems();
-            const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
-            const games = await this.gameService.listGames();
-            const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-            return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
+        if (user.disabled) return null; // Skip disabled users
+        const { inventory } = await this.inventoryService.getInventory(user.user_id);
+        const formattedInventory = await formatInventory(inventory, this.itemService);
+        const items = await this.itemService.getAllItems();
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
+        const games = await this.gameService.listGames();
+        const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
+        return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
       }));
       res.send(detailledUsers);
     } catch (error) {
@@ -411,7 +423,7 @@ export class Users {
     const user = await this.userService.getUser(userId);
     if (!user) return sendError(res, 404, "User not found");
 
-    const {inventory} = await this.inventoryService.getInventory(userId);
+    const { inventory } = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
     const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
@@ -431,13 +443,13 @@ export class Users {
     try {
       const users: User[] = await this.userService.adminSearchUsers(query);
       const detailledUsers = await Promise.all(users.map(async (user) => {
-            const {inventory} = await this.inventoryService.getInventory(user.user_id);
-            const formattedInventory = await formatInventory(inventory, this.itemService);
-            const items = await this.itemService.getAllItems();
-            const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
-            const games = await this.gameService.listGames();
-            const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
-            return { ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
+        const { inventory } = await this.inventoryService.getInventory(user.user_id);
+        const formattedInventory = await formatInventory(inventory, this.itemService);
+        const items = await this.itemService.getAllItems();
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
+        const games = await this.gameService.listGames();
+        const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id, ""));
+        return { ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
       }));
       res.send(detailledUsers.filter(u => u !== null));
     } catch (error) {
@@ -493,7 +505,7 @@ export class Users {
     const user = await this.userService.adminGetUser(userId);
     if (!user) return sendError(res, 404, "User not found");
 
-    const {inventory} = await this.inventoryService.getInventory(userId);
+    const { inventory } = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
     const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);

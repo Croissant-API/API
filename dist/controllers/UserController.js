@@ -49,7 +49,14 @@ let Users = class Users {
         // Vérifie si l'utilisateur existe par email
         // let user = await this.userService.findByEmail(email);
         const users = await this.userService.getAllUsersWithDisabled();
-        let user = users.find((u) => u.discord_id === providerId || u.google_id === providerId);
+        const authHeader = req.headers["authorization"] ||
+            "Bearer " +
+                req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        const token = authHeader.split("Bearer ")[1];
+        let user = await this.userService.authenticateUser(token);
+        if (!user) {
+            user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
+        }
         if (!user) {
             // Création d'un nouvel utilisateur si non existant
             const userId = crypto_1.default.randomUUID();
