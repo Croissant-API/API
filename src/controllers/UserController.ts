@@ -473,7 +473,7 @@ export class Users {
   @describe({
     endpoint: "/users/:userId",
     method: "GET",
-    description: "Get a user by userId",
+    description: "Get a user by userId, userId can be a Croissant ID, Discord ID or Google ID",
     params: { userId: "The id of the user" },
     responseType: {
       userId: "string",

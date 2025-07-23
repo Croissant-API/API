@@ -223,16 +223,16 @@ export class UserService implements IUserService {
 
   async getUser(user_id: string): Promise<User | null> {
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE user_id = ? AND (disabled = 0 OR disabled IS NULL)",
-      [user_id]
+      "SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ?) AND (disabled = 0 OR disabled IS NULL)",
+      [user_id, user_id, user_id]
     );
     return users.length > 0 ? users[0] : null;
   }
 
   async adminGetUser(user_id: string): Promise<User | null> {
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE user_id = ?",
-      [user_id]
+      "SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ?) AND (disabled = 0 OR disabled IS NULL)",
+      [user_id, user_id, user_id]
     );
     return users.length > 0 ? users[0] : null;
   }
