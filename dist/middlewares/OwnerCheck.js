@@ -11,7 +11,9 @@ class OwnerCheck {
 exports.OwnerCheck = OwnerCheck;
 _a = OwnerCheck;
 OwnerCheck.middleware = async (req, res, next) => {
-    const authHeader = req.headers["authorization"];
+    const authHeader = req.headers["authorization"] ||
+        "Bearer " +
+            req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
     const token = authHeader && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7)
         : null;
