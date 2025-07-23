@@ -164,9 +164,9 @@ let Users = class Users {
         const { inventory } = await this.inventoryService.getInventory(userId);
         const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, userId));
+        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, userId));
         res.send({ ...(0, helpers_1.mapUser)(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), studios, roles, inventory: formattedInventory, ownedItems, createdGames });
     }
     async changeUsername(req, res) {
@@ -327,9 +327,9 @@ let Users = class Users {
         const { inventory } = await this.inventoryService.getInventory(userId);
         const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, ""));
+        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, ""));
         res.send({ ...(0, helpers_1.mapUserSearch)(user), inventory: formattedInventory, ownedItems, createdGames });
     }
     // --- ACTIONS ADMINISTRATIVES ---
@@ -406,9 +406,9 @@ let Users = class Users {
         const { inventory } = await this.inventoryService.getInventory(userId);
         const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
         const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem);
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId, ""));
+        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, ""));
         res.send({ ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
     }
     // --- ACTIONS DIVERSES ---

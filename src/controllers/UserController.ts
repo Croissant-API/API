@@ -200,9 +200,9 @@ export class Users {
     const {inventory} = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
-    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
     const games = await this.gameService.listGames();
-    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, userId));
+    const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => filterGame(g, userId, userId));
     res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles, inventory: formattedInventory, ownedItems , createdGames });
   }
 
@@ -412,9 +412,9 @@ export class Users {
     const {inventory} = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
-    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
     const games = await this.gameService.listGames();
-    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+    const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => filterGame(g, userId, ""));
     res.send({ ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames });
   }
 
@@ -494,9 +494,9 @@ export class Users {
     const {inventory} = await this.inventoryService.getInventory(userId);
     const formattedInventory = await formatInventory(inventory, this.itemService);
     const items = await this.itemService.getAllItems();
-    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(mapItem);
     const games = await this.gameService.listGames();
-    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+    const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => filterGame(g, userId, ""));
     res.send({ ...mapUserSearch(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
   }
 
