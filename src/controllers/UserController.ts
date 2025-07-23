@@ -12,6 +12,10 @@ import { User } from "../interfaces/User";
 import { SteamOAuthService } from "../services/SteamOAuthService";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
+import { IInventoryService } from "../services/InventoryService";
+import { IItemService } from "../services/ItemService";
+import { IGameService } from "../services/GameService";
+import { Game } from "../interfaces/Game";
 
 function sendError(
   res: Response,
@@ -66,14 +70,65 @@ function mapUserSearch(user: User) {
   };
 }
 
+function mapItem(item: {
+  itemId: string;
+  name: string;
+  description: string;
+  owner: string;
+  price: number;
+  iconHash?: string;
+  showInStore?: boolean;
+}) {
+  return {
+    itemId: item.itemId,
+    name: item.name,
+    description: item.description,
+    owner: item.owner,
+    price: item.price,
+    iconHash: item.iconHash,
+    ...(typeof item.showInStore !== "undefined" && {
+      showInStore: item.showInStore,
+    }),
+  };
+}
+
+function filterGame(game: Game, userId?: string, myId?: string) {
+  return {
+    gameId: game.gameId,
+    name: game.name,
+    description: game.description,
+    price: game.price,
+    owner_id: game.owner_id,
+    showInStore: game.showInStore,
+    iconHash: game.iconHash,
+    splashHash: game.splashHash,
+    bannerHash: game.bannerHash,
+    genre: game.genre,
+    release_date: game.release_date,
+    developer: game.developer,
+    publisher: game.publisher,
+    platforms: game.platforms,
+    rating: game.rating,
+    website: game.website,
+    trailer_link: game.trailer_link,
+    multiplayer: game.multiplayer,
+    ...(userId && game.owner_id === myId
+      ? { download_link: game.download_link }
+      : {}),
+  };
+}
+
 @controller("/users")
 export class Users {
   constructor(
     @inject("UserService") private userService: IUserService,
     @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService,
     @inject("MailService") private mailService: MailService,
-    @inject("StudioService") private studioService: StudioService
-  ) {}
+    @inject("StudioService") private studioService: StudioService,
+    @inject("InventoryService") private inventoryService: IInventoryService,
+    @inject("ItemService") private itemService: IItemService,
+    @inject("GameService") private gameService: IGameService
+  ) { }
 
   // --- AUTHENTIFICATION & INSCRIPTION ---
   @httpPost("/login-oauth")
@@ -224,7 +279,13 @@ export class Users {
     if (!user) return sendError(res, 404, "User not found");
     const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
     const roles = [req.originalUser?.user_id as string, ...studios.map((s) => s.user_id)];
-    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles });
+
+    const inventory = await this.inventoryService.getInventory(userId);
+    const items = await this.itemService.getAllItems();
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const games = await this.gameService.listGames();
+    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, userId));
+    res.send({ ...mapUser(user), verificationKey: genVerificationKey(user.user_id), studios, roles, inventory, ownedItems , createdGames });
   }
 
   @httpPost("/change-username", LoggedCheck.middleware)
@@ -415,7 +476,13 @@ export class Users {
     const { userId } = req.params;
     const user = await this.userService.getUser(userId);
     if (!user) return sendError(res, 404, "User not found");
-    res.send(mapUserSearch(user));
+
+    const inventory = await this.inventoryService.getInventory(userId);
+    const items = await this.itemService.getAllItems();
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const games = await this.gameService.listGames();
+    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+    res.send({ ...mapUserSearch(user), inventory, ownedItems, createdGames });
   }
 
   // --- ACTIONS ADMINISTRATIVES ---
@@ -481,7 +548,13 @@ export class Users {
     const { userId } = req.params;
     const user = await this.userService.adminGetUser(userId);
     if (!user) return sendError(res, 404, "User not found");
-    res.send(mapUser(user));
+
+    const inventory = await this.inventoryService.getInventory(userId);
+    const items = await this.itemService.getAllItems();
+    const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+    const games = await this.gameService.listGames();
+    const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+    res.send({ ...mapUserSearch(user), inventory, ownedItems, createdGames });
   }
 
   // --- ACTIONS DIVERSES ---

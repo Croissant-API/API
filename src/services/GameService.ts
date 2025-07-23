@@ -38,7 +38,7 @@ export class GameService implements IGameService {
       "SELECT gameId FROM game_owners WHERE ownerId = ?",
       [userId]
     );
-    const gameIds = rows.map((row) => row.gameId);
+    const gameIds = rows.map((row: { gameId: string }) => row.gameId);
     const filteredGames = games.filter((game) => gameIds.includes(game.gameId));
     return filteredGames;
   }

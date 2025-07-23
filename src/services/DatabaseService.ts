@@ -1,16 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import sqlite3 from "sqlite3";
 import { Database, open } from "sqlite";
 import { injectable } from "inversify";
 
 export interface IDatabaseService {
   create(query: string, params?: unknown[]): Promise<void>;
-  read<T>(query: string, params?: unknown[]): Promise<Awaited<T> | []>;
+  read<T>(query: string, params?: unknown[]): Promise<T[] | any[] | any>;
   update(query: string, params?: unknown[]): Promise<void>;
   delete(query: string, params?: unknown[]): Promise<void>;
 }
 
 @injectable()
-export class DatabaseService {
+export class DatabaseService implements IDatabaseService {
   private db: Database | undefined;
 
   constructor() {

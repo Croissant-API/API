@@ -69,12 +69,53 @@ function mapUserSearch(user) {
         admin: !!user.admin,
     };
 }
+function mapItem(item) {
+    return {
+        itemId: item.itemId,
+        name: item.name,
+        description: item.description,
+        owner: item.owner,
+        price: item.price,
+        iconHash: item.iconHash,
+        ...(typeof item.showInStore !== "undefined" && {
+            showInStore: item.showInStore,
+        }),
+    };
+}
+function filterGame(game, userId, myId) {
+    return {
+        gameId: game.gameId,
+        name: game.name,
+        description: game.description,
+        price: game.price,
+        owner_id: game.owner_id,
+        showInStore: game.showInStore,
+        iconHash: game.iconHash,
+        splashHash: game.splashHash,
+        bannerHash: game.bannerHash,
+        genre: game.genre,
+        release_date: game.release_date,
+        developer: game.developer,
+        publisher: game.publisher,
+        platforms: game.platforms,
+        rating: game.rating,
+        website: game.website,
+        trailer_link: game.trailer_link,
+        multiplayer: game.multiplayer,
+        ...(userId && game.owner_id === myId
+            ? { download_link: game.download_link }
+            : {}),
+    };
+}
 let Users = class Users {
-    constructor(userService, steamOAuthService, mailService, studioService) {
+    constructor(userService, steamOAuthService, mailService, studioService, inventoryService, itemService, gameService) {
         this.userService = userService;
         this.steamOAuthService = steamOAuthService;
         this.mailService = mailService;
         this.studioService = studioService;
+        this.inventoryService = inventoryService;
+        this.itemService = itemService;
+        this.gameService = gameService;
     }
     // --- AUTHENTIFICATION & INSCRIPTION ---
     async loginOAuth(req, res) {
@@ -199,7 +240,12 @@ let Users = class Users {
             return sendError(res, 404, "User not found");
         const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
         const roles = [req.originalUser?.user_id, ...studios.map((s) => s.user_id)];
-        res.send({ ...mapUser(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), studios, roles });
+        const inventory = await this.inventoryService.getInventory(userId);
+        const items = await this.itemService.getAllItems();
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const games = await this.gameService.listGames();
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, userId));
+        res.send({ ...mapUser(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), studios, roles, inventory, ownedItems, createdGames });
     }
     async changeUsername(req, res) {
         const userId = req.user?.user_id;
@@ -345,7 +391,12 @@ let Users = class Users {
         const user = await this.userService.getUser(userId);
         if (!user)
             return sendError(res, 404, "User not found");
-        res.send(mapUserSearch(user));
+        const inventory = await this.inventoryService.getInventory(userId);
+        const items = await this.itemService.getAllItems();
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const games = await this.gameService.listGames();
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+        res.send({ ...mapUserSearch(user), inventory, ownedItems, createdGames });
     }
     // --- ACTIONS ADMINISTRATIVES ---
     async adminSearchUsers(req, res) {
@@ -409,7 +460,12 @@ let Users = class Users {
         const user = await this.userService.adminGetUser(userId);
         if (!user)
             return sendError(res, 404, "User not found");
-        res.send(mapUser(user));
+        const inventory = await this.inventoryService.getInventory(userId);
+        const items = await this.itemService.getAllItems();
+        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId).map(mapItem);
+        const games = await this.gameService.listGames();
+        const createdGames = games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId, ""));
+        res.send({ ...mapUserSearch(user), inventory, ownedItems, createdGames });
     }
     // --- ACTIONS DIVERSES ---
     async transferCredits(req, res) {
@@ -673,8 +729,11 @@ Users = __decorate([
     __param(1, (0, inversify_1.inject)("SteamOAuthService")),
     __param(2, (0, inversify_1.inject)("MailService")),
     __param(3, (0, inversify_1.inject)("StudioService")),
+    __param(4, (0, inversify_1.inject)("InventoryService")),
+    __param(5, (0, inversify_1.inject)("ItemService")),
+    __param(6, (0, inversify_1.inject)("GameService")),
     __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService,
         MailService_1.MailService,
-        StudioService_1.StudioService])
+        StudioService_1.StudioService, Object, Object, Object])
 ], Users);
 exports.Users = Users;

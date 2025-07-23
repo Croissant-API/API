@@ -114,7 +114,7 @@ export class TradeService implements ITradeService {
       [userId, userId]
     );
     const deserialized = trades.map(this.deserializeTrade);
-    return Promise.all(deserialized.map((t) => this.enrichTradeItems(t)));
+    return Promise.all(deserialized.map((t: Trade) => this.enrichTradeItems(t)));
   }
 
   private getUserKey(trade: Trade, userId: string): "fromUserItems" | "toUserItems" {

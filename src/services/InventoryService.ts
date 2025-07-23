@@ -30,7 +30,7 @@ export class InventoryService implements IInventoryService {
       "SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?",
       [correctedUserId]
     );
-    return { user_id: userId, inventory: items.filter((item) => item.amount > 0) };
+    return { user_id: userId, inventory: items.filter((item: { amount: number; }) => item.amount > 0) };
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
