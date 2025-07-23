@@ -1,5 +1,6 @@
 import { IDatabaseService } from "./DatabaseService";
 import { Inventory } from "../interfaces/Inventory";
+import { IUserService } from "./UserService";
 export interface IInventoryService {
     getInventory(userId: string): Promise<Inventory>;
     getItemAmount(userId: string, itemId: string): Promise<number>;
@@ -10,7 +11,8 @@ export interface IInventoryService {
 }
 export declare class InventoryService implements IInventoryService {
     private databaseService;
-    constructor(databaseService: IDatabaseService);
+    private userService;
+    constructor(databaseService: IDatabaseService, userService: IUserService);
     getInventory(userId: string): Promise<Inventory>;
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number): Promise<void>;

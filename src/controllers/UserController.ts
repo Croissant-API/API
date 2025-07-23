@@ -473,7 +473,7 @@ export class Users {
   @describe({
     endpoint: "/users/:userId",
     method: "GET",
-    description: "Get a user by userId, userId can be a Croissant ID, Discord ID or Google ID",
+    description: "Get a user by userId, userId can be a Croissant ID, Discord ID, Google ID or Steam ID",
     params: { userId: "The id of the user" },
     responseType: {
       userId: "string",
@@ -515,48 +515,6 @@ export class Users {
       admin: !!user.admin,
     };
     res.send(filteredUser);
-  }
-
-  @describe({
-    endpoint: "/users/getUserBySteamId",
-    method: "GET",
-    description: "Get a user by their Steam ID",
-    query: { steamId: "The Steam ID of the user" },
-    responseType: { id: "string", username: "string" },
-    example: "GET /api/users/getUserBySteamId?steamId=1234567890",
-  })
-  @httpGet("/getUserBySteamId")
-  public async getUserBySteamId(req: Request, res: Response) {
-    const steamId = req.query.steamId as string;
-    if (!steamId) {
-      return res
-        .status(400)
-        .send({ message: "Missing steamId query parameter" });
-    }
-    try {
-      const user = await this.userService.getUserBySteamId(steamId);
-      if (!user) {
-        return res.status(404).send({ message: "User not found" });
-      }
-      // const discordUser = await this.userService.getDiscordUser(user.user_id);
-      if (!user.steam_id) {
-        return res
-          .status(404)
-          .send({ message: "User does not have a linked Steam account" });
-      }
-      const filteredUser = {
-        // ...discordUser,
-        id: user.user_id,
-        username: user.username,
-      };
-      res.send(filteredUser);
-    } catch (error) {
-      console.error("Error fetching user by Steam ID", error);
-      const message = error instanceof Error ? error.message : String(error);
-      res
-        .status(500)
-        .send({ message: "Error fetching user by Steam ID", error: message });
-    }
   }
 
   // --- ACTIONS ADMINISTRATIVES ---

@@ -1,6 +1,7 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Inventory, InventoryItem } from "../interfaces/Inventory";
+import { IUserService } from "./UserService";
 
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
@@ -14,22 +15,27 @@ export interface IInventoryService {
 @injectable()
 export class InventoryService implements IInventoryService {
   constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService
+    @inject("DatabaseService") private databaseService: IDatabaseService,
+    @inject("UserService") private userService: IUserService
   ) {}
 
   async getInventory(userId: string): Promise<Inventory> {
+    const correctedUser = await this.userService.getUser(userId);
+    const correctedUserId = correctedUser?.user_id || userId;
     const items = await this.databaseService.read<InventoryItem[]>(
       "SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?",
-      [userId]
+      [correctedUserId]
     );
     const filteredItems = items.filter((item) => item.amount > 0); // Filter out items with amount <= 0
     return { user_id: userId, inventory: filteredItems };
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
+    const correctedUser = await this.userService.getUser(userId);
+    const correctedUserId = correctedUser?.user_id || userId;
     const items = await this.databaseService.read<InventoryItem[]>(
       "SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?",
-      [userId, itemId]
+      [correctedUserId, itemId]
     );
     if (items.length === 0) return 0;
     return items[0].amount;
@@ -37,9 +43,11 @@ export class InventoryService implements IInventoryService {
 
   async addItem(userId: string, itemId: string, amount: number): Promise<void> {
     // Check if the item already exists
+    const correctedUser = await this.userService.getUser(userId);
+    const correctedUserId = correctedUser?.user_id || userId;
     const items = await this.databaseService.read<InventoryItem[]>(
       "SELECT * FROM inventories WHERE user_id = ? AND item_id = ?",
-      [userId, itemId]
+      [correctedUserId, itemId]
     );
     if (items.length > 0) {
       // Item exists, update the amount
@@ -61,11 +69,13 @@ export class InventoryService implements IInventoryService {
     itemId: string,
     amount: number
   ): Promise<void> {
+    const correctedUser = await this.userService.getUser(userId);
+    const correctedUserId = correctedUser?.user_id || userId;
     // Decrease amount, but not below zero
     await this.databaseService.update(
       `UPDATE inventories SET amount = MAX(amount - ?, 0)
              WHERE user_id = ? AND item_id = ?`,
-      [amount, userId, itemId]
+      [amount, correctedUserId, itemId]
     );
   }
 
@@ -74,9 +84,11 @@ export class InventoryService implements IInventoryService {
     itemId: string,
     amount: number
   ): Promise<void> {
+    const correctedUser = await this.userService.getUser(userId);
+    const correctedUserId = correctedUser?.user_id || userId;
     await this.databaseService.update(
       `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`,
-      [amount, userId, itemId]
+      [amount, correctedUserId, itemId]
     );
   }
 

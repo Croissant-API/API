@@ -15,23 +15,30 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryService = void 0;
 const inversify_1 = require("inversify");
 let InventoryService = class InventoryService {
-    constructor(databaseService) {
+    constructor(databaseService, userService) {
         this.databaseService = databaseService;
+        this.userService = userService;
     }
     async getInventory(userId) {
-        const items = await this.databaseService.read("SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?", [userId]);
+        const correctedUser = await this.userService.getUser(userId);
+        const correctedUserId = correctedUser?.user_id || userId;
+        const items = await this.databaseService.read("SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?", [correctedUserId]);
         const filteredItems = items.filter((item) => item.amount > 0); // Filter out items with amount <= 0
         return { user_id: userId, inventory: filteredItems };
     }
     async getItemAmount(userId, itemId) {
-        const items = await this.databaseService.read("SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?", [userId, itemId]);
+        const correctedUser = await this.userService.getUser(userId);
+        const correctedUserId = correctedUser?.user_id || userId;
+        const items = await this.databaseService.read("SELECT amount FROM inventories WHERE user_id = ? AND item_id = ?", [correctedUserId, itemId]);
         if (items.length === 0)
             return 0;
         return items[0].amount;
     }
     async addItem(userId, itemId, amount) {
         // Check if the item already exists
-        const items = await this.databaseService.read("SELECT * FROM inventories WHERE user_id = ? AND item_id = ?", [userId, itemId]);
+        const correctedUser = await this.userService.getUser(userId);
+        const correctedUserId = correctedUser?.user_id || userId;
+        const items = await this.databaseService.read("SELECT * FROM inventories WHERE user_id = ? AND item_id = ?", [correctedUserId, itemId]);
         if (items.length > 0) {
             // Item exists, update the amount
             await this.databaseService.update("UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ?", [amount, userId, itemId]);
@@ -42,12 +49,16 @@ let InventoryService = class InventoryService {
         }
     }
     async removeItem(userId, itemId, amount) {
+        const correctedUser = await this.userService.getUser(userId);
+        const correctedUserId = correctedUser?.user_id || userId;
         // Decrease amount, but not below zero
         await this.databaseService.update(`UPDATE inventories SET amount = MAX(amount - ?, 0)
-             WHERE user_id = ? AND item_id = ?`, [amount, userId, itemId]);
+             WHERE user_id = ? AND item_id = ?`, [amount, correctedUserId, itemId]);
     }
     async setItemAmount(userId, itemId, amount) {
-        await this.databaseService.update(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`, [amount, userId, itemId]);
+        const correctedUser = await this.userService.getUser(userId);
+        const correctedUserId = correctedUser?.user_id || userId;
+        await this.databaseService.update(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ?`, [amount, correctedUserId, itemId]);
     }
     async hasItem(userId, itemId, amount = 1) {
         const items = await this.getInventory(userId);
@@ -60,6 +71,7 @@ let InventoryService = class InventoryService {
 InventoryService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("UserService")),
+    __metadata("design:paramtypes", [Object, Object])
 ], InventoryService);
 exports.InventoryService = InventoryService;

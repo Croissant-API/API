@@ -128,11 +128,11 @@ let UserService = class UserService {
         return (await this.getUser(user_id));
     }
     async getUser(user_id) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id]);
+        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id, user_id]);
         return users.length > 0 ? users[0] : null;
     }
     async adminGetUser(user_id) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id]);
+        const users = await this.databaseService.read("SELECT * FROM users WHERE (user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?) AND (disabled = 0 OR disabled IS NULL)", [user_id, user_id, user_id, user_id]);
         return users.length > 0 ? users[0] : null;
     }
     async adminSearchUsers(query) {

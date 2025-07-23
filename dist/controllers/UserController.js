@@ -417,39 +417,6 @@ let Users = class Users {
         };
         res.send(filteredUser);
     }
-    async getUserBySteamId(req, res) {
-        const steamId = req.query.steamId;
-        if (!steamId) {
-            return res
-                .status(400)
-                .send({ message: "Missing steamId query parameter" });
-        }
-        try {
-            const user = await this.userService.getUserBySteamId(steamId);
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
-            }
-            // const discordUser = await this.userService.getDiscordUser(user.user_id);
-            if (!user.steam_id) {
-                return res
-                    .status(404)
-                    .send({ message: "User does not have a linked Steam account" });
-            }
-            const filteredUser = {
-                // ...discordUser,
-                id: user.user_id,
-                username: user.username,
-            };
-            res.send(filteredUser);
-        }
-        catch (error) {
-            console.error("Error fetching user by Steam ID", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching user by Steam ID", error: message });
-        }
-    }
     // --- ACTIONS ADMINISTRATIVES ---
     async adminSearchUsers(req, res) {
         const query = req.query.q?.trim();
@@ -736,7 +703,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/users/:userId",
         method: "GET",
-        description: "Get a user by userId, userId can be a Croissant ID, Discord ID or Google ID",
+        description: "Get a user by userId, userId can be a Croissant ID, Discord ID, Google ID or Steam ID",
         params: { userId: "The id of the user" },
         responseType: {
             userId: "string",
@@ -756,20 +723,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "getUser", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/users/getUserBySteamId",
-        method: "GET",
-        description: "Get a user by their Steam ID",
-        query: { steamId: "The Steam ID of the user" },
-        responseType: { id: "string", username: "string" },
-        example: "GET /api/users/getUserBySteamId?steamId=1234567890",
-    }),
-    (0, inversify_express_utils_1.httpGet)("/getUserBySteamId"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "getUserBySteamId", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/admin/search"),
     __metadata("design:type", Function),
