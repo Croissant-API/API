@@ -47,7 +47,9 @@ let Users = class Users {
                 .send({ message: "Missing email, provider or providerId" });
         }
         // Vérifie si l'utilisateur existe par email
-        let user = await this.userService.findByEmail(email);
+        // let user = await this.userService.findByEmail(email);
+        const users = await this.userService.getAllUsersWithDisabled();
+        let user = users.find((u) => u.discord_id === providerId || u.google_id === providerId);
         if (!user) {
             // Création d'un nouvel utilisateur si non existant
             const userId = crypto_1.default.randomUUID();
