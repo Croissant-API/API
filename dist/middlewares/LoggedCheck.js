@@ -46,10 +46,13 @@ LoggedCheck.middleware = async (req, res, next) => {
     const studioService = container_1.default.get("StudioService");
     const studios = await studioService.getUserStudios(user.user_id);
     const roles = [user.user_id, ...studios.map((s) => s.user_id)];
+    let roleUser = null;
     if (roleCookie && !roles.includes(roleCookie)) {
-        return res.status(403).send({ message: "Forbidden" });
+        roleUser = await userService.getUser(roleCookie);
     }
-    const roleUser = roleCookie ? await userService.getUser(roleCookie) : user;
+    else {
+        roleUser = user;
+    }
     req.user = roleUser || user;
     req.originalUser = user;
     next();

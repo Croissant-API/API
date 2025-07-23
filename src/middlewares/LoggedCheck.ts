@@ -45,10 +45,13 @@ export class LoggedCheck {
     const studioService = container.get("StudioService") as IStudioService;
     const studios = await studioService.getUserStudios(user.user_id);
     const roles = [user.user_id, ...studios.map((s) => s.user_id)];
+
+    let roleUser = null;
     if (roleCookie && !roles.includes(roleCookie)) {
-      return res.status(403).send({ message: "Forbidden" });
+      roleUser = await userService.getUser(roleCookie);
+    } else {
+      roleUser = user;
     }
-    const roleUser = roleCookie ? await userService.getUser(roleCookie) : user;
 
     (req as AuthenticatedRequest).user = roleUser || user;
     (req as AuthenticatedRequest).originalUser = user;
