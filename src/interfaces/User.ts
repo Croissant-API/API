@@ -3,7 +3,6 @@ export interface User {
     user_id: string; // UUID principal
     username: string;
     email: string; // Email unique, utilisé comme identifiant principal
-    role: string;
 
     // Optional string fields
     password?: string;

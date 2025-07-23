@@ -15,6 +15,10 @@ OwnerCheck.middleware = async (req, res, next) => {
     const token = authHeader && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7)
         : null;
+    const roleCookie = req.headers["cookie"]
+        ?.toString()
+        .split("role=")[1]
+        ?.split(";")[0];
     const userService = container_1.default.get("UserService");
     const itemService = container_1.default.get("ItemService");
     if (!token) {
@@ -24,8 +28,16 @@ OwnerCheck.middleware = async (req, res, next) => {
     const itemId = req.body.itemId || req.params.itemId;
     const item = await itemService.getItem(itemId);
     const authedUser = (await userService.authenticateUser(token));
-    const role = authedUser?.role;
-    const owner = role ? await userService.getUser(role) : authedUser;
+    const studioService = container_1.default.get("StudioService");
+    const studios = await studioService.getUserStudios(authedUser.user_id);
+    let owner = null;
+    const roles = [authedUser.user_id, ...studios.map((s) => s.user_id)];
+    if (roleCookie && roles.includes(roleCookie)) {
+        owner = await userService.getUser(roleCookie);
+    }
+    else {
+        owner = authedUser;
+    }
     const user = await userService.getUser(userId);
     if (!item || item.deleted) {
         return res.status(404).send({ message: "Item not found" });

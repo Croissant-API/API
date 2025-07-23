@@ -9,10 +9,6 @@ export interface IStudioService {
         isAdmin: boolean;
     }>>;
     createStudio(studioName: string, admin_id: string): Promise<void>;
-    changeRole(user_id: string, role: string): Promise<{
-        success: boolean;
-        error?: string;
-    }>;
     addUserToStudio(studioId: string, user: User): Promise<void>;
     removeUserFromStudio(studioId: string, userId: string): Promise<void>;
     getUser(user_id: string): Promise<User | null>;
@@ -27,10 +23,6 @@ export declare class StudioService implements IStudioService {
         isAdmin: boolean;
     }>>;
     createStudio(studioName: string, admin_id: string): Promise<void>;
-    changeRole(user_id: string, role: string): Promise<{
-        success: boolean;
-        error?: string;
-    }>;
     /**
      * Ajoute un utilisateur à un studio
      * @param studioId L'identifiant du studio (user_id du studio)

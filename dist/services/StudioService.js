@@ -87,30 +87,6 @@ let StudioService = class StudioService {
         // Crée le studio
         await this.databaseService.create("INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)", [user_id, admin_id, JSON.stringify([])]);
     }
-    async changeRole(user_id, role) {
-        if (user_id === role) {
-            await this.databaseService.update("UPDATE users SET role = ? WHERE user_id = ?", [role, user_id]);
-            return { success: true };
-        }
-        const studios = await this.getUserStudios(user_id);
-        if (studios.length === 0)
-            return { success: false, error: "User doesn't have any studios" };
-        const studio = await this.userService.getUser(role);
-        if (!studio)
-            return { success: false, error: "User not found" };
-        if (!studio.isStudio) {
-            return { success: false, error: "User is not a studio" };
-        }
-        for (const studio of studios) {
-            if (studio.user_id !== role)
-                continue;
-            if (studio.users.some((u) => u.userId === user_id)) {
-                await this.databaseService.update("UPDATE users SET role = ? WHERE user_id = ?", [role, user_id]);
-                return { success: true };
-            }
-        }
-        return { success: false, error: "User is not in this studio" };
-    }
     /**
      * Ajoute un utilisateur à un studio
      * @param studioId L'identifiant du studio (user_id du studio)

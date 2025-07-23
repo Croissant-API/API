@@ -2,6 +2,8 @@ import container from "../container";
 import { Request, Response, NextFunction } from "express";
 import { User } from "../interfaces/User";
 import { IUserService } from "../services/UserService";
+import { inject } from "inversify";
+import { IStudioService } from "../services/StudioService";
 
 export interface AuthenticatedRequest extends Request {
   user: User;
@@ -9,6 +11,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export class LoggedCheck {
+  constructor(@inject("StudioService") private studioService: IStudioService) {}
   static middleware = async (
     req: Request,
     res: Response,
@@ -18,6 +21,7 @@ export class LoggedCheck {
       req.headers["authorization"] ||
       "Bearer " +
         req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+    const roleCookie = req.headers["cookie"]?.toString().split("role=")[1]?.split(";")[0];
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).send({ message: "Unauthorized" });
     }
@@ -38,8 +42,13 @@ export class LoggedCheck {
       return res.status(403).send({ message: "Account is disabled" });
     }
 
-    const role = user?.role;
-    const roleUser = role ? await userService.getUser(role) : user;
+    const studioService = container.get("StudioService") as IStudioService;
+    const studios = await studioService.getUserStudios(user.user_id);
+    const roles = [user.user_id, ...studios.map((s) => s.user_id)];
+    if (roleCookie && !roles.includes(roleCookie)) {
+      return res.status(403).send({ message: "Forbidden" });
+    }
+    const roleUser = roleCookie ? await userService.getUser(roleCookie) : user;
 
     (req as AuthenticatedRequest).user = roleUser || user;
     (req as AuthenticatedRequest).originalUser = user;

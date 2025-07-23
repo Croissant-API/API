@@ -4,6 +4,7 @@ import { Item } from "../interfaces/Item";
 import { User } from "../interfaces/User";
 import { IItemService } from "../services/ItemService";
 import { IUserService } from "../services/UserService";
+import { IStudioService } from "../services/StudioService";
 
 export interface AuthenticatedRequestWithOwner extends Request {
   owner: User;
@@ -22,6 +23,10 @@ export class OwnerCheck {
       authHeader && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7)
         : null;
+    const roleCookie = req.headers["cookie"]
+      ?.toString()
+      .split("role=")[1]
+      ?.split(";")[0];
 
     const userService = container.get("UserService") as IUserService;
     const itemService = container.get("ItemService") as IItemService;
@@ -36,8 +41,18 @@ export class OwnerCheck {
     const authedUser: User = (await userService.authenticateUser(
       token
     )) as User;
-    const role = authedUser?.role;
-    const owner = role ? await userService.getUser(role) : authedUser;
+
+    const studioService = container.get("StudioService") as IStudioService;
+    const studios = await studioService.getUserStudios(authedUser.user_id);
+
+    let owner = null;
+    const roles = [authedUser.user_id, ...studios.map((s) => s.user_id)];
+    if (roleCookie && roles.includes(roleCookie)) {
+      owner = await userService.getUser(roleCookie);
+    } else {
+      owner = authedUser;
+    }
+
     const user: User | null = await userService.getUser(userId);
     if (!item || item.deleted) {
       return res.status(404).send({ message: "Item not found" });

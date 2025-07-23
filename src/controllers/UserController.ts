@@ -14,30 +14,19 @@ import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
 import { Studio } from "../interfaces/Studio";
 
-function sendError(res: Response, status: number, message: string, error?: unknown) {
+function sendError(
+  res: Response,
+  status: number,
+  message: string,
+  error?: unknown
+) {
   return res.status(status).send({ message, error });
 }
 
-function filterUser(user: User, studios: Studio[] = [], roles: string[] = []): Record<string, unknown> {
-  return {
-    id: user.user_id,
-    userId: user.user_id,
-    email: user.email,
-    balance: Math.floor(user.balance),
-    verified: user.verified,
-    username: user.username,
-    verificationKey: genVerificationKey(user.user_id),
-    steam_id: user.steam_id,
-    steam_username: user.steam_username,
-    steam_avatar_url: user.steam_avatar_url,
-    studios,
-    isStudio: user.isStudio,
-    roles,
-    admin: !!user.admin,
-  };
-}
-
-function findUserByResetToken(users: User[], reset_token: string): User | undefined {
+function findUserByResetToken(
+  users: User[],
+  reset_token: string
+): User | undefined {
   return users.find((u) => u.forgot_password_token === reset_token);
 }
 
@@ -100,17 +89,15 @@ export class Users {
     if (user.disabled) {
       return res.status(403).send({ message: "Account is disabled" });
     }
-    res
-      .status(200)
-      .send({
-        message: "Login successful",
-        user: {
-          userId: user.user_id,
-          username: user.username,
-          email: user.email,
-        },
-        token: genKey(user.user_id),
-      });
+    res.status(200).send({
+      message: "Login successful",
+      user: {
+        userId: user.user_id,
+        username: user.username,
+        email: user.email,
+      },
+      token: genKey(user.user_id),
+    });
   }
 
   @httpPost("/register")
@@ -148,7 +135,9 @@ export class Users {
         providerId
       );
       await this.mailService.sendAccountConfirmationMail(user.email);
-      res.status(201).send({ message: "User registered", token: genKey(user.user_id) });
+      res
+        .status(201)
+        .send({ message: "User registered", token: genKey(user.user_id) });
     } catch (error) {
       console.error("Error registering user", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -181,17 +170,15 @@ export class Users {
       .catch((err) => {
         console.error("Error sending connection notification email", err);
       });
-    res
-      .status(200)
-      .send({
-        message: "Login successful",
-        user: {
-          userId: user.user_id,
-          username: user.username,
-          email: user.email,
-        },
-        token: genKey(user.user_id),
-      });
+    res.status(200).send({
+      message: "Login successful",
+      user: {
+        userId: user.user_id,
+        username: user.username,
+        email: user.email,
+      },
+      token: genKey(user.user_id),
+    });
   }
 
   // --- GESTION DU PROFIL UTILISATEUR ---
@@ -259,7 +246,11 @@ export class Users {
     if (!userId) {
       return sendError(res, 401, "Unauthorized");
     }
-    if (!username || typeof username !== "string" || username.trim().length < 3) {
+    if (
+      !username ||
+      typeof username !== "string" ||
+      username.trim().length < 3
+    ) {
       return sendError(res, 400, "Invalid username (min 3 characters)");
     }
     try {
@@ -279,7 +270,11 @@ export class Users {
       return sendError(res, 400, "Missing newPassword or confirmPassword");
     }
     if (newPassword !== confirmPassword) {
-      return sendError(res, 400, "New password and confirm password do not match");
+      return sendError(
+        res,
+        400,
+        "New password and confirm password do not match"
+      );
     }
     const userId = req.user?.user_id;
     if (!userId) {
@@ -331,7 +326,11 @@ export class Users {
       return sendError(res, 400, "Missing required fields");
     }
     if (new_password !== confirm_password) {
-      return sendError(res, 400, "New password and confirm password do not match");
+      return sendError(
+        res,
+        400,
+        "New password and confirm password do not match"
+      );
     }
     const allUsers = await this.userService.getAllUsersWithDisabled();
     const user = allUsers.find((u) => u.forgot_password_token === reset_token);
@@ -473,7 +472,8 @@ export class Users {
   @describe({
     endpoint: "/users/:userId",
     method: "GET",
-    description: "Get a user by userId, userId can be a Croissant ID, Discord ID, Google ID or Steam ID",
+    description:
+      "Get a user by userId, userId can be a Croissant ID, Discord ID, Google ID or Steam ID",
     params: { userId: "The id of the user" },
     responseType: {
       userId: "string",
@@ -565,11 +565,9 @@ export class Users {
       await this.userService.disableAccount(userId, adminUserId);
       res.status(200).send({ message: "Account disabled" });
     } catch (error) {
-      res
-        .status(403)
-        .send({
-          message: error instanceof Error ? error.message : String(error),
-        });
+      res.status(403).send({
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -584,11 +582,9 @@ export class Users {
       await this.userService.reenableAccount(userId, adminUserId);
       res.status(200).send({ message: "Account re-enabled" });
     } catch (error) {
-      res
-        .status(403)
-        .send({
-          message: error instanceof Error ? error.message : String(error),
-        });
+      res.status(403).send({
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -724,23 +720,25 @@ export class Users {
       return sendError(res, 400, "Invalid role");
     }
     try {
-      const { success, error } = await this.studioService.changeRole(userId, role);
-      const user = await this.userService.getUser(role);
-      if (!user) {
-        return sendError(res, 404, "User not found");
-      }
       const studios = await this.studioService.getUserStudios(userId);
       const roles = [userId, ...studios.map((s) => s.user_id)];
-      const filteredUser = filterUser(user, studios, roles);
-      if (success) {
-        return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
-      } else {
-        return sendError(res, 400, "Failed to update role", error);
+      if (!roles.includes(role)) {
+        return sendError(res, 403, "Forbidden: Invalid role");
       }
+      // Set a cookie named "role" with the value provided in the request
+      res.cookie("role", role, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      return res
+        .status(200)
+        .send({ message: "Role updated successfully" });
     } catch (error) {
-      console.error("Error changing role", error);
+      console.error("Error setting role cookie", error);
       const message = error instanceof Error ? error.message : String(error);
-      return sendError(res, 500, "Error changing role", message);
+      return sendError(res, 500, "Error setting role cookie", message);
     }
   }
 

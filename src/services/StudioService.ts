@@ -19,10 +19,6 @@ export interface IStudioService {
     user_id: string
   ): Promise<Array<Studio & { isAdmin: boolean }>>;
   createStudio(studioName: string, admin_id: string): Promise<void>;
-  changeRole(
-    user_id: string,
-    role: string
-  ): Promise<{ success: boolean; error?: string }>;
   addUserToStudio(studioId: string, user: User): Promise<void>;
   removeUserFromStudio(studioId: string, userId: string): Promise<void>;
   getUser(user_id: string): Promise<User | null>;
@@ -122,41 +118,6 @@ export class StudioService implements IStudioService {
       "INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)",
       [user_id, admin_id, JSON.stringify([])]
     );
-  }
-
-  async changeRole(
-    user_id: string,
-    role: string
-  ): Promise<{ success: boolean; error?: string }> {
-    if (user_id === role) {
-      await this.databaseService.update(
-        "UPDATE users SET role = ? WHERE user_id = ?",
-        [role, user_id]
-      );
-      return { success: true };
-    }
-
-    const studios = await this.getUserStudios(user_id);
-    if (studios.length === 0)
-      return { success: false, error: "User doesn't have any studios" };
-
-    const studio = await this.userService.getUser(role);
-    if (!studio) return { success: false, error: "User not found" };
-    if (!studio.isStudio) {
-      return { success: false, error: "User is not a studio" };
-    }
-
-    for (const studio of studios) {
-      if (studio.user_id !== role) continue;
-      if (studio.users.some((u: any) => u.userId === user_id)) {
-        await this.databaseService.update(
-          "UPDATE users SET role = ? WHERE user_id = ?",
-          [role, user_id]
-        );
-        return { success: true };
-      }
-    }
-    return { success: false, error: "User is not in this studio" };
   }
 
   /**

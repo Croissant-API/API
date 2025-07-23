@@ -2,7 +2,6 @@ export interface User {
     user_id: string;
     username: string;
     email: string;
-    role: string;
     password?: string;
     discord_id?: string;
     google_id?: string;

@@ -30,24 +30,6 @@ const StudioService_1 = require("../services/StudioService");
 function sendError(res, status, message, error) {
     return res.status(status).send({ message, error });
 }
-function filterUser(user, studios = [], roles = []) {
-    return {
-        id: user.user_id,
-        userId: user.user_id,
-        email: user.email,
-        balance: Math.floor(user.balance),
-        verified: user.verified,
-        username: user.username,
-        verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id),
-        steam_id: user.steam_id,
-        steam_username: user.steam_username,
-        steam_avatar_url: user.steam_avatar_url,
-        studios,
-        isStudio: user.isStudio,
-        roles,
-        admin: !!user.admin,
-    };
-}
 function findUserByResetToken(users, reset_token) {
     return users.find((u) => u.forgot_password_token === reset_token);
 }
@@ -93,9 +75,7 @@ let Users = class Users {
         if (user.disabled) {
             return res.status(403).send({ message: "Account is disabled" });
         }
-        res
-            .status(200)
-            .send({
+        res.status(200).send({
             message: "Login successful",
             user: {
                 userId: user.user_id,
@@ -130,7 +110,9 @@ let Users = class Users {
             // Crée ou associe l'utilisateur selon l'email et provider
             const user = await this.userService.createUser(userId, username, email, hashedPassword, provider, providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
-            res.status(201).send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
+            res
+                .status(201)
+                .send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
             console.error("Error registering user", error);
@@ -162,9 +144,7 @@ let Users = class Users {
             .catch((err) => {
             console.error("Error sending connection notification email", err);
         });
-        res
-            .status(200)
-            .send({
+        res.status(200).send({
             message: "Login successful",
             user: {
                 userId: user.user_id,
@@ -219,7 +199,9 @@ let Users = class Users {
         if (!userId) {
             return sendError(res, 401, "Unauthorized");
         }
-        if (!username || typeof username !== "string" || username.trim().length < 3) {
+        if (!username ||
+            typeof username !== "string" ||
+            username.trim().length < 3) {
             return sendError(res, 400, "Invalid username (min 3 characters)");
         }
         try {
@@ -463,9 +445,7 @@ let Users = class Users {
             res.status(200).send({ message: "Account disabled" });
         }
         catch (error) {
-            res
-                .status(403)
-                .send({
+            res.status(403).send({
                 message: error instanceof Error ? error.message : String(error),
             });
         }
@@ -481,9 +461,7 @@ let Users = class Users {
             res.status(200).send({ message: "Account re-enabled" });
         }
         catch (error) {
-            res
-                .status(403)
-                .send({
+            res.status(403).send({
                 message: error instanceof Error ? error.message : String(error),
             });
         }
@@ -573,25 +551,26 @@ let Users = class Users {
             return sendError(res, 400, "Invalid role");
         }
         try {
-            const { success, error } = await this.studioService.changeRole(userId, role);
-            const user = await this.userService.getUser(role);
-            if (!user) {
-                return sendError(res, 404, "User not found");
-            }
             const studios = await this.studioService.getUserStudios(userId);
             const roles = [userId, ...studios.map((s) => s.user_id)];
-            const filteredUser = filterUser(user, studios, roles);
-            if (success) {
-                return res.status(200).send({ message: "Role updated successfully", user: filteredUser });
+            if (!roles.includes(role)) {
+                return sendError(res, 403, "Forbidden: Invalid role");
             }
-            else {
-                return sendError(res, 400, "Failed to update role", error);
-            }
+            // Set a cookie named "role" with the value provided in the request
+            res.cookie("role", role, {
+                httpOnly: false,
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            });
+            return res
+                .status(200)
+                .send({ message: "Role updated successfully" });
         }
         catch (error) {
-            console.error("Error changing role", error);
+            console.error("Error setting role cookie", error);
             const message = error instanceof Error ? error.message : String(error);
-            return sendError(res, 500, "Error changing role", message);
+            return sendError(res, 500, "Error setting role cookie", message);
         }
     }
     async isValidResetToken(req, res) {
