@@ -328,6 +328,28 @@ let Items = class Items {
                 .send({ message: "Error transferring item", error: message });
         }
     }
+    async transferOwnership(req, res) {
+        const { itemId } = req.params;
+        const { newOwnerId } = req.body;
+        if (!itemId || !newOwnerId) {
+            return res.status(400).send({ message: "Invalid input" });
+        }
+        try {
+            const item = await this.itemService.getItem(itemId);
+            if (!item || item.deleted) {
+                return res.status(404).send({ message: "Item not found" });
+            }
+            const newOwner = await this.userService.getUser(newOwnerId);
+            if (!newOwner) {
+                return res.status(404).send({ message: "New owner not found" });
+            }
+            await this.itemService.transferOwnership(itemId, newOwnerId);
+            res.status(200).send({ message: "Ownership transferred" });
+        }
+        catch (error) {
+            handleError(res, error, "Error transferring ownership");
+        }
+    }
 };
 __decorate([
     (0, describe_1.describe)({
@@ -577,6 +599,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "transferItem", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:itemId", OwnerCheck_1.OwnerCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "transferOwnership", null);
 Items = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),

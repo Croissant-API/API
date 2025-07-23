@@ -59,6 +59,14 @@ let ItemService = class ItemService {
     async searchItemsByName(query) {
         return this.databaseService.read("SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0", [`%${query}%`]);
     }
+    async transferOwnership(itemId, newOwnerId) {
+        const item = await this.getItem(itemId);
+        if (!item)
+            throw new Error("Item not found");
+        if (item.deleted)
+            throw new Error("Cannot transfer deleted item");
+        await this.updateItem(itemId, { owner: newOwnerId });
+    }
 };
 ItemService = __decorate([
     (0, inversify_1.injectable)(),

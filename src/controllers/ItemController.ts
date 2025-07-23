@@ -580,4 +580,27 @@ export class Items {
         .send({ message: "Error transferring item", error: message });
     }
   }
+
+  @httpPost("/transfer-ownership/:itemId", OwnerCheck.middleware)
+  public async transferOwnership(req: AuthenticatedRequestWithOwner, res: Response) {
+    const { itemId } = req.params;
+    const { newOwnerId } = req.body;
+    if (!itemId || !newOwnerId) {
+      return res.status(400).send({ message: "Invalid input" });
+    }
+    try {
+      const item = await this.itemService.getItem(itemId);
+      if (!item || item.deleted) {
+        return res.status(404).send({ message: "Item not found" });
+      }
+      const newOwner = await this.userService.getUser(newOwnerId);
+      if (!newOwner) {
+        return res.status(404).send({ message: "New owner not found" });
+      }
+      await this.itemService.transferOwnership(itemId, newOwnerId);
+      res.status(200).send({ message: "Ownership transferred" });
+    } catch (error) {
+      handleError(res, error, "Error transferring ownership");
+    }
+  }
 }

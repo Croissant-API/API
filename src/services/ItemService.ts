@@ -12,6 +12,7 @@ export interface IItemService {
   ): Promise<void>;
   deleteItem(itemId: string): Promise<void>;
   searchItemsByName(query: string): Promise<Item[]>;
+  transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
 }
 
 @injectable()
@@ -59,7 +60,7 @@ export class ItemService implements IItemService {
 
   async updateItem(
     itemId: string,
-    item: Partial<Omit<Item, "id" | "itemId" | "owner">>
+    item: Partial<Omit<Item, "id" | "itemId">>
   ): Promise<void> {
     const { fields, values } = buildUpdateFields(item);
     if (!fields.length) return;
@@ -82,6 +83,16 @@ export class ItemService implements IItemService {
       "SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0",
       [`%${query}%`]
     );
+  }
+
+  async transferOwnership( 
+    itemId: string,
+    newOwnerId: string
+  ): Promise<void> {
+    const item = await this.getItem(itemId);
+    if (!item) throw new Error("Item not found");
+    if (item.deleted) throw new Error("Cannot transfer deleted item");
+    await this.updateItem(itemId, { owner: newOwnerId });
   }
 }
 
