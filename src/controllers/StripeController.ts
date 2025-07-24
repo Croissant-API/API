@@ -105,6 +105,12 @@ export class StripeController {
             payment_method_options: {
                 card: {
                     // Google Pay is supported automatically via card
+                },
+                link: {
+                    // Link is a payment method that allows users to pay with saved payment methods
+                },
+                paypal: {
+                    // PayPal is not supported in the EU yet, but can be added later
                 }
             },
             line_items: [
@@ -126,7 +132,7 @@ export class StripeController {
                 user_id: req.user.user_id.toString() // Ensure user_id is a string
             },
             success_url: 'https://croissant-api.fr/buy-credits/success',
-            cancel_url: 'https://croissant-api.fr/cancel',
+            cancel_url: 'https://croissant-api.fr/buy-credits',
         });
 
         const paymentLink = session.url;
