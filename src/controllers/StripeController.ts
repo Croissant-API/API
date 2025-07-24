@@ -123,7 +123,7 @@ export class StripeController {
             mode: 'payment',
             metadata: {
                 credits: selectedTier.credits,
-                user_id: req.user.id.toString()
+                user_id: req.user.user_id.toString() // Ensure user_id is a string
             },
             success_url: 'https://croissant-api.fr/buy-credits/success',
             cancel_url: 'https://croissant-api.fr/cancel',
