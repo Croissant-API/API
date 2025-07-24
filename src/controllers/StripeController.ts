@@ -101,16 +101,13 @@ export class StripeController {
             return sendError(res, 400, "Invalid tier selected");
         }
         const session = await this.stripe.checkout.sessions.create({
-            payment_method_types: ['card', 'link'],
+            payment_method_types: ['card', 'link', 'paypal'], // Ajout de PayPal
             payment_method_options: {
                 card: {
                     // Google Pay is supported automatically via card
                 },
                 link: {
                     // Link is a payment method that allows users to pay with saved payment methods
-                },
-                paypal: {
-                    // PayPal is not supported in the EU yet, but can be added later
                 }
             },
             line_items: [
