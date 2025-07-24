@@ -4,7 +4,6 @@ export interface BundleItem {
     percent: number;
 }
 export interface Bundle {
-    id: number;
     bundleId: string;
     price: number;
     items: BundleItem[];

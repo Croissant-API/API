@@ -14,8 +14,8 @@ export interface User {
     forgot_password_token?: string; // Token pour réinitialisation de mot de passe
 
     // Required number fields
-    id: number;
     balance: number;
+    free_balance: number;
 
     // Optional boolean fields
     disabled?: boolean;
