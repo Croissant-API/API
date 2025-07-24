@@ -48,6 +48,7 @@ require("./controllers/SearchController");
 require("./controllers/StripeController");
 const server = new inversify_express_utils_1.InversifyExpressServer(container_1.default);
 server.setConfig((app) => {
+    app.use('/stripe/webhook', express_1.default.raw({ type: 'application/json' }));
     app.use(express_1.default.json({ limit: "50mb" }));
     app.use(express_1.default.urlencoded({ limit: "50mb", extended: true }));
     app.use((0, cors_1.default)());
