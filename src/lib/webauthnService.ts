@@ -27,7 +27,7 @@ export async function verifyRegistration(body: any, expectedChallenge: string) {
     return verifyRegistrationResponse({
         response: body.credential,
         expectedChallenge,
-        expectedOrigin: 'http://localhost:8580', // change to your domain in prod
+        expectedOrigin: 'https://croissant-api.fr', // change to your domain in prod
         expectedRPID: 'localhost',
     });
 }
@@ -52,7 +52,7 @@ export async function verifyAuthentication(body: any, expectedChallenge: string,
     return verifyAuthenticationResponse({
         response: body.credential,
         expectedChallenge,
-        expectedOrigin: 'http://localhost:8580',
+        expectedOrigin: 'https://croissant-api.fr',
         expectedRPID: 'localhost',
         credential: {
             id: authenticator.credentialID,
