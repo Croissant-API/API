@@ -248,6 +248,13 @@ let UserService = UserService_1 = class UserService {
         const users = await this.databaseService.read("SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${credentialId}%`]);
         return users.length > 0 ? users[0] : null;
     }
+    async setAuthenticatorSecret(userId, secret) {
+        return this.databaseService.update("UPDATE users SET authenticator_secret = ? WHERE user_id = ?", [secret, userId]);
+    }
+    async getAuthenticatorSecret(userId) {
+        const user = await this.getUser(userId);
+        return user ? user.authenticator_secret || null : null;
+    }
 };
 UserService = UserService_1 = __decorate([
     (0, inversify_1.injectable)(),

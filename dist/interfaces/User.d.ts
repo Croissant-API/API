@@ -17,4 +17,5 @@ export interface User {
     isStudio: boolean;
     webauthn_challenge: string;
     webauthn_credentials?: string;
+    authenticator_secret?: string;
 }

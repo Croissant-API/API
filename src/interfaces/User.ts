@@ -27,4 +27,6 @@ export interface User {
 
     webauthn_challenge: string;
     webauthn_credentials?: string;
+
+    authenticator_secret?: string; // Secret pour TOTP
 }

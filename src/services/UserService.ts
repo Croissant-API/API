@@ -60,6 +60,8 @@ export interface IUserService {
     credential: { id: string; name: string; created_at: Date }
   ): Promise<void>;
   getUserByCredentialId(credentialId: string): Promise<User | null>;
+  setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
+  getAuthenticatorSecret(userId: string): Promise<string | null>;
 }
 
 @injectable()
@@ -394,5 +396,16 @@ export class UserService implements IUserService {
       [`%${credentialId}%`]
     );
     return users.length > 0 ? users[0] : null;
+  }
+
+  async setAuthenticatorSecret(userId: string, secret: string | null): Promise<void> {
+    return this.databaseService.update(
+      "UPDATE users SET authenticator_secret = ? WHERE user_id = ?",
+      [secret, userId]
+    );
+  }
+  async getAuthenticatorSecret(userId: string): Promise<string | null> {
+    const user = await this.getUser(userId);
+    return user ? user.authenticator_secret || null : null;
   }
 }

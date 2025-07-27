@@ -29,6 +29,8 @@ export interface IUserService {
         created_at: Date;
     }): Promise<void>;
     getUserByCredentialId(credentialId: string): Promise<User | null>;
+    setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
+    getAuthenticatorSecret(userId: string): Promise<string | null>;
 }
 export declare class UserService implements IUserService {
     private databaseService;
@@ -93,4 +95,6 @@ export declare class UserService implements IUserService {
         created_at: Date;
     }): Promise<void>;
     getUserByCredentialId(credentialId: string): Promise<User | null>;
+    setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
+    getAuthenticatorSecret(userId: string): Promise<string | null>;
 }

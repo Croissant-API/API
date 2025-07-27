@@ -150,15 +150,22 @@ let Users = class Users {
             .catch((err) => {
             console.error("Error sending connection notification email", err);
         });
-        res.status(200).send({
-            message: "Login successful",
-            user: {
-                userId: user.user_id,
-                username: user.username,
-                email: user.email,
-            },
-            token: (0, GenKey_1.genKey)(user.user_id),
-        });
+        if (!user.authenticator_secret) {
+            res.status(200).send({
+                message: "Login successful",
+                token: (0, GenKey_1.genKey)(user.user_id),
+            });
+        }
+        else {
+            res.status(200).send({
+                message: "Login successful",
+                user: {
+                    userId: user.user_id,
+                    username: user.username,
+                    email: user.email,
+                },
+            });
+        }
     }
     // --- GESTION DU PROFIL UTILISATEUR ---
     async getMe(req, res) {
@@ -176,7 +183,7 @@ let Users = class Users {
         const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
         const games = await this.gameService.listGames();
         const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, userId));
-        res.send({ ...(0, helpers_1.mapUser)(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), google_id: user.google_id, discord_id: user.discord_id, studios, roles, inventory: formattedInventory, ownedItems, createdGames });
+        res.send({ ...(0, helpers_1.mapUser)(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), google_id: user.google_id, discord_id: user.discord_id, studios, roles, inventory: formattedInventory, ownedItems, createdGames, haveAuthenticator: !!user.authenticator_secret });
     }
     async changeUsername(req, res) {
         const userId = req.user?.user_id;

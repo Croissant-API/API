@@ -12,4 +12,5 @@ import "./controllers/StudioController";
 import "./controllers/SearchController";
 import "./controllers/StripeController";
 import "./controllers/WebAuthnController";
+import "./controllers/AuthenticatorController";
 export declare const app: express.Application;

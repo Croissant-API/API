@@ -19,6 +19,7 @@ import "./controllers/StudioController";
 import "./controllers/SearchController";
 import "./controllers/StripeController";
 import "./controllers/WebAuthnController";
+import "./controllers/AuthenticatorController";
 
 const server = new InversifyExpressServer(container);
 
