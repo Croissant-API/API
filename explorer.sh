@@ -1,1 +1,1 @@
-sqlite_web database.db --host croissant-api.fr --password
+sqlite_web database.db
