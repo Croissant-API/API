@@ -1,1 +1,1 @@
-sqlite_web database.db
+sqlite_web database.db --password
