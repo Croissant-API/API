@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Crypto } from '@peculiar/webcrypto';
+if (!globalThis.crypto) {
+    globalThis.crypto = new Crypto();
+}
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
+
 
 export function getRegistrationOptions(user: any) {
     console.log('Generating registration options for user:', user);

@@ -2,6 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAuthentication = exports.getAuthenticationOptions = exports.verifyRegistration = exports.getRegistrationOptions = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
+const webcrypto_1 = require("@peculiar/webcrypto");
+if (!globalThis.crypto) {
+    globalThis.crypto = new webcrypto_1.Crypto();
+}
 const server_1 = require("@simplewebauthn/server");
 function getRegistrationOptions(user) {
     console.log('Generating registration options for user:', user);
