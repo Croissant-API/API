@@ -1,1 +1,1 @@
-sqlite_web database.db --url-prefix /explorer
+sqlite_web database.db --url-prefix /explorer --password
