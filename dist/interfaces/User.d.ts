@@ -15,4 +15,6 @@ export interface User {
     admin?: boolean;
     verified: boolean;
     isStudio: boolean;
+    webauthn_challenge: string;
+    webauthn_credentials?: string;
 }

@@ -54,6 +54,12 @@ export interface IUserService {
   ): Promise<void>;
   getUserBySteamId(steamId: string): Promise<User | null>;
   generatePasswordResetToken(user_id: string): Promise<string>;
+  updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
+  addWebauthnCredential(
+    userId: string,
+    credential: { id: string; name: string; created_at: Date }
+  ): Promise<void>;
+  getUserByCredentialId(credentialId: string): Promise<User | null>;
 }
 
 @injectable()
@@ -353,5 +359,40 @@ export class UserService implements IUserService {
       return null;
     }
     return user;
+  }
+
+  async updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void> {
+    await this.databaseService.update(
+      "UPDATE users SET webauthn_challenge = ? WHERE user_id = ?",
+      [challenge, user_id]
+    );
+  }
+
+  async addWebauthnCredential(
+    userId: string,
+    credential: { id: string; name: string; created_at: Date }
+  ): Promise<void> {
+    const existing = await this.getUser(userId);
+    if (!existing) {
+      throw new Error("User not found");
+    }
+    const credentials = JSON.parse(existing.webauthn_credentials || "[]");
+    credentials.push({
+      id: credential.id,
+      name: credential.name,
+      created_at: credential.created_at,
+    });
+    await this.databaseService.update(
+      "UPDATE users SET webauthn_credentials = ? WHERE user_id = ?",
+      [JSON.stringify(credentials), userId]
+    );
+  }
+  
+  async getUserByCredentialId(credentialId: string): Promise<User | null> {
+    const users = await this.databaseService.read<User[]>(
+      "SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)",
+      [`%${credentialId}%`]
+    );
+    return users.length > 0 ? users[0] : null;
   }
 }

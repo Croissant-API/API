@@ -24,4 +24,7 @@ export interface User {
     // Required boolean fields
     verified: boolean; // Indique si l'email est vérifié
     isStudio: boolean;
+
+    webauthn_challenge: string;
+    webauthn_credentials?: string;
 }

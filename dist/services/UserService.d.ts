@@ -22,6 +22,13 @@ export interface IUserService {
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;
     generatePasswordResetToken(user_id: string): Promise<string>;
+    updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
+    addWebauthnCredential(userId: string, credential: {
+        id: string;
+        name: string;
+        created_at: Date;
+    }): Promise<void>;
+    getUserByCredentialId(credentialId: string): Promise<User | null>;
 }
 export declare class UserService implements IUserService {
     private databaseService;
@@ -79,4 +86,11 @@ export declare class UserService implements IUserService {
     generatePasswordResetToken(email: string): Promise<string>;
     deleteUser(user_id: string): Promise<void>;
     authenticateUser(api_key: string): Promise<User | null>;
+    updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
+    addWebauthnCredential(userId: string, credential: {
+        id: string;
+        name: string;
+        created_at: Date;
+    }): Promise<void>;
+    getUserByCredentialId(credentialId: string): Promise<User | null>;
 }

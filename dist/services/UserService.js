@@ -228,6 +228,26 @@ let UserService = UserService_1 = class UserService {
         }
         return user;
     }
+    async updateWebauthnChallenge(user_id, challenge) {
+        await this.databaseService.update("UPDATE users SET webauthn_challenge = ? WHERE user_id = ?", [challenge, user_id]);
+    }
+    async addWebauthnCredential(userId, credential) {
+        const existing = await this.getUser(userId);
+        if (!existing) {
+            throw new Error("User not found");
+        }
+        const credentials = JSON.parse(existing.webauthn_credentials || "[]");
+        credentials.push({
+            id: credential.id,
+            name: credential.name,
+            created_at: credential.created_at,
+        });
+        await this.databaseService.update("UPDATE users SET webauthn_credentials = ? WHERE user_id = ?", [JSON.stringify(credentials), userId]);
+    }
+    async getUserByCredentialId(credentialId) {
+        const users = await this.databaseService.read("SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${credentialId}%`]);
+        return users.length > 0 ? users[0] : null;
+    }
 };
 UserService = UserService_1 = __decorate([
     (0, inversify_1.injectable)(),
