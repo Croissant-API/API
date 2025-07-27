@@ -15,7 +15,7 @@ export function getRegistrationOptions(user: any) {
     console.log('Generating registration options for user:', user);
     return generateRegistrationOptions({
         rpName: 'Croissant',
-        rpID: 'localhost',
+        rpID: 'croissant-api.fr',
         userID: user.id, // doit être un Buffer/Uint8Array
         userName: user.username,
         attestationType: 'none',
@@ -28,13 +28,13 @@ export async function verifyRegistration(body: any, expectedChallenge: string) {
         response: body.credential,
         expectedChallenge,
         expectedOrigin: 'https://croissant-api.fr', // change to your domain in prod
-        expectedRPID: 'localhost',
+        expectedRPID: 'croissant-api.fr',
     });
 }
 
 export function getAuthenticationOptions(credentials: any[]) {
     return generateAuthenticationOptions({
-        rpID: 'localhost',
+        rpID: 'croissant-api.fr',
         userVerification: 'preferred',
         allowCredentials: credentials.map((c) => ({
             id: c.credentialID,
@@ -53,7 +53,7 @@ export async function verifyAuthentication(body: any, expectedChallenge: string,
         response: body.credential,
         expectedChallenge,
         expectedOrigin: 'https://croissant-api.fr',
-        expectedRPID: 'localhost',
+        expectedRPID: 'croissant-api.fr',
         credential: {
             id: authenticator.credentialID,
             publicKey: authenticator.credentialPublicKey,
