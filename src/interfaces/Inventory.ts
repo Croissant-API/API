@@ -7,4 +7,5 @@ export interface InventoryItem {
   user_id: string;
   item_id: string;
   amount: number;
+  metadata?: { [key: string]: unknown; _unique_id?: string };
 }

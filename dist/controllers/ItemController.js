@@ -176,7 +176,6 @@ let Items = class Items {
             if (!owner) {
                 return res.status(404).send({ message: "Owner not found" });
             }
-            // Only check and update balance if the user is NOT the owner
             if (user.user_id !== item.owner) {
                 if (user.balance < item.price * amount) {
                     return res.status(400).send({ message: "Insufficient balance" });
@@ -184,14 +183,8 @@ let Items = class Items {
                 await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
                 await this.userService.updateUserBalance(owner.user_id, owner.balance + item.price * amount * 0.75);
             }
-            // If user is owner, skip balance check and update
-            const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
-            if (currentAmount) {
-                await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
-            }
-            else {
-                await this.inventoryService.addItem(user.user_id, itemId, amount);
-            }
+            // Ajouter l'item SANS métadonnées (les utilisateurs ne peuvent pas acheter d'items avec métadonnées)
+            await this.inventoryService.addItem(user.user_id, itemId, amount);
             res.status(200).send({ message: "Item bought" });
         }
         catch (error) {
@@ -215,10 +208,20 @@ let Items = class Items {
             if (!user) {
                 return res.status(404).send({ message: "User not found" });
             }
+            // Vérifier que l'utilisateur a suffisamment d'items SANS métadonnées
+            const inventory = await this.inventoryService.getInventory(user.user_id);
+            const itemsWithoutMetadata = inventory.inventory.filter(invItem => invItem.item_id === itemId && !invItem.metadata);
+            const totalAmountWithoutMetadata = itemsWithoutMetadata.reduce((sum, invItem) => sum + invItem.amount, 0);
+            if (totalAmountWithoutMetadata < amount) {
+                return res.status(400).send({
+                    message: "Insufficient items without metadata. You can only sell items without metadata."
+                });
+            }
             // Only increase balance if the user is NOT the owner
             if (user.user_id !== item.owner) {
                 await this.userService.updateUserBalance(user.user_id, user.balance + item.price * amount * 0.75);
             }
+            // Supprimer les items (cela supprimera d'abord les items sans métadonnées)
             await this.inventoryService.removeItem(user.user_id, itemId, amount);
             res.status(200).send({ message: "Item sold" });
         }
@@ -230,22 +233,22 @@ let Items = class Items {
     }
     async giveItem(req, res) {
         const { itemId } = req.params;
-        const { amount } = req.body;
-        if (!itemId || isNaN(amount)) {
+        const { amount, metadata, userId } = req.body;
+        if (!itemId || isNaN(amount) || !userId) {
             return res.status(400).send({ message: "Invalid input" });
         }
         try {
-            const user = req?.user;
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
+            const targetUser = await this.userService.getUser(userId);
+            if (!targetUser) {
+                return res.status(404).send({ message: "Target user not found" });
             }
-            const currentAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
-            if (currentAmount) {
-                await this.inventoryService.setItemAmount(user.user_id, itemId, currentAmount + amount);
+            // Vérifier que l'item existe
+            const item = await this.itemService.getItem(itemId);
+            if (!item || item.deleted) {
+                return res.status(404).send({ message: "Item not found" });
             }
-            else {
-                await this.inventoryService.addItem(user.user_id, itemId, amount);
-            }
+            // Donner l'item à l'utilisateur cible
+            await this.inventoryService.addItem(targetUser.user_id, itemId, amount, metadata);
             res.status(200).send({ message: "Item given" });
         }
         catch (error) {
@@ -256,17 +259,45 @@ let Items = class Items {
     }
     async consumeItem(req, res) {
         const { itemId } = req.params;
-        const { amount } = req.body;
-        if (!itemId || isNaN(amount)) {
-            return res.status(400).send({ message: "Invalid input" });
+        const { amount, uniqueId, userId } = req.body;
+        if (!itemId || !userId) {
+            return res.status(400).send({ message: "Invalid input: itemId and userId are required" });
+        }
+        // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
+        if ((amount && uniqueId) || (!amount && !uniqueId)) {
+            return res.status(400).send({
+                message: "Invalid input: provide either 'amount' for items without metadata OR 'uniqueId' for items with metadata"
+            });
+        }
+        if (amount && isNaN(amount)) {
+            return res.status(400).send({ message: "Invalid input: amount must be a number" });
         }
         try {
-            const user = req?.user;
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
+            const targetUser = await this.userService.getUser(userId);
+            if (!targetUser) {
+                return res.status(404).send({ message: "Target user not found" });
             }
-            await this.inventoryService.removeItem(user.user_id, itemId, amount);
-            res.status(200).send({ message: "Item consumed" });
+            // Vérifier que l'item existe
+            const item = await this.itemService.getItem(itemId);
+            if (!item || item.deleted) {
+                return res.status(404).send({ message: "Item not found" });
+            }
+            if (uniqueId) {
+                // Consommer un item spécifique avec métadonnées
+                await this.inventoryService.removeItemByUniqueId(targetUser.user_id, itemId, uniqueId);
+                res.status(200).send({ message: "Item with metadata consumed" });
+            }
+            else {
+                // Consommer des items sans métadonnées
+                const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(targetUser.user_id, itemId, amount);
+                if (!hasEnoughItems) {
+                    return res.status(400).send({
+                        message: "User doesn't have enough items without metadata"
+                    });
+                }
+                await this.inventoryService.removeItem(targetUser.user_id, itemId, amount);
+                res.status(200).send({ message: "Items without metadata consumed" });
+            }
         }
         catch (error) {
             console.error("Error consuming item", error);
@@ -274,10 +305,10 @@ let Items = class Items {
             res.status(500).send({ message: "Error consuming item", error: message });
         }
     }
-    async dropItem(req, res) {
+    async updateItemMetadata(req, res) {
         const { itemId } = req.params;
-        const { amount } = req.body;
-        if (!itemId || isNaN(amount)) {
+        const { uniqueId, metadata } = req.body;
+        if (!itemId || !uniqueId || !metadata || typeof metadata !== 'object') {
             return res.status(400).send({ message: "Invalid input" });
         }
         try {
@@ -285,13 +316,11 @@ let Items = class Items {
             if (!user) {
                 return res.status(404).send({ message: "User not found" });
             }
-            await this.inventoryService.removeItem(user.user_id, itemId, amount);
-            res.status(200).send({ message: "Item dropped" });
+            await this.inventoryService.updateItemMetadata(user.user_id, itemId, uniqueId, metadata);
+            res.status(200).send({ message: "Item metadata updated" });
         }
         catch (error) {
-            console.error("Error dropping item", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error dropping item", error: message });
+            handleError(res, error, "Error updating item metadata");
         }
     }
     async transferOwnership(req, res) {
@@ -471,9 +500,11 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/buy/:itemId",
         method: "POST",
-        description: "Buy an item.",
+        description: "Buy an item (without metadata only).",
         params: { itemId: "The id of the item" },
-        body: { amount: "The amount of the item to buy" },
+        body: {
+            amount: "The amount of the item to buy"
+        },
         responseType: { message: "string" },
         example: 'POST /api/items/buy/item_1 {"amount": 2}',
         requiresAuth: true,
@@ -487,7 +518,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/sell/:itemId",
         method: "POST",
-        description: "Sell an item.",
+        description: "Sell an item (without metadata only).",
         params: { itemId: "The id of the item" },
         body: { amount: "The amount of the item to sell" },
         responseType: { message: "string" },
@@ -505,9 +536,13 @@ __decorate([
         method: "POST",
         description: "Give item occurrences to a user (owner only).",
         params: { itemId: "The id of the item" },
-        body: { amount: "The amount of the item to give" },
+        body: {
+            amount: "The amount of the item to give",
+            metadata: "Optional metadata for the item (object)",
+            userId: "The id of the user to give the item to"
+        },
         responseType: { message: "string" },
-        example: 'POST /api/items/give/item_1 {"amount": 1}',
+        example: 'POST /api/items/give/item_1 {"amount": 1, "metadata": {"rarity": "legendary"}, "userId": "user_2"}',
         requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
@@ -521,9 +556,13 @@ __decorate([
         method: "POST",
         description: "Consume item occurrences from a user (owner only).",
         params: { itemId: "The id of the item" },
-        body: { amount: "The amount of the item to consume" },
+        body: {
+            amount: "The amount of the item to consume (for items without metadata)",
+            uniqueId: "The unique ID of the item instance (for items with metadata)",
+            userId: "The id of the user to consume the item from"
+        },
         responseType: { message: "string" },
-        example: 'POST /api/items/consume/item_1 {"amount": 1}',
+        example: 'POST /api/items/consume/item_1 {"amount": 1, "userId": "user_2"} OR {"uniqueId": "abc-123", "userId": "user_2"}',
         requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/consume/:itemId", OwnerCheck_1.OwnerCheck.middleware),
@@ -533,20 +572,23 @@ __decorate([
 ], Items.prototype, "consumeItem", null);
 __decorate([
     (0, describe_1.describe)({
-        endpoint: "/items/drop/:itemId",
-        method: "POST",
-        description: "Drop item occurrences from your inventory.",
+        endpoint: "/items/update-metadata/:itemId",
+        method: "PUT",
+        description: "Update metadata for a specific item instance in inventory.",
         params: { itemId: "The id of the item" },
-        body: { amount: "The amount of the item to drop" },
+        body: {
+            uniqueId: "The unique ID of the item instance",
+            metadata: "Metadata object to update"
+        },
         responseType: { message: "string" },
-        example: 'POST /api/items/drop/item_1 {"amount": 1}',
+        example: 'PUT /api/items/update-metadata/item_1 {"uniqueId": "abc-123", "metadata": {"level": 5, "enchantment": "fire"}}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPut)("/update-metadata/:itemId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Items.prototype, "dropItem", null);
+], Items.prototype, "updateItemMetadata", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),

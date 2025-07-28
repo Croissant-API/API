@@ -423,15 +423,18 @@ export class UserService implements IUserService {
     const query = `
       SELECT 
         u.*,
-        -- Inventory data
+        -- Inventory data with metadata
         json_group_array(
           CASE WHEN inv.item_id IS NOT NULL THEN
             json_object(
+              'user_id', inv.user_id,
+              'item_id', inv.item_id,
               'itemId', i.itemId,
               'name', i.name,
               'description', i.description,
               'amount', inv.amount,
-              'iconHash', i.iconHash
+              'iconHash', i.iconHash,
+              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END
         ) as inventory,
@@ -503,15 +506,18 @@ export class UserService implements IUserService {
     const query = `
       SELECT 
         u.*,
-        -- Inventory data
+        -- Inventory data with metadata
         json_group_array(
           CASE WHEN inv.item_id IS NOT NULL THEN
             json_object(
+              'user_id', inv.user_id,
+              'item_id', inv.item_id,
               'itemId', i.itemId,
               'name', i.name,
               'description', i.description,
               'amount', inv.amount,
-              'iconHash', i.iconHash
+              'iconHash', i.iconHash,
+              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END
         ) as inventory,
@@ -551,7 +557,7 @@ export class UserService implements IUserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
@@ -582,15 +588,18 @@ export class UserService implements IUserService {
     const query = `
       SELECT 
         u.*,
-        -- Inventory data
+        -- Inventory data with metadata
         json_group_array(
           CASE WHEN inv.item_id IS NOT NULL THEN
             json_object(
+              'user_id', inv.user_id,
+              'item_id', inv.item_id,
               'itemId', i.itemId,
               'name', i.name,
               'description', i.description,
               'amount', inv.amount,
-              'iconHash', i.iconHash
+              'iconHash', i.iconHash,
+              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END
         ) as inventory,
@@ -630,7 +639,7 @@ export class UserService implements IUserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
       GROUP BY u.user_id

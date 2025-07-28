@@ -49,16 +49,18 @@ export class Inventories {
   @describe({
     endpoint: "/inventory/@me",
     method: "GET",
-    description: "Get the inventory of the authenticated user",
-    responseType: [
-      {
-        itemId: "string",
-        name: "string",
-        description: "string",
-        amount: "number",
-        iconHash: "string",
-      },
-    ],
+    description: "Get the inventory of the authenticated user with all item instances (including unique items with metadata)",
+    responseType: {
+      user_id: "string",
+      inventory: [
+        {
+          user_id: "string",
+          item_id: "string",
+          amount: "number",
+          metadata: "object (optional, includes _unique_id for unique items)"
+        }
+      ]
+    },
     example: "GET /api/inventory/@me",
     requiresAuth: true,
   })
@@ -77,17 +79,19 @@ export class Inventories {
   @describe({
     endpoint: "/inventory/:userId",
     method: "GET",
-    description: "Get the inventory of a user",
+    description: "Get the inventory of a user with all item instances (including unique items with metadata)",
     params: { userId: "The id of the user" },
-    responseType: [
-      {
-        itemId: "string",
-        name: "string",
-        description: "string",
-        amount: "number",
-        iconHash: "string",
-      },
-    ],
+    responseType: {
+      user_id: "string",
+      inventory: [
+        {
+          user_id: "string",
+          item_id: "string",
+          amount: "number",
+          metadata: "object (optional, includes _unique_id for unique items)"
+        }
+      ]
+    },
     example: "GET /api/inventory/123",
   })
   @httpGet("/:userId")
