@@ -48,7 +48,7 @@ let Inventories = class Inventories {
     async getMyInventory(req, res) {
         const userId = req.user.user_id;
         try {
-            const inventory = await this.inventoryService.getFormattedInventory(userId);
+            const inventory = await this.inventoryService.getInventory(userId);
             res.send(inventory);
         }
         catch (error) {
@@ -61,7 +61,7 @@ let Inventories = class Inventories {
             return;
         const userId = req.params.userId;
         try {
-            const inventory = await this.inventoryService.getFormattedInventory(userId);
+            const inventory = await this.inventoryService.getInventory(userId);
             res.send(inventory);
         }
         catch (error) {

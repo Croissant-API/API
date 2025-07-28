@@ -3,13 +3,6 @@ import { Inventory } from "../interfaces/Inventory";
 import { IUserService } from "./UserService";
 export interface IInventoryService {
     getInventory(userId: string): Promise<Inventory>;
-    getFormattedInventory(userId: string): Promise<Array<{
-        itemId: string;
-        name: string;
-        description: string;
-        amount: number;
-        iconHash?: string;
-    }>>;
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number): Promise<void>;
     removeItem(userId: string, itemId: string, amount: number): Promise<void>;
@@ -22,16 +15,9 @@ export declare class InventoryService implements IInventoryService {
     constructor(databaseService: IDatabaseService, userService: IUserService);
     private getCorrectedUserId;
     getInventory(userId: string): Promise<Inventory>;
-    getFormattedInventory(userId: string): Promise<Array<{
-        itemId: string;
-        name: string;
-        description: string;
-        amount: number;
-        iconHash?: string;
-    }>>;
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number): Promise<void>;
-    removeItem(userId: string, itemId: string, amount: number): Promise<void>;
     setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
+    removeItem(userId: string, itemId: string, amount: number): Promise<void>;
     hasItem(userId: string, itemId: string, amount?: number): Promise<boolean>;
 }

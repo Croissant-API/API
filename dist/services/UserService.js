@@ -311,7 +311,7 @@ let UserService = UserService_1 = class UserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id

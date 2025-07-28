@@ -66,7 +66,7 @@ export class Inventories {
   public async getMyInventory(req: AuthenticatedRequest, res: Response) {
     const userId = req.user.user_id;
     try {
-      const inventory = await this.inventoryService.getFormattedInventory(userId);
+      const inventory = await this.inventoryService.getInventory(userId);
       res.send(inventory);
     } catch (error) {
       handleError(res, error, "Error fetching inventory");
@@ -96,7 +96,7 @@ export class Inventories {
       return;
     const userId = req.params.userId;
     try {
-      const inventory = await this.inventoryService.getFormattedInventory(userId);
+      const inventory = await this.inventoryService.getInventory(userId);
       res.send(inventory);
     } catch (error) {
       handleError(res, error, "Error fetching inventory");
