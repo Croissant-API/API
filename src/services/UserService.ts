@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
@@ -20,7 +19,7 @@ export interface IUserService {
     steam_username: string | null,
     steam_avatar_url: string | null
   ): Promise<void>;
-   
+
   getDiscordUser(user_id: string): any;
   searchUsersByUsername(query: string): Promise<User[]>;
   updateUserBalance(user_id: string, arg1: number): unknown;
@@ -76,7 +75,7 @@ export interface IUserService {
 export class UserService implements IUserService {
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {}
+  ) { }
 
   // --- Helpers privés ---
   /**
@@ -207,7 +206,7 @@ export class UserService implements IUserService {
     );
   }
 
-   
+
   async getDiscordUser(userId: string): Promise<any> {
     try {
       const cached = getCachedUser(userId);
@@ -397,7 +396,7 @@ export class UserService implements IUserService {
       [JSON.stringify(credentials), userId]
     );
   }
-  
+
   async getUserByCredentialId(credentialId: string): Promise<User | null> {
     const users = await this.databaseService.read<User[]>(
       "SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)",
@@ -483,7 +482,7 @@ export class UserService implements IUserService {
       GROUP BY u.user_id
       ORDER BY inv.item_id, inv.metadata
     `;
-    
+
     // Nettoyer d'abord les items inexistants
     await this.databaseService.update(
       `DELETE FROM inventories 
@@ -496,10 +495,10 @@ export class UserService implements IUserService {
        )`,
       [user_id, user_id, user_id, user_id]
     );
-    
+
     const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
-    
+
     const user = results[0];
     // Parse JSON arrays and filter out null values
     if (user.inventory) {
@@ -511,7 +510,7 @@ export class UserService implements IUserService {
     if (user.createdGames) {
       user.createdGames = JSON.parse(user.createdGames);
     }
-    
+
     return user;
   }
 
@@ -578,10 +577,10 @@ export class UserService implements IUserService {
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
     `;
-    
+
     const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
-    
+
     const user = results[0];
     // Parse JSON arrays and filter out null values
     if (user.inventory) {
@@ -593,7 +592,7 @@ export class UserService implements IUserService {
     if (user.createdGames) {
       user.createdGames = JSON.parse(user.createdGames);
     }
-    
+
     return user;
   }
 
@@ -660,10 +659,10 @@ export class UserService implements IUserService {
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
       GROUP BY u.user_id
     `;
-    
+
     const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
-    
+
     const user = results[0];
     // Parse JSON arrays and filter out null values
     if (user.inventory) {
@@ -675,7 +674,7 @@ export class UserService implements IUserService {
     if (user.createdGames) {
       user.createdGames = JSON.parse(user.createdGames);
     }
-    
+
     return user;
   }
 
