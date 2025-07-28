@@ -282,16 +282,19 @@ let TradeService = class TradeService {
     // Échange les items et passe la trade à completed
     async exchangeTradeItems(trade) {
         // Pour les items avec _unique_id, utiliser transferItem pour préserver l'ID unique
-        // Pour les items sans métadonnées, utiliser la méthode classique remove/add
+        // Pour les items sans métadonnées, utiliser la méthode classique remove/add avec gestion de sellable
         for (const item of trade.fromUserItems) {
             if (item.metadata?._unique_id) {
                 // Transférer directement l'item avec son unique_id préservé
                 await this.inventoryService.transferItem(trade.fromUserId, trade.toUserId, item.itemId, item.metadata._unique_id);
             }
             else {
-                // Pour les items sans métadonnées, utiliser remove/add
+                // Pour les items sans métadonnées, vérifier s'ils sont sellable
+                const inventory = await this.inventoryService.getInventory(trade.fromUserId);
+                const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                const isSellable = inventoryItem?.sellable || false;
                 await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
-                await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount);
+                await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount, undefined, isSellable);
             }
         }
         for (const item of trade.toUserItems) {
@@ -299,8 +302,12 @@ let TradeService = class TradeService {
                 await this.inventoryService.transferItem(trade.toUserId, trade.fromUserId, item.itemId, item.metadata._unique_id);
             }
             else {
+                // Pour les items sans métadonnées, vérifier s'ils sont sellable
+                const inventory = await this.inventoryService.getInventory(trade.toUserId);
+                const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                const isSellable = inventoryItem?.sellable || false;
                 await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
-                await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount);
+                await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount, undefined, isSellable);
             }
         }
         // Met à jour la trade

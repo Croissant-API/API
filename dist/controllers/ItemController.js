@@ -183,8 +183,8 @@ let Items = class Items {
                 await this.userService.updateUserBalance(user.user_id, user.balance - item.price * amount);
                 await this.userService.updateUserBalance(owner.user_id, owner.balance + item.price * amount * 0.75);
             }
-            // Ajouter l'item SANS métadonnées (les utilisateurs ne peuvent pas acheter d'items avec métadonnées)
-            await this.inventoryService.addItem(user.user_id, itemId, amount);
+            // Ajouter l'item SANS métadonnées avec sellable = true car acheté
+            await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, true);
             res.status(200).send({ message: "Item bought" });
         }
         catch (error) {
@@ -208,21 +208,19 @@ let Items = class Items {
             if (!user) {
                 return res.status(404).send({ message: "User not found" });
             }
-            // Vérifier que l'utilisateur a suffisamment d'items SANS métadonnées
-            const inventory = await this.inventoryService.getInventory(user.user_id);
-            const itemsWithoutMetadata = inventory.inventory.filter(invItem => invItem.item_id === itemId && !invItem.metadata);
-            const totalAmountWithoutMetadata = itemsWithoutMetadata.reduce((sum, invItem) => sum + invItem.amount, 0);
-            if (totalAmountWithoutMetadata < amount) {
+            // Vérifier que l'utilisateur a suffisamment d'items SELLABLE
+            const hasEnoughSellableItems = await this.inventoryService.hasItemWithoutMetadataSellable(user.user_id, itemId, amount);
+            if (!hasEnoughSellableItems) {
                 return res.status(400).send({
-                    message: "Insufficient items without metadata. You can only sell items without metadata."
+                    message: "Insufficient sellable items. You can only sell items that you bought or obtained from trades."
                 });
             }
             // Only increase balance if the user is NOT the owner
             if (user.user_id !== item.owner) {
                 await this.userService.updateUserBalance(user.user_id, user.balance + item.price * amount * 0.75);
             }
-            // Supprimer les items (cela supprimera d'abord les items sans métadonnées)
-            await this.inventoryService.removeItem(user.user_id, itemId, amount);
+            // Supprimer spécifiquement les items sellable
+            await this.inventoryService.removeSellableItem(user.user_id, itemId, amount);
             res.status(200).send({ message: "Item sold" });
         }
         catch (error) {
@@ -247,8 +245,8 @@ let Items = class Items {
             if (!item || item.deleted) {
                 return res.status(404).send({ message: "Item not found" });
             }
-            // Donner l'item à l'utilisateur cible
-            await this.inventoryService.addItem(targetUser.user_id, itemId, amount, metadata);
+            // Donner l'item à l'utilisateur cible avec sellable = false car donné par owner
+            await this.inventoryService.addItem(targetUser.user_id, itemId, amount, metadata, false);
             res.status(200).send({ message: "Item given" });
         }
         catch (error) {

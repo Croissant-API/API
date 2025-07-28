@@ -5,13 +5,7 @@ export interface InventoryItem {
     metadata?: {
         [key: string]: unknown;
     };
-    itemId?: string;
-    name?: string;
-    description?: string;
-    iconHash?: string;
-    price?: number;
-    owner?: string;
-    showInStore?: boolean;
+    sellable: boolean;
 }
 export interface Inventory {
     user_id: string;
