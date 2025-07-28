@@ -16,25 +16,10 @@ exports.Trades = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const TradeValidator_1 = require("../validators/TradeValidator");
-const yup_1 = require("yup");
 const describe_1 = require("../decorators/describe");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
-}
-async function validateOr400(schema, data, res) {
-    try {
-        await schema.validate(data, { abortEarly: false });
-        return true;
-    }
-    catch (error) {
-        if (error instanceof yup_1.ValidationError) {
-            res.status(400).send({ message: "Validation failed", errors: error.errors });
-            return false;
-        }
-        throw error;
-    }
 }
 let Trades = class Trades {
     constructor(tradeService) {
@@ -87,11 +72,12 @@ let Trades = class Trades {
     }
     // --- Actions sur une trade ---
     async addItemToTrade(req, res) {
-        if (!(await validateOr400(TradeValidator_1.tradeItemActionSchema, req.body, res)))
-            return;
         try {
             const tradeId = req.params.id;
             const { tradeItem } = req.body;
+            if (!tradeItem.itemId || !tradeItem.amount || tradeItem.amount <= 0) {
+                return res.status(400).send({ message: "Invalid tradeItem format" });
+            }
             await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item added to trade" });
         }
@@ -100,11 +86,16 @@ let Trades = class Trades {
         }
     }
     async removeItemFromTrade(req, res) {
-        if (!(await validateOr400(TradeValidator_1.tradeItemActionSchema, req.body, res)))
-            return;
         try {
             const tradeId = req.params.id;
             const { tradeItem } = req.body;
+            if (!tradeItem.itemId) {
+                return res.status(400).send({ message: "Invalid tradeItem format" });
+            }
+            // Pour les items avec _unique_id, l'amount peut être omis
+            if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
+                return res.status(400).send({ message: "Amount is required for items without _unique_id" });
+            }
             await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
             res.status(200).send({ message: "Item removed from trade" });
         }
@@ -244,11 +235,12 @@ __decorate([
         body: {
             tradeItem: {
                 itemId: "The ID of the item to add",
-                amount: "The amount of the item to add"
+                amount: "The amount of the item to add",
+                metadata: "Metadata object including _unique_id for unique items (optional)"
             }
         },
         responseType: { message: "string" },
-        example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}}',
+        example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}} or {"tradeItem": {"itemId": "item456", "amount": 1, "metadata": {"level": 5, "_unique_id": "abc-123"}}}',
         requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
@@ -265,11 +257,12 @@ __decorate([
         body: {
             tradeItem: {
                 itemId: "The ID of the item to remove",
-                amount: "The amount of the item to remove"
+                amount: "The amount of the item to remove",
+                metadata: "Metadata object including _unique_id for unique items (optional)"
             }
         },
         responseType: { message: "string" },
-        example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}}',
+        example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}} or {"tradeItem": {"itemId": "item456", "metadata": {"_unique_id": "abc-123"}}}',
         requiresAuth: true
     }),
     (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),

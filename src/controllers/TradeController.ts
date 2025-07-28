@@ -9,27 +9,11 @@ import {
 import { ITradeService } from "../services/TradeService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { TradeItem } from "../interfaces/Trade";
-import { tradeItemActionSchema } from "../validators/TradeValidator";
-import { ValidationError } from "yup";
-import { Schema } from "yup";
 import { describe } from "../decorators/describe";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });
-}
-
-async function validateOr400(schema: Schema<unknown>, data: unknown, res: Response) {
-  try {
-    await schema.validate(data, { abortEarly: false });
-    return true;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      res.status(400).send({ message: "Validation failed", errors: error.errors });
-      return false;
-    }
-    throw error;
-  }
 }
 
 @controller("/trades")
@@ -184,20 +168,23 @@ export class Trades {
     body: {
       tradeItem: {
         itemId: "The ID of the item to add",
-        amount: "The amount of the item to add"
+        amount: "The amount of the item to add",
+        metadata: "Metadata object including _unique_id for unique items (optional)"
       }
     },
     responseType: { message: "string" },
-    example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}}',
+    example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}} or {"tradeItem": {"itemId": "item456", "amount": 1, "metadata": {"level": 5, "_unique_id": "abc-123"}}}',
     requiresAuth: true
   })
   @httpPost("/:id/add-item", LoggedCheck.middleware)
   public async addItemToTrade(req: AuthenticatedRequest, res: Response) {
-    if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
-    
     try {
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
+      
+      if (!tradeItem.itemId || !tradeItem.amount || tradeItem.amount <= 0) {
+        return res.status(400).send({ message: "Invalid tradeItem format" });
+      }
       
       await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
       res.status(200).send({ message: "Item added to trade" });
@@ -214,20 +201,28 @@ export class Trades {
     body: {
       tradeItem: {
         itemId: "The ID of the item to remove",
-        amount: "The amount of the item to remove"
+        amount: "The amount of the item to remove",
+        metadata: "Metadata object including _unique_id for unique items (optional)"
       }
     },
     responseType: { message: "string" },
-    example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}}',
+    example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}} or {"tradeItem": {"itemId": "item456", "metadata": {"_unique_id": "abc-123"}}}',
     requiresAuth: true
   })
   @httpPost("/:id/remove-item", LoggedCheck.middleware)
   public async removeItemFromTrade(req: AuthenticatedRequest, res: Response) {
-    if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
-    
     try {
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
+      
+      if (!tradeItem.itemId) {
+        return res.status(400).send({ message: "Invalid tradeItem format" });
+      }
+      
+      // Pour les items avec _unique_id, l'amount peut être omis
+      if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
+        return res.status(400).send({ message: "Amount is required for items without _unique_id" });
+      }
       
       await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
       res.status(200).send({ message: "Item removed from trade" });

@@ -1,13 +1,19 @@
-export interface Inventory {
-    user_id: string;
-    inventory: InventoryItem[];
-}
 export interface InventoryItem {
     user_id: string;
     item_id: string;
     amount: number;
     metadata?: {
         [key: string]: unknown;
-        _unique_id?: string;
     };
+    itemId?: string;
+    name?: string;
+    description?: string;
+    iconHash?: string;
+    price?: number;
+    owner?: string;
+    showInStore?: boolean;
+}
+export interface Inventory {
+    user_id: string;
+    inventory: InventoryItem[];
 }

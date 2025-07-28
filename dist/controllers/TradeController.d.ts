@@ -7,8 +7,8 @@ export declare class Trades {
     startOrGetPendingTrade(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getTradeById(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getTradesByUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    addItemToTrade(req: AuthenticatedRequest, res: Response): Promise<void>;
-    removeItemFromTrade(req: AuthenticatedRequest, res: Response): Promise<void>;
+    addItemToTrade(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    removeItemFromTrade(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     approveTrade(req: AuthenticatedRequest, res: Response): Promise<void>;
     cancelTrade(req: AuthenticatedRequest, res: Response): Promise<void>;
 }

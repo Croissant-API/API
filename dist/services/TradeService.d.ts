@@ -14,6 +14,10 @@ export interface ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -21,6 +25,10 @@ export interface ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -39,6 +47,10 @@ export interface ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -46,6 +58,10 @@ export interface ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -75,6 +91,10 @@ export declare class TradeService implements ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -82,6 +102,10 @@ export declare class TradeService implements ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -100,6 +124,10 @@ export declare class TradeService implements ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -107,6 +135,10 @@ export declare class TradeService implements ITradeService {
             description: string;
             iconHash?: string;
             amount: number;
+            uniqueId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;

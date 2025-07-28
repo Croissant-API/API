@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Inventory, InventoryItem } from "../interfaces/Inventory";
@@ -10,10 +11,11 @@ export interface IInventoryService {
   addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }): Promise<void>;
   removeItem(userId: string, itemId: string, amount: number): Promise<void>;
   removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
-  setItemAmount(userId: string, itemId: string, amount: number): Promise<void>; // Retiré metadata car non applicable
+  setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
   updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: { [key: string]: unknown }): Promise<void>;
   hasItem(userId: string, itemId: string, amount?: number): Promise<boolean>;
   hasItemWithoutMetadata(userId: string, itemId: string, amount?: number): Promise<boolean>;
+  transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }
 
 @injectable()
@@ -39,16 +41,51 @@ export class InventoryService implements IInventoryService {
 
   async getInventory(userId: string): Promise<Inventory> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null })[]>(
-      "SELECT user_id, item_id, amount, metadata FROM inventories WHERE user_id = ? AND amount > 0",
+    
+    // Supprimer automatiquement les items non-existants ou supprimés
+    await this.databaseService.update(
+      `DELETE FROM inventories 
+       WHERE user_id = ? 
+       AND item_id NOT IN (
+         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
+       )`,
       [correctedUserId]
     );
 
-    const processedItems: InventoryItem[] = items.map((item: InventoryItem & { metadata: string | null }) => ({
+    // Récupérer les items avec toutes leurs données en une seule requête
+    const items = await this.databaseService.read<any[]>(
+      `SELECT 
+         inv.user_id, 
+         inv.item_id, 
+         inv.amount, 
+         inv.metadata,
+         i.itemId,
+         i.name,
+         i.description,
+         i.iconHash,
+         i.price,
+         i.owner,
+         i.showInStore
+       FROM inventories inv
+       INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
+       WHERE inv.user_id = ? AND inv.amount > 0
+       ORDER BY inv.item_id, inv.metadata`,
+      [correctedUserId]
+    );
+
+    const processedItems: any[] = items.map((item: any) => ({
       user_id: item.user_id,
       item_id: item.item_id,
       amount: item.amount,
-      metadata: this.parseMetadata(item.metadata ?? null)
+      metadata: this.parseMetadata(item.metadata ?? null),
+      // Données de l'item
+      itemId: item.itemId,
+      name: item.name,
+      description: item.description,
+      iconHash: item.iconHash,
+      price: item.price,
+      owner: item.owner,
+      showInStore: item.showInStore
     }));
     
     return { user_id: userId, inventory: processedItems };
@@ -176,7 +213,7 @@ export class InventoryService implements IInventoryService {
     const correctedUserId = await this.getCorrectedUserId(userId);
     
     await this.databaseService.update(
-      `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ? LIMIT 1`,
+      `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
       [correctedUserId, itemId, uniqueId]
     );
   }
@@ -188,11 +225,32 @@ export class InventoryService implements IInventoryService {
 
   async hasItemWithoutMetadata(userId: string, itemId: string, amount = 1): Promise<boolean> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<InventoryItem[]>(
+    const items = await this.databaseService.read<{ total: number | null }[]>(
       "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL",
       [correctedUserId, itemId]
     );
-    const totalAmount = items.length === 0 || !items[0].amount ? 0 : items[0].amount;
+    const totalAmount = items.length === 0 || !items[0].total ? 0 : items[0].total;
     return totalAmount >= amount;
+  }
+
+  async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {
+    const correctedFromUserId = await this.getCorrectedUserId(fromUserId);
+    const correctedToUserId = await this.getCorrectedUserId(toUserId);
+    
+    // Vérifier que l'item existe dans l'inventaire du fromUser
+    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null })[]>(
+      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+      [correctedFromUserId, itemId, uniqueId]
+    );
+    
+    if (items.length === 0) {
+      throw new Error("Item not found in user's inventory");
+    }
+    
+    // Transférer la propriété en changeant seulement le user_id
+    await this.databaseService.update(
+      `UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+      [correctedToUserId, correctedFromUserId, itemId, uniqueId]
+    );
   }
 }

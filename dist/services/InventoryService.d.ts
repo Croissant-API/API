@@ -15,6 +15,7 @@ export interface IInventoryService {
     }): Promise<void>;
     hasItem(userId: string, itemId: string, amount?: number): Promise<boolean>;
     hasItemWithoutMetadata(userId: string, itemId: string, amount?: number): Promise<boolean>;
+    transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }
 export declare class InventoryService implements IInventoryService {
     private databaseService;
@@ -35,4 +36,5 @@ export declare class InventoryService implements IInventoryService {
     removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
     hasItem(userId: string, itemId: string, amount?: number): Promise<boolean>;
     hasItemWithoutMetadata(userId: string, itemId: string, amount?: number): Promise<boolean>;
+    transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }

@@ -323,6 +323,49 @@ let Items = class Items {
             handleError(res, error, "Error updating item metadata");
         }
     }
+    async dropItem(req, res) {
+        const { itemId } = req.params;
+        const { amount, uniqueId } = req.body;
+        if (!itemId) {
+            return res.status(400).send({ message: "Invalid input: itemId is required" });
+        }
+        // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
+        if ((amount && uniqueId) || (!amount && !uniqueId)) {
+            return res.status(400).send({
+                message: "Invalid input: provide either 'amount' for items without metadata OR 'uniqueId' for items with metadata"
+            });
+        }
+        if (amount && isNaN(amount)) {
+            return res.status(400).send({ message: "Invalid input: amount must be a number" });
+        }
+        try {
+            const user = req.user;
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+            if (uniqueId) {
+                // Supprimer un item spécifique avec métadonnées
+                await this.inventoryService.removeItemByUniqueId(user.user_id, itemId, uniqueId);
+                res.status(200).send({ message: "Item with metadata dropped" });
+            }
+            else {
+                // Supprimer des items sans métadonnées
+                const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(user.user_id, itemId, amount);
+                if (!hasEnoughItems) {
+                    return res.status(400).send({
+                        message: "You don't have enough items without metadata to drop"
+                    });
+                }
+                await this.inventoryService.removeItem(user.user_id, itemId, amount);
+                res.status(200).send({ message: "Items without metadata dropped" });
+            }
+        }
+        catch (error) {
+            console.error("Error dropping item", error);
+            const message = error instanceof Error ? error.message : String(error);
+            res.status(500).send({ message: "Error dropping item", error: message });
+        }
+    }
     async transferOwnership(req, res) {
         const { itemId } = req.params;
         const { newOwnerId } = req.body;
@@ -589,6 +632,25 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "updateItemMetadata", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/items/drop/:itemId",
+        method: "POST",
+        description: "Drop item occurrences from your inventory.",
+        params: { itemId: "The id of the item" },
+        body: {
+            amount: "The amount of the item to drop (for items without metadata)",
+            uniqueId: "The unique ID of the item instance to drop (for items with metadata)"
+        },
+        responseType: { message: "string" },
+        example: 'POST /api/items/drop/item_1 {"amount": 1} OR {"uniqueId": "abc-123"}',
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpPost)("/drop/:itemId", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Items.prototype, "dropItem", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),

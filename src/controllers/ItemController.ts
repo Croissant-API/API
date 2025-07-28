@@ -58,7 +58,7 @@ export class Items {
     @inject("ItemService") private itemService: IItemService,
     @inject("InventoryService") private inventoryService: IInventoryService,
     @inject("UserService") private userService: IUserService
-  ) {}
+  ) { }
 
   // --- LECTURE ---
   @describe({
@@ -293,7 +293,7 @@ export class Items {
     method: "POST",
     description: "Buy an item (without metadata only).",
     params: { itemId: "The id of the item" },
-    body: { 
+    body: {
       amount: "The amount of the item to buy"
     },
     responseType: { message: "string" },
@@ -385,8 +385,8 @@ export class Items {
       );
 
       if (totalAmountWithoutMetadata < amount) {
-        return res.status(400).send({ 
-          message: "Insufficient items without metadata. You can only sell items without metadata." 
+        return res.status(400).send({
+          message: "Insufficient items without metadata. You can only sell items without metadata."
         });
       }
 
@@ -397,7 +397,7 @@ export class Items {
           user.balance + item.price * amount * 0.75
         );
       }
-      
+
       // Supprimer les items (cela supprimera d'abord les items sans métadonnées)
       await this.inventoryService.removeItem(user.user_id, itemId, amount);
 
@@ -414,7 +414,7 @@ export class Items {
     method: "POST",
     description: "Give item occurrences to a user (owner only).",
     params: { itemId: "The id of the item" },
-    body: { 
+    body: {
       amount: "The amount of the item to give",
       metadata: "Optional metadata for the item (object)",
       userId: "The id of the user to give the item to"
@@ -458,7 +458,7 @@ export class Items {
     method: "POST",
     description: "Consume item occurrences from a user (owner only).",
     params: { itemId: "The id of the item" },
-    body: { 
+    body: {
       amount: "The amount of the item to consume (for items without metadata)",
       uniqueId: "The unique ID of the item instance (for items with metadata)",
       userId: "The id of the user to consume the item from"
@@ -471,15 +471,15 @@ export class Items {
   public async consumeItem(req: AuthenticatedRequestWithOwner, res: Response) {
     const { itemId } = req.params;
     const { amount, uniqueId, userId } = req.body;
-    
+
     if (!itemId || !userId) {
       return res.status(400).send({ message: "Invalid input: itemId and userId are required" });
     }
 
     // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
     if ((amount && uniqueId) || (!amount && !uniqueId)) {
-      return res.status(400).send({ 
-        message: "Invalid input: provide either 'amount' for items without metadata OR 'uniqueId' for items with metadata" 
+      return res.status(400).send({
+        message: "Invalid input: provide either 'amount' for items without metadata OR 'uniqueId' for items with metadata"
       });
     }
 
@@ -506,14 +506,14 @@ export class Items {
       } else {
         // Consommer des items sans métadonnées
         const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(
-          targetUser.user_id, 
-          itemId, 
+          targetUser.user_id,
+          itemId,
           amount
         );
-        
+
         if (!hasEnoughItems) {
-          return res.status(400).send({ 
-            message: "User doesn't have enough items without metadata" 
+          return res.status(400).send({
+            message: "User doesn't have enough items without metadata"
           });
         }
 
@@ -532,9 +532,9 @@ export class Items {
     method: "PUT",
     description: "Update metadata for a specific item instance in inventory.",
     params: { itemId: "The id of the item" },
-    body: { 
+    body: {
       uniqueId: "The unique ID of the item instance",
-      metadata: "Metadata object to update" 
+      metadata: "Metadata object to update"
     },
     responseType: { message: "string" },
     example: 'PUT /api/items/update-metadata/item_1 {"uniqueId": "abc-123", "metadata": {"level": 5, "enchantment": "fire"}}',
@@ -544,11 +544,11 @@ export class Items {
   public async updateItemMetadata(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
     const { uniqueId, metadata } = req.body;
-    
+
     if (!itemId || !uniqueId || !metadata || typeof metadata !== 'object') {
       return res.status(400).send({ message: "Invalid input" });
     }
-    
+
     try {
       const user = req.user;
       if (!user) {
@@ -559,6 +559,73 @@ export class Items {
       res.status(200).send({ message: "Item metadata updated" });
     } catch (error) {
       handleError(res, error, "Error updating item metadata");
+    }
+  }
+
+  @describe({
+    endpoint: "/items/drop/:itemId",
+    method: "POST",
+    description: "Drop item occurrences from your inventory.",
+    params: { itemId: "The id of the item" },
+    body: { 
+      amount: "The amount of the item to drop (for items without metadata)",
+      uniqueId: "The unique ID of the item instance to drop (for items with metadata)"
+    },
+    responseType: { message: "string" },
+    example: 'POST /api/items/drop/item_1 {"amount": 1} OR {"uniqueId": "abc-123"}',
+    requiresAuth: true,
+  })
+  @httpPost("/drop/:itemId", LoggedCheck.middleware)
+  public async dropItem(req: AuthenticatedRequest, res: Response) {
+    const { itemId } = req.params;
+    const { amount, uniqueId } = req.body;
+    
+    if (!itemId) {
+      return res.status(400).send({ message: "Invalid input: itemId is required" });
+    }
+
+    // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
+    if ((amount && uniqueId) || (!amount && !uniqueId)) {
+      return res.status(400).send({
+        message: "Invalid input: provide either 'amount' for items without metadata OR 'uniqueId' for items with metadata"
+      });
+    }
+
+    if (amount && isNaN(amount)) {
+      return res.status(400).send({ message: "Invalid input: amount must be a number" });
+    }
+
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+
+      if (uniqueId) {
+        // Supprimer un item spécifique avec métadonnées
+        await this.inventoryService.removeItemByUniqueId(user.user_id, itemId, uniqueId);
+        res.status(200).send({ message: "Item with metadata dropped" });
+      } else {
+        // Supprimer des items sans métadonnées
+        const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(
+          user.user_id,
+          itemId,
+          amount
+        );
+
+        if (!hasEnoughItems) {
+          return res.status(400).send({
+            message: "You don't have enough items without metadata to drop"
+          });
+        }
+
+        await this.inventoryService.removeItem(user.user_id, itemId, amount);
+        res.status(200).send({ message: "Items without metadata dropped" });
+      }
+    } catch (error) {
+      console.error("Error dropping item", error);
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(500).send({ message: "Error dropping item", error: message });
     }
   }
 

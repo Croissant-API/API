@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryService = void 0;
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const uuid_1 = require("uuid");
 let InventoryService = class InventoryService {
@@ -36,12 +37,42 @@ let InventoryService = class InventoryService {
     }
     async getInventory(userId) {
         const correctedUserId = await this.getCorrectedUserId(userId);
-        const items = await this.databaseService.read("SELECT user_id, item_id, amount, metadata FROM inventories WHERE user_id = ? AND amount > 0", [correctedUserId]);
+        // Supprimer automatiquement les items non-existants ou supprimés
+        await this.databaseService.update(`DELETE FROM inventories 
+       WHERE user_id = ? 
+       AND item_id NOT IN (
+         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
+       )`, [correctedUserId]);
+        // Récupérer les items avec toutes leurs données en une seule requête
+        const items = await this.databaseService.read(`SELECT 
+         inv.user_id, 
+         inv.item_id, 
+         inv.amount, 
+         inv.metadata,
+         i.itemId,
+         i.name,
+         i.description,
+         i.iconHash,
+         i.price,
+         i.owner,
+         i.showInStore
+       FROM inventories inv
+       INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
+       WHERE inv.user_id = ? AND inv.amount > 0
+       ORDER BY inv.item_id, inv.metadata`, [correctedUserId]);
         const processedItems = items.map((item) => ({
             user_id: item.user_id,
             item_id: item.item_id,
             amount: item.amount,
-            metadata: this.parseMetadata(item.metadata ?? null)
+            metadata: this.parseMetadata(item.metadata ?? null),
+            // Données de l'item
+            itemId: item.itemId,
+            name: item.name,
+            description: item.description,
+            iconHash: item.iconHash,
+            price: item.price,
+            owner: item.owner,
+            showInStore: item.showInStore
         }));
         return { user_id: userId, inventory: processedItems };
     }
@@ -114,7 +145,7 @@ let InventoryService = class InventoryService {
     }
     async removeItemByUniqueId(userId, itemId, uniqueId) {
         const correctedUserId = await this.getCorrectedUserId(userId);
-        await this.databaseService.update(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ? LIMIT 1`, [correctedUserId, itemId, uniqueId]);
+        await this.databaseService.update(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [correctedUserId, itemId, uniqueId]);
     }
     async hasItem(userId, itemId, amount = 1) {
         const totalAmount = await this.getItemAmount(userId, itemId);
@@ -123,8 +154,19 @@ let InventoryService = class InventoryService {
     async hasItemWithoutMetadata(userId, itemId, amount = 1) {
         const correctedUserId = await this.getCorrectedUserId(userId);
         const items = await this.databaseService.read("SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL", [correctedUserId, itemId]);
-        const totalAmount = items.length === 0 || !items[0].amount ? 0 : items[0].amount;
+        const totalAmount = items.length === 0 || !items[0].total ? 0 : items[0].total;
         return totalAmount >= amount;
+    }
+    async transferItem(fromUserId, toUserId, itemId, uniqueId) {
+        const correctedFromUserId = await this.getCorrectedUserId(fromUserId);
+        const correctedToUserId = await this.getCorrectedUserId(toUserId);
+        // Vérifier que l'item existe dans l'inventaire du fromUser
+        const items = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [correctedFromUserId, itemId, uniqueId]);
+        if (items.length === 0) {
+            throw new Error("Item not found in user's inventory");
+        }
+        // Transférer la propriété en changeant seulement le user_id
+        await this.databaseService.update(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [correctedToUserId, correctedFromUserId, itemId, uniqueId]);
     }
 };
 InventoryService = __decorate([

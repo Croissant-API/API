@@ -71,24 +71,30 @@ let TradeService = class TradeService {
     async enrichTradeItemsWithSQL(tradeItems) {
         if (!tradeItems.length)
             return [];
-        const itemIds = tradeItems.map(ti => ti.itemId);
+        const itemIds = [...new Set(tradeItems.map(ti => ti.itemId))]; // Remove duplicates
+        if (!itemIds.length)
+            return []; // Additional safety check
         const items = await this.databaseService.read(`SELECT itemId, name, description, iconHash 
        FROM items 
        WHERE itemId IN (${itemIds.map(() => "?").join(",")}) 
          AND (deleted IS NULL OR deleted = 0)`, itemIds);
-        return tradeItems.map(ti => {
+        const enrichedItems = [];
+        for (const ti of tradeItems) {
             const item = items.find((i) => i.itemId === ti.itemId);
             if (!item) {
                 throw new Error(`Item ${ti.itemId} not found or deleted`);
             }
-            return {
+            enrichedItems.push({
                 itemId: item.itemId,
                 name: item.name,
                 description: item.description,
                 iconHash: item.iconHash,
-                amount: ti.amount
-            };
-        });
+                amount: ti.amount,
+                uniqueId: ti.metadata?._unique_id,
+                metadata: ti.metadata
+            });
+        }
+        return enrichedItems;
     }
     async getTradeById(id) {
         const trades = await this.databaseService.read("SELECT * FROM trades WHERE id = ?", [id]);
@@ -123,61 +129,26 @@ let TradeService = class TradeService {
     }
     async getFormattedTradesByUser(userId) {
         const trades = await this.getTradesByUser(userId);
-        // Collecte tous les itemIds uniques de toutes les trades
-        const allItemIds = new Set();
-        trades.forEach(trade => {
-            trade.fromUserItems.forEach(item => allItemIds.add(item.itemId));
-            trade.toUserItems.forEach(item => allItemIds.add(item.itemId));
-        });
-        if (allItemIds.size === 0) {
-            return trades.map(trade => ({
+        const enrichedTrades = [];
+        for (const trade of trades) {
+            const [fromUserItems, toUserItems] = await Promise.all([
+                this.enrichTradeItemsWithSQL(trade.fromUserItems),
+                this.enrichTradeItemsWithSQL(trade.toUserItems)
+            ]);
+            enrichedTrades.push({
                 id: trade.id,
                 fromUserId: trade.fromUserId,
                 toUserId: trade.toUserId,
-                fromUserItems: [],
-                toUserItems: [],
+                fromUserItems,
+                toUserItems,
                 approvedFromUser: trade.approvedFromUser,
                 approvedToUser: trade.approvedToUser,
                 status: trade.status,
                 createdAt: trade.createdAt,
                 updatedAt: trade.updatedAt
-            }));
+            });
         }
-        // Une seule requête pour récupérer tous les items
-        const itemsArray = Array.from(allItemIds);
-        const items = await this.databaseService.read(`SELECT itemId, name, description, iconHash 
-       FROM items 
-       WHERE itemId IN (${itemsArray.map(() => "?").join(",")}) 
-         AND (deleted IS NULL OR deleted = 0)`, itemsArray);
-        // Crée un map pour un accès O(1)
-        const itemsMap = new Map(items.map((item) => [item.itemId, item]));
-        return trades.map(trade => {
-            const enrichItem = (tradeItem) => {
-                const item = itemsMap.get(tradeItem.itemId);
-                if (!item) {
-                    throw new Error(`Item ${tradeItem.itemId} not found or deleted`);
-                }
-                return {
-                    itemId: item.itemId,
-                    name: item.name,
-                    description: item.description,
-                    iconHash: item.iconHash,
-                    amount: tradeItem.amount
-                };
-            };
-            return {
-                id: trade.id,
-                fromUserId: trade.fromUserId,
-                toUserId: trade.toUserId,
-                fromUserItems: trade.fromUserItems.map(enrichItem),
-                toUserItems: trade.toUserItems.map(enrichItem),
-                approvedFromUser: trade.approvedFromUser,
-                approvedToUser: trade.approvedToUser,
-                status: trade.status,
-                createdAt: trade.createdAt,
-                updatedAt: trade.updatedAt
-            };
-        });
+        return enrichedTrades;
     }
     getUserKey(trade, userId) {
         if (trade.fromUserId === userId)
@@ -196,16 +167,41 @@ let TradeService = class TradeService {
             throw new Error("Trade not found");
         this.assertPending(trade);
         const userKey = this.getUserKey(trade, userId);
-        const hasItem = await this.inventoryService.hasItem(userId, tradeItem.itemId, tradeItem.amount);
-        if (!hasItem)
-            throw new Error("User does not have enough of the item");
-        const items = [...trade[userKey]];
-        const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
-        if (idx >= 0) {
-            items[idx].amount += tradeItem.amount;
+        // Vérification différente selon si l'item a des métadonnées ou non
+        if (tradeItem.metadata?._unique_id) {
+            // Pour les items avec métadonnées, vérifier l'existence spécifique
+            const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories 
+         WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, tradeItem.itemId, tradeItem.metadata._unique_id]);
+            if (inventoryItems.length === 0) {
+                throw new Error("User does not have this specific item");
+            }
         }
         else {
+            // Pour les items sans métadonnées, vérifier la quantité disponible
+            const hasItem = await this.inventoryService.hasItemWithoutMetadata(userId, tradeItem.itemId, tradeItem.amount);
+            if (!hasItem)
+                throw new Error("User does not have enough of the item");
+        }
+        const items = [...trade[userKey]];
+        // Pour les items avec _unique_id, ne pas les empiler
+        if (tradeItem.metadata?._unique_id) {
+            // Vérifier que cet item unique n'est pas déjà dans le trade
+            const existingItem = items.find(i => i.itemId === tradeItem.itemId &&
+                i.metadata?._unique_id === tradeItem.metadata?._unique_id);
+            if (existingItem) {
+                throw new Error("This specific item is already in the trade");
+            }
             items.push({ ...tradeItem });
+        }
+        else {
+            // Pour les items sans métadonnées, on peut les empiler
+            const idx = items.findIndex((i) => i.itemId === tradeItem.itemId && !i.metadata?._unique_id);
+            if (idx >= 0) {
+                items[idx].amount += tradeItem.amount;
+            }
+            else {
+                items.push({ ...tradeItem });
+            }
         }
         trade[userKey] = items;
         trade.updatedAt = new Date().toISOString();
@@ -220,14 +216,30 @@ let TradeService = class TradeService {
         this.assertPending(trade);
         const userKey = this.getUserKey(trade, userId);
         const items = [...trade[userKey]];
-        const idx = items.findIndex((i) => i.itemId === tradeItem.itemId);
+        let idx = -1;
+        if (tradeItem.metadata?._unique_id) {
+            // Pour les items avec _unique_id, chercher l'item spécifique
+            idx = items.findIndex((i) => i.itemId === tradeItem.itemId &&
+                i.metadata?._unique_id === tradeItem.metadata?._unique_id);
+        }
+        else {
+            // Pour les items sans métadonnées, chercher un item empilable
+            idx = items.findIndex((i) => i.itemId === tradeItem.itemId && !i.metadata?._unique_id);
+        }
         if (idx === -1)
             throw new Error("Item not found in trade");
-        if (items[idx].amount < tradeItem.amount)
-            throw new Error("Not enough amount to remove");
-        items[idx].amount -= tradeItem.amount;
-        if (items[idx].amount <= 0) {
+        if (tradeItem.metadata?._unique_id) {
+            // Pour les items uniques, les supprimer complètement
             items.splice(idx, 1);
+        }
+        else {
+            // Pour les items empilables, décrémenter la quantité
+            if (items[idx].amount < tradeItem.amount)
+                throw new Error("Not enough amount to remove");
+            items[idx].amount -= tradeItem.amount;
+            if (items[idx].amount <= 0) {
+                items.splice(idx, 1);
+            }
         }
         trade[userKey] = items;
         trade.updatedAt = new Date().toISOString();
@@ -269,19 +281,27 @@ let TradeService = class TradeService {
     }
     // Échange les items et passe la trade à completed
     async exchangeTradeItems(trade) {
-        // Retire les items des inventaires
+        // Pour les items avec _unique_id, utiliser transferItem pour préserver l'ID unique
+        // Pour les items sans métadonnées, utiliser la méthode classique remove/add
         for (const item of trade.fromUserItems) {
-            await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
+            if (item.metadata?._unique_id) {
+                // Transférer directement l'item avec son unique_id préservé
+                await this.inventoryService.transferItem(trade.fromUserId, trade.toUserId, item.itemId, item.metadata._unique_id);
+            }
+            else {
+                // Pour les items sans métadonnées, utiliser remove/add
+                await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
+                await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount);
+            }
         }
         for (const item of trade.toUserItems) {
-            await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
-        }
-        // Ajoute les items à l'autre user
-        for (const item of trade.fromUserItems) {
-            await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount);
-        }
-        for (const item of trade.toUserItems) {
-            await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount);
+            if (item.metadata?._unique_id) {
+                await this.inventoryService.transferItem(trade.toUserId, trade.fromUserId, item.itemId, item.metadata._unique_id);
+            }
+            else {
+                await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
+                await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount);
+            }
         }
         // Met à jour la trade
         const now = new Date().toISOString();

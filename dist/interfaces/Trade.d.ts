@@ -1,6 +1,10 @@
 export interface TradeItem {
     itemId: string;
     amount: number;
+    metadata?: {
+        [key: string]: unknown;
+        _unique_id?: string;
+    };
 }
 export type TradeStatus = "pending" | "approved" | "completed" | "canceled";
 export interface Trade {

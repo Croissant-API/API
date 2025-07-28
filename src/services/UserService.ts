@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
@@ -420,12 +421,13 @@ export class UserService implements IUserService {
    * Get user with complete profile data using SQL joins to avoid N+1 queries
    */
   async getUserWithCompleteProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
+    // Plus de vérification de colonne, on assume qu'elle existe maintenant
     const query = `
       SELECT 
         u.*,
-        -- Inventory data with metadata
+        -- Inventory data with metadata (only existing items)
         json_group_array(
-          CASE WHEN inv.item_id IS NOT NULL THEN
+          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             json_object(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
@@ -449,7 +451,7 @@ export class UserService implements IUserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1) as ownedItems,
         -- Created games
         (SELECT json_group_array(
           json_object(
@@ -475,11 +477,25 @@ export class UserService implements IUserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
+      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
+      ORDER BY inv.item_id, inv.metadata
     `;
+    
+    // Nettoyer d'abord les items inexistants
+    await this.databaseService.update(
+      `DELETE FROM inventories 
+       WHERE user_id = (
+         SELECT user_id FROM users 
+         WHERE user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?
+       ) 
+       AND item_id NOT IN (
+         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
+       )`,
+      [user_id, user_id, user_id, user_id]
+    );
     
     const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
@@ -508,7 +524,7 @@ export class UserService implements IUserService {
         u.*,
         -- Inventory data with metadata
         json_group_array(
-          CASE WHEN inv.item_id IS NOT NULL THEN
+          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             json_object(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
@@ -532,7 +548,7 @@ export class UserService implements IUserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1) as ownedItems,
         -- Created games (without download_link for public view)
         (SELECT json_group_array(
           json_object(
@@ -557,8 +573,8 @@ export class UserService implements IUserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
+      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
     `;
@@ -590,7 +606,7 @@ export class UserService implements IUserService {
         u.*,
         -- Inventory data with metadata
         json_group_array(
-          CASE WHEN inv.item_id IS NOT NULL THEN
+          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             json_object(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
@@ -614,7 +630,7 @@ export class UserService implements IUserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1) as ownedItems,
         -- Created games
         (SELECT json_group_array(
           json_object(
@@ -639,8 +655,8 @@ export class UserService implements IUserService {
           )
         ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
-      LEFT JOIN Inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
+      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
       GROUP BY u.user_id
     `;

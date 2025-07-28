@@ -77,7 +77,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/inventory/@me",
         method: "GET",
-        description: "Get the inventory of the authenticated user with all item instances (including unique items with metadata)",
+        description: "Get the inventory of the authenticated user with all item instances and item details",
         responseType: {
             user_id: "string",
             inventory: [
@@ -85,7 +85,14 @@ __decorate([
                     user_id: "string",
                     item_id: "string",
                     amount: "number",
-                    metadata: "object (optional, includes _unique_id for unique items)"
+                    metadata: "object (optional, includes _unique_id for unique items)",
+                    itemId: "string",
+                    name: "string",
+                    description: "string",
+                    iconHash: "string",
+                    price: "number",
+                    owner: "string",
+                    showInStore: "boolean"
                 }
             ]
         },
@@ -101,7 +108,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/inventory/:userId",
         method: "GET",
-        description: "Get the inventory of a user with all item instances (including unique items with metadata)",
+        description: "Get the inventory of a user with all item instances and item details",
         params: { userId: "The id of the user" },
         responseType: {
             user_id: "string",
@@ -110,7 +117,14 @@ __decorate([
                     user_id: "string",
                     item_id: "string",
                     amount: "number",
-                    metadata: "object (optional, includes _unique_id for unique items)"
+                    metadata: "object (optional, includes _unique_id for unique items)",
+                    itemId: "string",
+                    name: "string",
+                    description: "string",
+                    iconHash: "string",
+                    price: "number",
+                    owner: "string",
+                    showInStore: "boolean"
                 }
             ]
         },
