@@ -4,7 +4,6 @@ import Stripe from "stripe";
 import { inject } from "inversify";
 import { IUserService } from "../services/UserService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { describe } from "../decorators/describe";
 import { ValidationError, Schema } from "yup";
 import * as yup from "yup";
 
@@ -90,14 +89,6 @@ export class StripeController {
         });
     }
 
-    // --- WEBHOOK ---
-    @describe({
-        endpoint: "/stripe/webhook",
-        method: "POST",
-        description: "Handle Stripe webhook events",
-        responseType: { received: "boolean" },
-        example: "POST /api/stripe/webhook"
-    })
     @httpPost("/webhook")
     public async handleWebhook(req: Request, res: Response) {
         if (!STRIPE_WEBHOOK_SECRET) {
@@ -131,15 +122,6 @@ export class StripeController {
     }
 
     // --- CHECKOUT ---
-    @describe({
-        endpoint: "/stripe/checkout",
-        method: "GET",
-        description: "Create a Stripe checkout session for buying credits",
-        query: { tier: "The credit tier to purchase (tier1, tier2, tier3, tier4)" },
-        responseType: { url: "string" },
-        example: "GET /api/stripe/checkout?tier=tier1",
-        requiresAuth: true
-    })
     @httpGet("/checkout", LoggedCheck.middleware)
     public async checkoutEndpoint(req: AuthenticatedRequest, res: Response) {
         if (!(await validateOr400(checkoutQuerySchema, req.query, res))) return;
@@ -170,19 +152,6 @@ export class StripeController {
         }
     }
 
-    @describe({
-        endpoint: "/stripe/tiers",
-        method: "GET", 
-        description: "Get available credit tiers",
-        responseType: [{
-            id: "string",
-            price: "number",
-            credits: "number", 
-            name: "string",
-            image: "string"
-        }],
-        example: "GET /api/stripe/tiers"
-    })
     @httpGet("/tiers")
     public async getTiers(req: Request, res: Response) {
         res.send(CREDIT_TIERS);

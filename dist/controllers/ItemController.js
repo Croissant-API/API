@@ -294,47 +294,6 @@ let Items = class Items {
             res.status(500).send({ message: "Error dropping item", error: message });
         }
     }
-    async transferItem(req, res) {
-        const { itemId } = req.params;
-        const { amount, targetUserId } = req.body;
-        if (!itemId || isNaN(amount) || amount <= 0 || !targetUserId) {
-            return res.status(400).send({ message: "Invalid input" });
-        }
-        try {
-            const user = req.user;
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
-            }
-            if (user.user_id === targetUserId) {
-                return res.status(400).send({ message: "Cannot transfer to yourself" });
-            }
-            // Check sender inventory
-            const senderAmount = await this.inventoryService.getItemAmount(user.user_id, itemId);
-            if (!senderAmount || senderAmount < amount) {
-                return res
-                    .status(400)
-                    .send({ message: "Not enough items to transfer" });
-            }
-            // Remove from sender
-            await this.inventoryService.removeItem(user.user_id, itemId, amount);
-            // Add to recipient
-            const recipientAmount = await this.inventoryService.getItemAmount(targetUserId, itemId);
-            if (recipientAmount) {
-                await this.inventoryService.setItemAmount(targetUserId, itemId, recipientAmount + Number(amount));
-            }
-            else {
-                await this.inventoryService.addItem(targetUserId, itemId, Number(amount));
-            }
-            res.status(200).send({ message: "Item transferred" });
-        }
-        catch (error) {
-            console.error("Error transferring item", error);
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error transferring item", error: message });
-        }
-    }
     async transferOwnership(req, res) {
         const { itemId } = req.params;
         const { newOwnerId } = req.body;
@@ -588,25 +547,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "dropItem", null);
-__decorate([
-    (0, describe_1.describe)({
-        endpoint: "/items/transfer/:itemId",
-        method: "POST",
-        description: "Transfer item occurrences to another user.",
-        params: { itemId: "The id of the item" },
-        body: {
-            amount: "The amount of the item to transfer",
-            targetUserId: "The user ID of the recipient",
-        },
-        responseType: { message: "string" },
-        example: 'POST /api/items/transfer/item_1 {"amount": 1, "targetUserId": "user_2"}',
-        requiresAuth: true,
-    }),
-    (0, inversify_express_utils_1.httpPost)("/transfer/:itemId", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Items.prototype, "transferItem", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:itemId", OwnerCheck_1.OwnerCheck.middleware),
     __metadata("design:type", Function),

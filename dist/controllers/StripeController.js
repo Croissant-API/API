@@ -43,7 +43,6 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const stripe_1 = __importDefault(require("stripe"));
 const inversify_1 = require("inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const describe_1 = require("../decorators/describe");
 const yup_1 = require("yup");
 const yup = __importStar(require("yup"));
 // --- CONSTANTS ---
@@ -115,7 +114,6 @@ let StripeController = class StripeController {
             apiVersion: "2025-06-30.basil"
         });
     }
-    // --- WEBHOOK ---
     async handleWebhook(req, res) {
         if (!STRIPE_WEBHOOK_SECRET) {
             return handleError(res, new Error("Webhook secret not configured"), "Stripe webhook secret is not set", 500);
@@ -239,47 +237,18 @@ let StripeController = class StripeController {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/stripe/webhook",
-        method: "POST",
-        description: "Handle Stripe webhook events",
-        responseType: { received: "boolean" },
-        example: "POST /api/stripe/webhook"
-    }),
     (0, inversify_express_utils_1.httpPost)("/webhook"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], StripeController.prototype, "handleWebhook", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/stripe/checkout",
-        method: "GET",
-        description: "Create a Stripe checkout session for buying credits",
-        query: { tier: "The credit tier to purchase (tier1, tier2, tier3, tier4)" },
-        responseType: { url: "string" },
-        example: "GET /api/stripe/checkout?tier=tier1",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/checkout", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], StripeController.prototype, "checkoutEndpoint", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/stripe/tiers",
-        method: "GET",
-        description: "Get available credit tiers",
-        responseType: [{
-                id: "string",
-                price: "number",
-                credits: "number",
-                name: "string",
-                image: "string"
-            }],
-        example: "GET /api/stripe/tiers"
-    }),
     (0, inversify_express_utils_1.httpGet)("/tiers"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
