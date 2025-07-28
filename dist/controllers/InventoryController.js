@@ -18,7 +18,6 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const helpers_1 = require("../utils/helpers");
 // --- UTILS ---
 const yup_1 = require("yup");
 function handleError(res, error, message, status = 500) {
@@ -42,16 +41,15 @@ async function validateOr400(schema, data, res) {
     }
 }
 let Inventories = class Inventories {
-    constructor(inventoryService, itemService) {
+    constructor(inventoryService) {
         this.inventoryService = inventoryService;
-        this.itemService = itemService;
     }
     // --- Inventaire de l'utilisateur courant ---
     async getMyInventory(req, res) {
-        const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
+        const userId = req.user.user_id;
         try {
-            const { inventory } = await this.inventoryService.getInventory(userId);
-            res.send(await (0, helpers_1.formatInventory)(inventory, this.itemService));
+            const inventory = await this.inventoryService.getFormattedInventory(userId);
+            res.send(inventory);
         }
         catch (error) {
             handleError(res, error, "Error fetching inventory");
@@ -63,8 +61,8 @@ let Inventories = class Inventories {
             return;
         const userId = req.params.userId;
         try {
-            const { inventory } = await this.inventoryService.getInventory(userId);
-            res.send(await (0, helpers_1.formatInventory)(inventory, this.itemService));
+            const inventory = await this.inventoryService.getFormattedInventory(userId);
+            res.send(inventory);
         }
         catch (error) {
             handleError(res, error, "Error fetching inventory");
@@ -77,18 +75,20 @@ let Inventories = class Inventories {
 };
 __decorate([
     (0, describe_1.describe)({
-        endpoint: "/inventory/",
+        endpoint: "/inventory/@me",
         method: "GET",
-        description: "Prompt to specify a userId for inventory lookup",
+        description: "Get the inventory of the authenticated user",
         responseType: [
             {
                 itemId: "string",
                 name: "string",
                 description: "string",
                 amount: "number",
+                iconHash: "string",
             },
         ],
-        example: "GET /api/inventory/",
+        example: "GET /api/inventory/@me",
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -107,6 +107,7 @@ __decorate([
                 name: "string",
                 description: "string",
                 amount: "number",
+                iconHash: "string",
             },
         ],
         example: "GET /api/inventory/123",
@@ -125,7 +126,6 @@ __decorate([
 Inventories = __decorate([
     (0, inversify_express_utils_1.controller)("/inventory"),
     __param(0, (0, inversify_1.inject)("InventoryService")),
-    __param(1, (0, inversify_1.inject)("ItemService")),
-    __metadata("design:paramtypes", [Object, Object])
+    __metadata("design:paramtypes", [Object])
 ], Inventories);
 exports.Inventories = Inventories;

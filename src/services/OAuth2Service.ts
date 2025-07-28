@@ -12,6 +12,18 @@ export interface IOAuth2Service {
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void>;
     getUserByCode(code: string, client_id: string): Promise<any | null>;
+    getFormattedAppsByOwner(owner_id: string): Promise<Array<{
+        client_id: string;
+        client_secret: string;
+        name: string;
+        redirect_urls: string[];
+    }>>;
+    getFormattedAppByClientId(client_id: string): Promise<{
+        client_id: string;
+        client_secret: string;
+        name: string;
+        redirect_urls: string[];
+    } | null>;
 }
 
 @injectable()
@@ -35,12 +47,50 @@ export class OAuth2Service implements IOAuth2Service {
         );
     }
 
+    async getFormattedAppsByOwner(owner_id: string): Promise<Array<{
+        client_id: string;
+        client_secret: string;
+        name: string;
+        redirect_urls: string[];
+    }>> {
+        const apps = await this.db.read<OAuth2App[]>(
+            "SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?",
+            [owner_id]
+        );
+        return apps.map((app: { client_id: any; client_secret: any; name: any; redirect_urls: string; }) => ({
+            client_id: app.client_id,
+            client_secret: app.client_secret,
+            name: app.name,
+            redirect_urls: JSON.parse(app.redirect_urls)
+        }));
+    }
+
     async getAppByClientId(client_id: string): Promise<OAuth2App | null> {
         const rows = await this.db.read<OAuth2App[]>(
             "SELECT * FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
         return rows.length ? rows[0] : null;
+    }
+
+    async getFormattedAppByClientId(client_id: string): Promise<{
+        client_id: string;
+        client_secret: string;
+        name: string;
+        redirect_urls: string[];
+    } | null> {
+        const rows = await this.db.read<OAuth2App[]>(
+            "SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?",
+            [client_id]
+        );
+        if (!rows.length) return null;
+        const app = rows[0];
+        return {
+            client_id: app.client_id,
+            client_secret: app.client_secret,
+            name: app.name,
+            redirect_urls: JSON.parse(app.redirect_urls)
+        };
     }
 
     async generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string> {
@@ -69,22 +119,35 @@ export class OAuth2Service implements IOAuth2Service {
         );
     }
 
-    async getUserByCode(code: string, client_id: string): Promise<Record<string, unknown> | null> {
-        const codeRows = await this.db.read<{ user_id: string }[]>(
-            "SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?",
+    async getUserByCode(code: string, client_id: string): Promise<{
+        username: string;
+        user_id: string;
+        email: string;
+        balance: number;
+        verified: boolean;
+        steam_username?: string;
+        steam_avatar_url?: string;
+        steam_id?: string;
+    } | null> {
+        const users = await this.db.read<Array<{
+            username: string;
+            user_id: string;
+            email: string;
+            balance: number;
+            verified: boolean;
+            steam_username?: string;
+            steam_avatar_url?: string;
+            steam_id?: string;
+        }>>(
+            `SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
+                    u.steam_username, u.steam_avatar_url, u.steam_id
+             FROM oauth2_codes c
+             INNER JOIN oauth2_apps a ON c.client_id = a.client_id
+             INNER JOIN users u ON c.user_id = u.user_id
+             WHERE c.code = ? AND c.client_id = ?`,
             [code, client_id]
         );
-        if (!codeRows.length) return null;
-        const appRows = await this.db.read<OAuth2App[]>(
-            "SELECT * FROM oauth2_apps WHERE client_id = ?",
-            [client_id]
-        );
-        if (!appRows.length) return null;
-        const userRows = await this.db.read<Record<string, unknown>[]>(
-            "SELECT * FROM users WHERE user_id = ?",
-            [codeRows[0].user_id]
-        );
-        return userRows[0] || null;
+        return users[0] || null;
     }
 }
 

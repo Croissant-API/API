@@ -29,9 +29,30 @@ let OAuth2Service = class OAuth2Service {
     async getAppsByOwner(owner_id) {
         return await this.db.read("SELECT * FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
     }
+    async getFormattedAppsByOwner(owner_id) {
+        const apps = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
+        return apps.map((app) => ({
+            client_id: app.client_id,
+            client_secret: app.client_secret,
+            name: app.name,
+            redirect_urls: JSON.parse(app.redirect_urls)
+        }));
+    }
     async getAppByClientId(client_id) {
         const rows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
         return rows.length ? rows[0] : null;
+    }
+    async getFormattedAppByClientId(client_id) {
+        const rows = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?", [client_id]);
+        if (!rows.length)
+            return null;
+        const app = rows[0];
+        return {
+            client_id: app.client_id,
+            client_secret: app.client_secret,
+            name: app.name,
+            redirect_urls: JSON.parse(app.redirect_urls)
+        };
     }
     async generateAuthCode(client_id, redirect_uri, user_id) {
         const code = (0, uuid_1.v4)();
@@ -49,14 +70,13 @@ let OAuth2Service = class OAuth2Service {
         await this.db.update(`UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`, values);
     }
     async getUserByCode(code, client_id) {
-        const codeRows = await this.db.read("SELECT * FROM oauth2_codes WHERE code = ? AND client_id = ?", [code, client_id]);
-        if (!codeRows.length)
-            return null;
-        const appRows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
-        if (!appRows.length)
-            return null;
-        const userRows = await this.db.read("SELECT * FROM users WHERE user_id = ?", [codeRows[0].user_id]);
-        return userRows[0] || null;
+        const users = await this.db.read(`SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
+                    u.steam_username, u.steam_avatar_url, u.steam_id
+             FROM oauth2_codes c
+             INNER JOIN oauth2_apps a ON c.client_id = a.client_id
+             INNER JOIN users u ON c.user_id = u.user_id
+             WHERE c.code = ? AND c.client_id = ?`, [code, client_id]);
+        return users[0] || null;
     }
 };
 OAuth2Service = __decorate([

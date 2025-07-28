@@ -24,19 +24,52 @@ const UserValidator_1 = require("../validators/UserValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
-const SteamOAuthService_1 = require("../services/SteamOAuthService");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
-const helpers_1 = require("../utils/helpers");
 let Users = class Users {
-    constructor(userService, steamOAuthService, mailService, studioService, inventoryService, itemService, gameService) {
+    constructor(userService, mailService, studioService, steamOAuthService // Assuming you have a SteamOAuthService
+    ) {
         this.userService = userService;
-        this.steamOAuthService = steamOAuthService;
         this.mailService = mailService;
         this.studioService = studioService;
-        this.inventoryService = inventoryService;
-        this.itemService = itemService;
-        this.gameService = gameService;
+        this.steamOAuthService = steamOAuthService;
+    }
+    // Helper simplifié - garde seulement les essentiels
+    sendError(res, status, message) {
+        return res.status(status).send({ message });
+    }
+    // Ce helper peut être inline dans les méthodes
+    requireFields(obj, fields) {
+        return fields.every(f => obj[f]);
+    }
+    mapUser(user) {
+        return {
+            id: user.user_id,
+            userId: user.user_id,
+            username: user.username,
+            email: user.email,
+            balance: user.balance !== undefined ? Math.floor(user.balance) : undefined,
+            verified: !!user.verified,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            isStudio: !!user.isStudio,
+            admin: !!user.admin,
+            disabled: !!user.disabled,
+        };
+    }
+    mapUserSearch(user) {
+        return {
+            id: user.user_id,
+            userId: user.user_id,
+            username: user.username,
+            verified: user.verified,
+            steam_id: user.steam_id,
+            steam_username: user.steam_username,
+            steam_avatar_url: user.steam_avatar_url,
+            isStudio: user.isStudio,
+            admin: !!user.admin,
+        };
     }
     // --- AUTHENTIFICATION & INSCRIPTION ---
     async loginOAuth(req, res) {
@@ -46,8 +79,6 @@ let Users = class Users {
                 .status(400)
                 .send({ message: "Missing email, provider or providerId" });
         }
-        // Vérifie si l'utilisateur existe par email
-        // let user = await this.userService.findByEmail(email);
         const users = await this.userService.getAllUsersWithDisabled();
         const authHeader = req.headers["authorization"] ||
             "Bearer " +
@@ -58,18 +89,15 @@ let Users = class Users {
             user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
         }
         if (!user) {
-            // Création d'un nouvel utilisateur si non existant
             const userId = crypto_1.default.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
         }
         else {
-            // Si l'association n'existe pas, on l'ajoute
             if ((provider === "discord" && !user.discord_id) ||
                 (provider === "google" && !user.google_id)) {
                 await this.userService.associateOAuth(user.user_id, provider, providerId);
             }
-            // Vérifie que l'id provider correspond bien
             if ((provider === "discord" &&
                 user.discord_id &&
                 user.discord_id !== providerId) ||
@@ -93,13 +121,13 @@ let Users = class Users {
         });
     }
     async register(req, res) {
-        const missing = (0, helpers_1.requireFields)(req.body, ["username", "email"]);
+        const missing = this.requireFields(req.body, ["username", "email"]);
         if (missing || (!req.body.password && !req.body.provider)) {
-            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
+            return this.sendError(res, 400, "Missing required fields");
         }
         const users = await this.userService.getAllUsersWithDisabled();
         if (users.find((u) => u.email === req.body.email)) {
-            return (0, helpers_1.sendError)(res, 400, "Email already exists");
+            return this.sendError(res, 400, "Email already exists");
         }
         let userId = req.body.userId;
         if (!userId) {
@@ -107,14 +135,13 @@ let Users = class Users {
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(req.body.email)) {
-            return (0, helpers_1.sendError)(res, 400, "Invalid email address");
+            return this.sendError(res, 400, "Invalid email address");
         }
         let hashedPassword = null;
         if (req.body.password) {
             hashedPassword = await bcryptjs_1.default.hash(req.body.password, 10);
         }
         try {
-            // Crée ou associe l'utilisateur selon l'email et provider
             const user = await this.userService.createUser(userId, req.body.username, req.body.email, hashedPassword, req.body.provider, req.body.providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
             res
@@ -123,27 +150,24 @@ let Users = class Users {
         }
         catch (error) {
             console.error("Error registering user", error);
-            const message = error instanceof Error ? error.message : String(error);
-            (0, helpers_1.sendError)(res, 500, "Error registering user", message);
+            this.sendError(res, 500, "Error registering user");
         }
     }
     async login(req, res) {
-        const missing = (0, helpers_1.requireFields)(req.body, ["email", "password"]);
+        const missing = this.requireFields(req.body, ["email", "password"]);
         if (missing)
-            return (0, helpers_1.sendError)(res, 400, "Missing email or password");
+            return this.sendError(res, 400, "Missing email or password");
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.email === req.body.email);
         if (!user || !user.password) {
-            return (0, helpers_1.sendError)(res, 401, "Invalid credentials");
+            return this.sendError(res, 401, "Invalid credentials");
         }
-        // bcrypt importé en haut
         const valid = await bcryptjs_1.default.compare(req.body.password, user.password);
         if (!valid) {
-            return (0, helpers_1.sendError)(res, 401, "Invalid credentials");
+            return this.sendError(res, 401, "Invalid credentials");
         }
-        // Check si le compte est désactivé
         if (user.disabled) {
-            return (0, helpers_1.sendError)(res, 403, "Account is disabled");
+            return this.sendError(res, 403, "Account is disabled");
         }
         this.mailService
             .sendConnectionNotificationMail(user.email, user.username)
@@ -167,73 +191,78 @@ let Users = class Users {
             });
         }
     }
-    // --- GESTION DU PROFIL UTILISATEUR ---
     async getMe(req, res) {
         const userId = req.user?.user_id;
         if (!userId)
-            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
-        const user = await this.userService.getUser(userId);
-        if (!user)
-            return (0, helpers_1.sendError)(res, 404, "User not found");
-        const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || user.user_id);
+            return this.sendError(res, 401, "Unauthorized");
+        // Get user with all related data in one call
+        const userWithData = await this.userService.getUserWithCompleteProfile(userId);
+        if (!userWithData)
+            return this.sendError(res, 404, "User not found");
+        const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || userId);
         const roles = [req.originalUser?.user_id, ...studios.map((s) => s.user_id)];
-        const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
-        const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
-        const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, userId));
-        res.send({ ...(0, helpers_1.mapUser)(user), verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id), google_id: user.google_id, discord_id: user.discord_id, studios, roles, inventory: formattedInventory, ownedItems, createdGames, haveAuthenticator: !!user.authenticator_secret });
+        res.send({
+            ...this.mapUser(userWithData),
+            verificationKey: (0, GenKey_1.genVerificationKey)(userWithData.user_id),
+            google_id: userWithData.google_id,
+            discord_id: userWithData.discord_id,
+            studios,
+            roles,
+            inventory: userWithData.inventory || [],
+            ownedItems: userWithData.ownedItems || [],
+            createdGames: userWithData.createdGames || [],
+            haveAuthenticator: !!userWithData.authenticator_secret
+        });
     }
     async changeUsername(req, res) {
         const userId = req.user?.user_id;
         const { username } = req.body;
         if (!userId)
-            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
+            return this.sendError(res, 401, "Unauthorized");
         if (!username || typeof username !== "string" || username.trim().length < 3) {
-            return (0, helpers_1.sendError)(res, 400, "Invalid username (min 3 characters)");
+            return this.sendError(res, 400, "Invalid username (min 3 characters)");
         }
         try {
             await this.userService.updateUser(userId, username.trim());
             res.status(200).send({ message: "Username updated" });
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error updating username", error.message);
+            this.sendError(res, 500, "Error updating username");
         }
     }
     async changePassword(req, res) {
         const { oldPassword, newPassword, confirmPassword } = req.body;
         if (!newPassword || !confirmPassword)
-            return (0, helpers_1.sendError)(res, 400, "Missing newPassword or confirmPassword");
+            return this.sendError(res, 400, "Missing newPassword or confirmPassword");
         if (newPassword !== confirmPassword)
-            return (0, helpers_1.sendError)(res, 400, "New password and confirm password do not match");
+            return this.sendError(res, 400, "New password and confirm password do not match");
         const userId = req.user?.user_id;
         if (!userId)
-            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
+            return this.sendError(res, 401, "Unauthorized");
         const user = await this.userService.getUser(userId);
         if (!user)
-            return (0, helpers_1.sendError)(res, 404, "User not found");
+            return this.sendError(res, 404, "User not found");
         let valid = true;
         if (user.password)
             valid = await bcryptjs_1.default.compare(oldPassword, user.password);
         if (!valid)
-            return (0, helpers_1.sendError)(res, 401, "Invalid current password");
+            return this.sendError(res, 401, "Invalid current password");
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         try {
             await this.userService.updateUserPassword(userId, hashedPassword);
             res.status(200).send({ message: "Password changed successfully" });
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error changing password", error.message);
+            this.sendError(res, 500, "Error changing password");
         }
     }
     async forgotPassword(req, res) {
         const { email } = req.body;
         if (!email)
-            return (0, helpers_1.sendError)(res, 400, "Email is required");
+            return this.sendError(res, 400, "Email is required");
         const user = await this.userService.findByEmail(email);
         if (!user)
-            return (0, helpers_1.sendError)(res, 404, "Invalid email");
+            return this.sendError(res, 404, "Invalid email");
         const passwordResetToken = await this.userService.generatePasswordResetToken(email);
         await this.mailService.sendPasswordResetMail(email, passwordResetToken);
         res.status(200).send({ message: "Password reset email sent" });
@@ -241,20 +270,19 @@ let Users = class Users {
     async resetPassword(req, res) {
         const { new_password, confirm_password, reset_token } = req.body;
         if (!new_password || !reset_token || !confirm_password)
-            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
+            return this.sendError(res, 400, "Missing required fields");
         if (new_password !== confirm_password)
-            return (0, helpers_1.sendError)(res, 400, "New password and confirm password do not match");
-        const allUsers = await this.userService.getAllUsersWithDisabled();
-        const user = allUsers.find((u) => u.forgot_password_token === reset_token);
+            return this.sendError(res, 400, "New password and confirm password do not match");
+        const user = await this.userService.findByResetToken(reset_token);
         if (!user)
-            return (0, helpers_1.sendError)(res, 404, "Invalid user");
+            return this.sendError(res, 404, "Invalid user");
         const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
         try {
             await this.userService.updateUserPassword(user.user_id, hashedPassword);
             res.status(200).send({ message: "Password reset successfully", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error resetting password", error.message);
+            this.sendError(res, 500, "Error resetting password");
         }
     }
     async steamRedirect(req, res) {
@@ -267,27 +295,21 @@ let Users = class Users {
             return res.status(401).send({ message: "Unauthorized" });
         }
         try {
-            // Vérifie la réponse OpenID de Steam
             const steamId = await this.steamOAuthService.verifySteamOpenId(req.query);
             if (!steamId) {
                 return res.status(400).send({ message: "Steam authentication failed" });
             }
-            // Récupère le profil Steam
             const profile = await this.steamOAuthService.getSteamProfile(steamId);
             if (!profile) {
                 return res
                     .status(400)
                     .send({ message: "Unable to fetch Steam profile" });
             }
-            // Met à jour l'utilisateur avec les infos Steam
             await this.userService.updateSteamFields(user.user_id, profile.steamid, profile.personaname, profile.avatarfull);
-            // Redirige vers /settings (front-end route)
             res.send(`<html><head><meta http-equiv="refresh" content="0;url=/settings"></head><body>Redirecting to <a href="/settings">/settings</a>...</body></html>`);
         }
         catch (error) {
             console.error("Error associating Steam account", error);
-            // const message = (error instanceof Error) ? error.message : String(error);
-            // res.status(500).send({ message: "Error associating Steam account", error: message });
         }
     }
     async unlinkSteam(req, res) {
@@ -302,20 +324,19 @@ let Users = class Users {
         catch (error) {
             console.error("Error unlinking Steam account", error);
             const message = error instanceof Error ? error.message : String(error);
-            (0, helpers_1.sendError)(res, 500, "Error unlinking Steam account", message);
+            this.sendError(res, 500, "Error unlinking Steam account");
         }
     }
-    // --- RECHERCHE & LECTURE D'UTILISATEURS ---
     async searchUsers(req, res) {
         const query = req.query.q?.trim();
         if (!query)
-            return (0, helpers_1.sendError)(res, 400, "Missing search query");
+            return this.sendError(res, 400, "Missing search query");
         try {
             const users = await this.userService.searchUsersByUsername(query);
-            res.send(users.map(helpers_1.mapUserSearch));
+            res.send(users.map(user => this.mapUserSearch(user)));
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error searching users", error.message);
+            this.sendError(res, 500, "Error searching users");
         }
     }
     async getUser(req, res) {
@@ -323,34 +344,33 @@ let Users = class Users {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
-            return (0, helpers_1.sendError)(res, 400, "Invalid userId", err);
+            return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
-        const user = await this.userService.getUser(userId);
-        if (!user)
-            return (0, helpers_1.sendError)(res, 404, "User not found");
-        const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
-        const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
-        const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, ""));
-        res.send({ ...(0, helpers_1.mapUserSearch)(user), inventory: formattedInventory, ownedItems, createdGames });
+        // Get user with all related data in one call
+        const userWithData = await this.userService.getUserWithPublicProfile(userId);
+        if (!userWithData)
+            return this.sendError(res, 404, "User not found");
+        res.send({
+            ...this.mapUserSearch(userWithData),
+            inventory: userWithData.inventory || [],
+            ownedItems: userWithData.ownedItems || [],
+            createdGames: userWithData.createdGames || []
+        });
     }
-    // --- ACTIONS ADMINISTRATIVES ---
     async adminSearchUsers(req, res) {
         if (!req.user?.admin) {
             return res.status(403).send({ message: "Forbidden" });
         }
         const query = req.query.q?.trim();
         if (!query)
-            return (0, helpers_1.sendError)(res, 400, "Missing search query");
+            return this.sendError(res, 400, "Missing search query");
         try {
             const users = await this.userService.adminSearchUsers(query);
-            res.send(users.map(helpers_1.mapUserSearch));
+            res.send(users.map(user => this.mapUserSearch(user)));
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error searching users", error.message);
+            this.sendError(res, 500, "Error searching users");
         }
     }
     async disableAccount(req, res) {
@@ -393,51 +413,51 @@ let Users = class Users {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
-            return (0, helpers_1.sendError)(res, 400, "Invalid userId", err);
+            return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
-        const user = await this.userService.adminGetUser(userId);
-        if (!user)
-            return (0, helpers_1.sendError)(res, 404, "User not found");
-        const { inventory } = await this.inventoryService.getInventory(userId);
-        const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
-        const items = await this.itemService.getAllItems();
-        const ownedItems = items.filter((i) => !i.deleted && i.owner === userId && !!i.showInStore).map(helpers_1.mapItem);
-        const games = await this.gameService.listGames();
-        const createdGames = games.filter(g => g.owner_id === userId && !!g.showInStore).map(g => (0, helpers_1.filterGame)(g, userId, ""));
-        res.send({ ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames });
+        // Get user with all related data in one call (admin version includes disabled users)
+        const userWithData = await this.userService.adminGetUserWithProfile(userId);
+        if (!userWithData)
+            return this.sendError(res, 404, "User not found");
+        res.send({
+            ...this.mapUserSearch(userWithData),
+            disabled: userWithData.disabled,
+            inventory: userWithData.inventory || [],
+            ownedItems: userWithData.ownedItems || [],
+            createdGames: userWithData.createdGames || []
+        });
     }
-    // --- ACTIONS DIVERSES ---
     async transferCredits(req, res) {
         const { targetUserId, amount } = req.body;
         if (!targetUserId || isNaN(amount) || amount <= 0)
-            return (0, helpers_1.sendError)(res, 400, "Invalid input");
+            return this.sendError(res, 400, "Invalid input");
         try {
             const sender = req.user;
             if (!sender)
-                return (0, helpers_1.sendError)(res, 401, "Unauthorized");
+                return this.sendError(res, 401, "Unauthorized");
             if (sender.user_id === targetUserId)
-                return (0, helpers_1.sendError)(res, 400, "Cannot transfer credits to yourself");
+                return this.sendError(res, 400, "Cannot transfer credits to yourself");
             const recipient = await this.userService.getUser(targetUserId);
             if (!recipient)
-                return (0, helpers_1.sendError)(res, 404, "Recipient not found");
+                return this.sendError(res, 404, "Recipient not found");
             if (sender.balance < amount)
-                return (0, helpers_1.sendError)(res, 400, "Insufficient balance");
+                return this.sendError(res, 400, "Insufficient balance");
             await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
             await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
             res.status(200).send({ message: "Credits transferred" });
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error transferring credits", error.message);
+            this.sendError(res, 500, "Error transferring credits");
         }
     }
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey)
-            return (0, helpers_1.sendError)(res, 400, "Missing userId or verificationKey");
+            return this.sendError(res, 400, "Missing userId or verificationKey");
         const user = await this.userService.getUser(userId);
         if (!user)
-            return (0, helpers_1.sendError)(res, 404, "User not found");
+            return this.sendError(res, 404, "User not found");
         const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
         res.send({ success: verificationKey === expectedKey });
     }
@@ -445,14 +465,14 @@ let Users = class Users {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
         if (!userId)
-            return (0, helpers_1.sendError)(res, 401, "Unauthorized");
+            return this.sendError(res, 401, "Unauthorized");
         if (!role || typeof role !== "string")
-            return (0, helpers_1.sendError)(res, 400, "Invalid role");
+            return this.sendError(res, 400, "Invalid role");
         try {
             const studios = await this.studioService.getUserStudios(userId);
             const roles = [userId, ...studios.map((s) => s.user_id)];
             if (!roles.includes(role))
-                return (0, helpers_1.sendError)(res, 403, "Forbidden: Invalid role");
+                return this.sendError(res, 403, "Forbidden: Invalid role");
             res.cookie("role", role, {
                 httpOnly: false,
                 sameSite: "lax",
@@ -462,17 +482,16 @@ let Users = class Users {
             return res.status(200).send({ message: "Role updated successfully" });
         }
         catch (error) {
-            (0, helpers_1.sendError)(res, 500, "Error setting role cookie", error.message);
+            this.sendError(res, 500, "Error setting role cookie");
         }
     }
     async isValidResetToken(req, res) {
         const { reset_token } = req.query;
         if (!reset_token)
-            return (0, helpers_1.sendError)(res, 400, "Missing required fields");
-        const users = await this.userService.getAllUsersWithDisabled();
-        const user = (0, helpers_1.findUserByResetToken)(users, reset_token);
+            return this.sendError(res, 400, "Missing required fields");
+        const user = await this.userService.findByResetToken(reset_token);
         if (!user)
-            return (0, helpers_1.sendError)(res, 404, "Invalid reset token");
+            return this.sendError(res, 404, "Invalid reset token");
         res.status(200).send({ message: "Valid reset token", user });
     }
 };
@@ -688,14 +707,10 @@ __decorate([
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
-    __param(1, (0, inversify_1.inject)("SteamOAuthService")),
-    __param(2, (0, inversify_1.inject)("MailService")),
-    __param(3, (0, inversify_1.inject)("StudioService")),
-    __param(4, (0, inversify_1.inject)("InventoryService")),
-    __param(5, (0, inversify_1.inject)("ItemService")),
-    __param(6, (0, inversify_1.inject)("GameService")),
-    __metadata("design:paramtypes", [Object, SteamOAuthService_1.SteamOAuthService,
-        MailService_1.MailService,
-        StudioService_1.StudioService, Object, Object, Object])
+    __param(1, (0, inversify_1.inject)("MailService")),
+    __param(2, (0, inversify_1.inject)("StudioService")),
+    __param(3, (0, inversify_1.inject)("SteamOAuthService")),
+    __metadata("design:paramtypes", [Object, MailService_1.MailService,
+        StudioService_1.StudioService, Object])
 ], Users);
 exports.Users = Users;

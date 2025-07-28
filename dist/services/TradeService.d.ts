@@ -1,11 +1,58 @@
 import { IDatabaseService } from "./DatabaseService";
 import { Trade, TradeItem } from "../interfaces/Trade";
 import { IInventoryService } from "./InventoryService";
-import { IItemService } from "./ItemService";
 export interface ITradeService {
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
     getTradeById(id: string): Promise<Trade | null>;
+    getFormattedTradeById(id: string): Promise<{
+        id: string;
+        fromUserId: string;
+        toUserId: string;
+        fromUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        toUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        approvedFromUser: boolean;
+        approvedToUser: boolean;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+    } | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
+    getFormattedTradesByUser(userId: string): Promise<Array<{
+        id: string;
+        fromUserId: string;
+        toUserId: string;
+        fromUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        toUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        approvedFromUser: boolean;
+        approvedToUser: boolean;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+    }>>;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     approveTrade(tradeId: string, userId: string): Promise<void>;
@@ -14,12 +61,59 @@ export interface ITradeService {
 export declare class TradeService implements ITradeService {
     private databaseService;
     private inventoryService;
-    private itemService;
-    constructor(databaseService: IDatabaseService, inventoryService: IInventoryService, itemService: IItemService);
+    constructor(databaseService: IDatabaseService, inventoryService: IInventoryService);
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
-    private enrichTradeItems;
+    private enrichTradeItemsWithSQL;
     getTradeById(id: string): Promise<Trade | null>;
+    getFormattedTradeById(id: string): Promise<{
+        id: string;
+        fromUserId: string;
+        toUserId: string;
+        fromUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        toUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        approvedFromUser: boolean;
+        approvedToUser: boolean;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+    } | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
+    getFormattedTradesByUser(userId: string): Promise<Array<{
+        id: string;
+        fromUserId: string;
+        toUserId: string;
+        fromUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        toUserItems: Array<{
+            itemId: string;
+            name: string;
+            description: string;
+            iconHash?: string;
+            amount: number;
+        }>;
+        approvedFromUser: boolean;
+        approvedToUser: boolean;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+    }>>;
     private getUserKey;
     private assertPending;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;

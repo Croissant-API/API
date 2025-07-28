@@ -2,11 +2,9 @@ import { Request, Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet } from "inversify-express-utils";
 import { IInventoryService } from "../services/InventoryService";
-import { IItemService } from "../services/ItemService";
 import { userIdParamSchema } from "../validators/InventoryValidator";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { formatInventory } from "../utils/helpers";
 
 // --- UTILS ---
 import { ValidationError, Schema } from "yup";
@@ -44,31 +42,32 @@ async function validateOr400(
 @controller("/inventory")
 export class Inventories {
   constructor(
-    @inject("InventoryService") private inventoryService: IInventoryService,
-    @inject("ItemService") private itemService: IItemService
+    @inject("InventoryService") private inventoryService: IInventoryService
   ) {}
 
   // --- Inventaire de l'utilisateur courant ---
   @describe({
-    endpoint: "/inventory/",
+    endpoint: "/inventory/@me",
     method: "GET",
-    description: "Prompt to specify a userId for inventory lookup",
+    description: "Get the inventory of the authenticated user",
     responseType: [
       {
         itemId: "string",
         name: "string",
         description: "string",
         amount: "number",
+        iconHash: "string",
       },
     ],
-    example: "GET /api/inventory/",
+    example: "GET /api/inventory/@me",
+    requiresAuth: true,
   })
   @httpGet("/@me", LoggedCheck.middleware)
   public async getMyInventory(req: AuthenticatedRequest, res: Response) {
-    const userId = req.user.user_id; // Assuming you have middleware that sets req.userId
+    const userId = req.user.user_id;
     try {
-      const { inventory } = await this.inventoryService.getInventory(userId);
-      res.send(await formatInventory(inventory, this.itemService));
+      const inventory = await this.inventoryService.getFormattedInventory(userId);
+      res.send(inventory);
     } catch (error) {
       handleError(res, error, "Error fetching inventory");
     }
@@ -86,6 +85,7 @@ export class Inventories {
         name: "string",
         description: "string",
         amount: "number",
+        iconHash: "string",
       },
     ],
     example: "GET /api/inventory/123",
@@ -96,8 +96,8 @@ export class Inventories {
       return;
     const userId = req.params.userId;
     try {
-      const { inventory } = await this.inventoryService.getInventory(userId);
-      res.send(await formatInventory(inventory, this.itemService));
+      const inventory = await this.inventoryService.getFormattedInventory(userId);
+      res.send(inventory);
     } catch (error) {
       handleError(res, error, "Error fetching inventory");
     }

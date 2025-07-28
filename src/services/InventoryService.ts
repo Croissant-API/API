@@ -5,6 +5,13 @@ import { IUserService } from "./UserService";
 
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
+  getFormattedInventory(userId: string): Promise<Array<{
+    itemId: string;
+    name: string;
+    description: string;
+    amount: number;
+    iconHash?: string;
+  }>>;
   getItemAmount(userId: string, itemId: string): Promise<number>;
   addItem(userId: string, itemId: string, amount: number): Promise<void>;
   removeItem(userId: string, itemId: string, amount: number): Promise<void>;
@@ -27,10 +34,42 @@ export class InventoryService implements IInventoryService {
   async getInventory(userId: string): Promise<Inventory> {
     const correctedUserId = await this.getCorrectedUserId(userId);
     const items = await this.databaseService.read<InventoryItem[]>(
-      "SELECT user_id, item_id, amount FROM inventories WHERE user_id = ?",
+      "SELECT user_id, item_id, amount FROM inventories WHERE user_id = ? AND amount > 0",
       [correctedUserId]
     );
-    return { user_id: userId, inventory: items.filter((item: { amount: number; }) => item.amount > 0) };
+    return { user_id: userId, inventory: items };
+  }
+
+  async getFormattedInventory(userId: string): Promise<Array<{
+    itemId: string;
+    name: string;
+    description: string;
+    amount: number;
+    iconHash?: string;
+  }>> {
+    const correctedUserId = await this.getCorrectedUserId(userId);
+    const items = await this.databaseService.read<Array<{
+      itemId: string;
+      name: string;
+      description: string;
+      amount: number;
+      iconHash?: string;
+    }>>(
+      `SELECT DISTINCT
+         i.itemId,
+         i.name,
+         i.description,
+         inv.amount,
+         i.iconHash
+       FROM inventories inv
+       INNER JOIN items i ON inv.item_id = i.itemId
+       WHERE inv.user_id = ? 
+         AND inv.amount > 0 
+         AND (i.deleted IS NULL OR i.deleted = 0)
+       ORDER BY i.name`,
+      [correctedUserId]
+    );
+    return items;
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {

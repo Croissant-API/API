@@ -6,6 +6,8 @@ export interface IItemService {
   createItem(item: Omit<Item, "id">): Promise<void>;
   getItem(itemId: string): Promise<Item | null>;
   getAllItems(): Promise<Item[]>;
+  getStoreItems(): Promise<Item[]>;
+  getMyItems(userId: string): Promise<Item[]>;
   updateItem(
     itemId: string,
     item: Partial<Omit<Item, "id" | "itemId" | "owner">>
@@ -58,6 +60,25 @@ export class ItemService implements IItemService {
     return this.databaseService.read<Item[]>("SELECT * FROM items");
   }
 
+  async getStoreItems(): Promise<Item[]> {
+    return this.databaseService.read<Item[]>(
+      `SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE deleted = 0 AND showInStore = 1
+       ORDER BY name`
+    );
+  }
+
+  async getMyItems(userId: string): Promise<Item[]> {
+    return this.databaseService.read<Item[]>(
+      `SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE deleted = 0 AND owner = ?
+       ORDER BY name`,
+      [userId]
+    );
+  }
+
   async updateItem(
     itemId: string,
     item: Partial<Omit<Item, "id" | "itemId">>
@@ -79,9 +100,13 @@ export class ItemService implements IItemService {
    * Search items by name, only those with showInStore = true and not deleted
    */
   async searchItemsByName(query: string): Promise<Item[]> {
+    const searchTerm = `%${query.toLowerCase()}%`;
     return this.databaseService.read<Item[]>(
-      "SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0",
-      [`%${query}%`]
+      `SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
+       ORDER BY name`,
+      [searchTerm]
     );
   }
 

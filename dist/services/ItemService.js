@@ -43,6 +43,18 @@ let ItemService = class ItemService {
     async getAllItems() {
         return this.databaseService.read("SELECT * FROM items");
     }
+    async getStoreItems() {
+        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE deleted = 0 AND showInStore = 1
+       ORDER BY name`);
+    }
+    async getMyItems(userId) {
+        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE deleted = 0 AND owner = ?
+       ORDER BY name`, [userId]);
+    }
     async updateItem(itemId, item) {
         const { fields, values } = buildUpdateFields(item);
         if (!fields.length)
@@ -57,7 +69,11 @@ let ItemService = class ItemService {
      * Search items by name, only those with showInStore = true and not deleted
      */
     async searchItemsByName(query) {
-        return this.databaseService.read("SELECT * FROM items WHERE name LIKE ? AND showInStore = 1 AND deleted = 0", [`%${query}%`]);
+        const searchTerm = `%${query.toLowerCase()}%`;
+        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
+       FROM items 
+       WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
+       ORDER BY name`, [searchTerm]);
     }
     async transferOwnership(itemId, newOwnerId) {
         const item = await this.getItem(itemId);

@@ -18,6 +18,7 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const TradeValidator_1 = require("../validators/TradeValidator");
 const yup_1 = require("yup");
+const describe_1 = require("../decorators/describe");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -58,12 +59,11 @@ let Trades = class Trades {
     async getTradeById(req, res) {
         try {
             const id = req.params.id;
-            const trade = await this.tradeService.getTradeById(id);
+            const trade = await this.tradeService.getFormattedTradeById(id);
             if (!trade) {
                 return res.status(404).send({ message: "Trade not found" });
             }
-            if (trade.fromUserId !== req.user.user_id &&
-                trade.toUserId !== req.user.user_id) {
+            if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
                 return res.status(403).send({ message: "Forbidden" });
             }
             res.send(trade);
@@ -78,7 +78,7 @@ let Trades = class Trades {
             if (userId !== req.user.user_id) {
                 return res.status(403).send({ message: "Forbidden" });
             }
-            const trades = await this.tradeService.getTradesByUser(userId);
+            const trades = await this.tradeService.getFormattedTradesByUser(userId);
             res.send(trades);
         }
         catch (error) {
@@ -134,42 +134,174 @@ let Trades = class Trades {
     }
 };
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/start-or-latest/:userId",
+        method: "POST",
+        description: "Start a new trade or get the latest pending trade with a user",
+        params: { userId: "The ID of the user to trade with" },
+        responseType: {
+            id: "string",
+            fromUserId: "string",
+            toUserId: "string",
+            fromUserItems: ["object"],
+            toUserItems: ["object"],
+            approvedFromUser: "boolean",
+            approvedToUser: "boolean",
+            status: "string",
+            createdAt: "string",
+            updatedAt: "string"
+        },
+        example: "POST /api/trades/start-or-latest/user123",
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpPost)("/start-or-latest/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "startOrGetPendingTrade", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/:id",
+        method: "GET",
+        description: "Get a trade by ID with enriched item information",
+        params: { id: "The ID of the trade" },
+        responseType: {
+            id: "string",
+            fromUserId: "string",
+            toUserId: "string",
+            fromUserItems: [{
+                    itemId: "string",
+                    name: "string",
+                    description: "string",
+                    iconHash: "string",
+                    amount: "number"
+                }],
+            toUserItems: [{
+                    itemId: "string",
+                    name: "string",
+                    description: "string",
+                    iconHash: "string",
+                    amount: "number"
+                }],
+            approvedFromUser: "boolean",
+            approvedToUser: "boolean",
+            status: "string",
+            createdAt: "string",
+            updatedAt: "string"
+        },
+        example: "GET /api/trades/trade123",
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "getTradeById", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/user/:userId",
+        method: "GET",
+        description: "Get all trades for a user with enriched item information",
+        params: { userId: "The ID of the user" },
+        responseType: [{
+                id: "string",
+                fromUserId: "string",
+                toUserId: "string",
+                fromUserItems: [{
+                        itemId: "string",
+                        name: "string",
+                        description: "string",
+                        iconHash: "string",
+                        amount: "number"
+                    }],
+                toUserItems: [{
+                        itemId: "string",
+                        name: "string",
+                        description: "string",
+                        iconHash: "string",
+                        amount: "number"
+                    }],
+                approvedFromUser: "boolean",
+                approvedToUser: "boolean",
+                status: "string",
+                createdAt: "string",
+                updatedAt: "string"
+            }],
+        example: "GET /api/trades/user/user123",
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "getTradesByUser", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/:id/add-item",
+        method: "POST",
+        description: "Add an item to a trade",
+        params: { id: "The ID of the trade" },
+        body: {
+            tradeItem: {
+                itemId: "The ID of the item to add",
+                amount: "The amount of the item to add"
+            }
+        },
+        responseType: { message: "string" },
+        example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}}',
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "addItemToTrade", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/:id/remove-item",
+        method: "POST",
+        description: "Remove an item from a trade",
+        params: { id: "The ID of the trade" },
+        body: {
+            tradeItem: {
+                itemId: "The ID of the item to remove",
+                amount: "The amount of the item to remove"
+            }
+        },
+        responseType: { message: "string" },
+        example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}}',
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "removeItemFromTrade", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/:id/approve",
+        method: "PUT",
+        description: "Approve a trade",
+        params: { id: "The ID of the trade" },
+        responseType: { message: "string" },
+        example: "PUT /api/trades/trade123/approve",
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Trades.prototype, "approveTrade", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/trades/:id/cancel",
+        method: "PUT",
+        description: "Cancel a trade",
+        params: { id: "The ID of the trade" },
+        responseType: { message: "string" },
+        example: "PUT /api/trades/trade123/cancel",
+        requiresAuth: true
+    }),
     (0, inversify_express_utils_1.httpPut)("/:id/cancel", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

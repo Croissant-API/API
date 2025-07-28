@@ -13,7 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 let LobbyService = class LobbyService {
     constructor(databaseService, userService) {
@@ -23,6 +22,14 @@ let LobbyService = class LobbyService {
     async getLobby(lobbyId) {
         const rows = await this.databaseService.read("SELECT users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
         return rows[0] || null;
+    }
+    async getFormattedLobby(lobbyId) {
+        const lobby = await this.getLobby(lobbyId);
+        if (!lobby)
+            return null;
+        const userIds = parseUsers(lobby.users);
+        const users = await this.getFormattedLobbyUsers(userIds);
+        return { lobbyId, users };
     }
     async joinLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
@@ -44,17 +51,22 @@ let LobbyService = class LobbyService {
         }
     }
     async getUserLobby(userId) {
-        const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies");
-        for (const row of rows) {
-            const userIds = parseUsers(row.users);
-            if (!userIds.includes(userId))
-                continue;
-            const users = (await Promise.all(userIds.map((u) => this.userService.getUser(u))))
-                .filter((user) => user !== null)
-                .map(mapLobbyUser);
-            return { lobbyId: row.lobbyId, users };
-        }
-        return null;
+        const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
+        if (rows.length === 0)
+            return null;
+        const row = rows[0];
+        const userIds = parseUsers(row.users);
+        const users = await this.getFormattedLobbyUsers(userIds);
+        return { lobbyId: row.lobbyId, users };
+    }
+    async getFormattedLobbyUsers(userIds) {
+        if (userIds.length === 0)
+            return [];
+        const placeholders = userIds.map(() => '?').join(',');
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, steam_username, steam_avatar_url, steam_id 
+       FROM users 
+       WHERE user_id IN (${placeholders})`, userIds);
+        return users.map(mapLobbyUser);
     }
     async createLobby(lobbyId, users = []) {
         await this.databaseService.update("INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)", [lobbyId, JSON.stringify(users)]);

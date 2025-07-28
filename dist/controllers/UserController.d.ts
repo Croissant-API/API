@@ -1,21 +1,18 @@
 import { Request, Response } from "express";
 import { IUserService } from "../services/UserService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { SteamOAuthService } from "../services/SteamOAuthService";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
-import { IInventoryService } from "../services/InventoryService";
-import { IItemService } from "../services/ItemService";
-import { IGameService } from "../services/GameService";
 export declare class Users {
     private userService;
-    private steamOAuthService;
     private mailService;
     private studioService;
-    private inventoryService;
-    private itemService;
-    private gameService;
-    constructor(userService: IUserService, steamOAuthService: SteamOAuthService, mailService: MailService, studioService: StudioService, inventoryService: IInventoryService, itemService: IItemService, gameService: IGameService);
+    private steamOAuthService;
+    constructor(userService: IUserService, mailService: MailService, studioService: StudioService, steamOAuthService: any);
+    private sendError;
+    private requireFields;
+    private mapUser;
+    private mapUserSearch;
     loginOAuth(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     register(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     login(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

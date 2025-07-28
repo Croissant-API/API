@@ -37,22 +37,32 @@ let Studios = class Studios {
             res.status(201).send({ message: "Studio created" });
         }
         catch (error) {
-            res
-                .status(500)
-                .send({
-                message: "Error creating studio",
-                error: error.message,
-            });
+            handleError(res, error, "Error creating studio");
         }
     }
-    // --- Récupération d’un studio ---
+    // --- Récupération d'un studio ---
     async getStudio(req, res) {
         const { studioId } = req.params;
-        const studio = await this.studioService.getStudio(studioId);
-        if (!studio) {
-            return res.status(404).send({ message: "Studio not found" });
+        try {
+            const studio = await this.studioService.getFormattedStudio(studioId);
+            if (!studio) {
+                return res.status(404).send({ message: "Studio not found" });
+            }
+            res.send(studio);
         }
-        res.send(studio);
+        catch (error) {
+            handleError(res, error, "Error fetching studio");
+        }
+    }
+    // --- Récupération des studios de l'utilisateur ---
+    async getMyStudios(req, res) {
+        try {
+            const studios = await this.studioService.getFormattedUserStudios(req.user.user_id);
+            res.send(studios);
+        }
+        catch (error) {
+            handleError(res, error, "Error fetching user studios");
+        }
     }
     // --- Gestion des membres ---
     async addUserToStudio(req, res) {
@@ -64,6 +74,15 @@ let Studios = class Studios {
             const user = await this.studioService.getUser(userId);
             if (!user)
                 return res.status(404).send({ message: "User not found" });
+            // Vérifier que l'utilisateur connecté est admin du studio
+            const studio = await this.studioService.getStudio(studioId);
+            if (!studio)
+                return res.status(404).send({ message: "Studio not found" });
+            if (studio.admin_id !== req.user.user_id) {
+                return res
+                    .status(403)
+                    .send({ message: "Only the studio admin can add users" });
+            }
             await this.studioService.addUserToStudio(studioId, user);
             res.send({ message: "User added to studio" });
         }
@@ -80,11 +99,13 @@ let Studios = class Studios {
             const studio = await this.studioService.getStudio(studioId);
             if (!studio)
                 return res.status(404).send({ message: "Studio not found" });
-            if (studio.admin_id === req.originalUser?.user_id && studio.admin_id === userId) {
+            if (studio.admin_id === userId) {
                 return res.status(403).send({ message: "Cannot remove the studio admin" });
             }
-            if (req.originalUser?.user_id !== studio.admin_id) {
-                return res.status(403).send({ message: "Only the studio admin can remove users" });
+            if (req.user.user_id !== studio.admin_id) {
+                return res
+                    .status(403)
+                    .send({ message: "Only the studio admin can remove users" });
             }
             await this.studioService.removeUserFromStudio(studioId, userId);
             res.send({ message: "User removed from studio" });
@@ -95,6 +116,15 @@ let Studios = class Studios {
     }
 };
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/studios",
+        method: "POST",
+        description: "Create a new studio.",
+        body: { studioName: "Name of the studio" },
+        responseType: { message: "string" },
+        example: 'POST /api/studios {"studioName": "My Studio"}',
+        requiresAuth: true,
+    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -107,45 +137,84 @@ __decorate([
         description: "Get a studio by studioId",
         params: { studioId: "The ID of the studio to retrieve" },
         responseType: {
-            studio_id: "string",
-            name: "string",
+            user_id: "string",
+            username: "string",
+            verified: "boolean",
             admin_id: "string",
-            users: "User[]",
-        },
-        exampleResponse: {
-            studio_id: "studio123",
-            name: "My Studio",
-            admin_id: "user1",
             users: [
                 {
-                    user_id: "user1",
-                    username: "User One",
-                    verified: true,
-                    isStudio: false,
-                    admin: false,
-                },
-                {
-                    user_id: "user2",
-                    username: "User Two",
-                    verified: true,
-                    isStudio: false,
-                    admin: false,
+                    user_id: "string",
+                    username: "string",
+                    verified: "boolean",
+                    admin: "boolean",
                 },
             ],
         },
+        example: "GET /api/studios/studio123",
     }),
-    (0, inversify_express_utils_1.httpGet)(":studioId"),
+    (0, inversify_express_utils_1.httpGet)("/:studioId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Studios.prototype, "getStudio", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/studios/user/@me",
+        method: "GET",
+        description: "Get all studios the authenticated user is part of.",
+        responseType: [
+            {
+                user_id: "string",
+                username: "string",
+                verified: "boolean",
+                admin_id: "string",
+                isAdmin: "boolean",
+                apiKey: "string",
+                users: [
+                    {
+                        user_id: "string",
+                        username: "string",
+                        verified: "boolean",
+                        admin: "boolean",
+                    },
+                ],
+            },
+        ],
+        example: "GET /api/studios/user/@me",
+        requiresAuth: true,
+    }),
+    (0, inversify_express_utils_1.httpGet)("/user/@me", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Studios.prototype, "getMyStudios", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/studios/:studioId/add-user",
+        method: "POST",
+        description: "Add a user to a studio.",
+        params: { studioId: "The ID of the studio" },
+        body: { userId: "The ID of the user to add" },
+        responseType: { message: "string" },
+        example: 'POST /api/studios/studio123/add-user {"userId": "user456"}',
+        requiresAuth: true,
+    }),
     (0, inversify_express_utils_1.httpPost)("/:studioId/add-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Studios.prototype, "addUserToStudio", null);
 __decorate([
+    (0, describe_1.describe)({
+        endpoint: "/studios/:studioId/remove-user",
+        method: "POST",
+        description: "Remove a user from a studio.",
+        params: { studioId: "The ID of the studio" },
+        body: { userId: "The ID of the user to remove" },
+        responseType: { message: "string" },
+        example: 'POST /api/studios/studio123/remove-user {"userId": "user456"}',
+        requiresAuth: true,
+    }),
     (0, inversify_express_utils_1.httpPost)("/:studioId/remove-user", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

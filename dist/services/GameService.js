@@ -22,18 +22,78 @@ let GameService = class GameService {
         const rows = await this.databaseService.read("SELECT * FROM games WHERE gameId = ?", [gameId]);
         if (rows.length === 0)
             return null;
-        const game = rows[0];
-        return { ...game };
+        return rows[0];
+    }
+    /**
+     * Get game with public fields only (no download_link)
+     */
+    async getGameForPublic(gameId) {
+        const rows = await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
+              iconHash, splashHash, bannerHash, genre, release_date, 
+              developer, publisher, platforms, rating, website, 
+              trailer_link, multiplayer
+       FROM games 
+       WHERE gameId = ?`, [gameId]);
+        return rows.length > 0 ? rows[0] : null;
+    }
+    /**
+     * Get game with download_link if user owns it or is the creator
+     */
+    async getGameForOwner(gameId, userId) {
+        const rows = await this.databaseService.read(`SELECT g.*,
+              CASE 
+                WHEN g.owner_id = ? OR go.ownerId IS NOT NULL 
+                THEN g.download_link 
+                ELSE NULL 
+              END as download_link
+       FROM games g 
+       LEFT JOIN game_owners go ON g.gameId = go.gameId AND go.ownerId = ?
+       WHERE g.gameId = ?`, [userId, userId, gameId]);
+        return rows.length > 0 ? rows[0] : null;
     }
     async getUserGames(userId) {
-        const games = await this.listGames();
-        const rows = await this.databaseService.read("SELECT gameId FROM game_owners WHERE ownerId = ?", [userId]);
-        const gameIds = rows.map((row) => row.gameId);
-        const filteredGames = games.filter((game) => gameIds.includes(game.gameId));
-        return filteredGames;
+        const games = await this.databaseService.read(`SELECT g.*, 
+              CASE WHEN go.ownerId IS NOT NULL THEN g.download_link ELSE NULL END as download_link
+       FROM games g 
+       INNER JOIN game_owners go ON g.gameId = go.gameId 
+       WHERE go.ownerId = ?`, [userId]);
+        return games;
     }
     async listGames() {
         const games = await this.databaseService.read("SELECT * FROM games");
+        return games;
+    }
+    async getStoreGames() {
+        const games = await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
+              iconHash, splashHash, bannerHash, genre, release_date, 
+              developer, publisher, platforms, rating, website, 
+              trailer_link, multiplayer
+       FROM games 
+       WHERE showInStore = 1`);
+        return games;
+    }
+    async getMyCreatedGames(userId) {
+        const games = await this.databaseService.read(`SELECT g.*, g.download_link
+       FROM games g 
+       WHERE g.owner_id = ?`, [userId]);
+        return games;
+    }
+    async getUserOwnedGames(userId) {
+        const games = await this.databaseService.read(`SELECT g.*, g.download_link
+       FROM games g 
+       INNER JOIN game_owners go ON g.gameId = go.gameId 
+       WHERE go.ownerId = ?`, [userId]);
+        return games;
+    }
+    async searchGames(query) {
+        const searchTerm = `%${query.toLowerCase()}%`;
+        const games = await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
+              iconHash, splashHash, bannerHash, genre, release_date, 
+              developer, publisher, platforms, rating, website, 
+              trailer_link, multiplayer
+       FROM games 
+       WHERE showInStore = 1 
+       AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?)`, [searchTerm, searchTerm, searchTerm]);
         return games;
     }
     async createGame(game) {

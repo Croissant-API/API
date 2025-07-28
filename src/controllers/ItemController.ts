@@ -23,7 +23,6 @@ import {
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { ValidationError, Schema } from "yup";
-import { mapItem } from "../utils/helpers";
 
 function handleError(
   res: Response,
@@ -65,7 +64,7 @@ export class Items {
   @describe({
     endpoint: "/items",
     method: "GET",
-    description: "Get all non-deleted items",
+    description: "Get all non-deleted items visible in store",
     responseType: [
       {
         itemId: "string",
@@ -81,10 +80,8 @@ export class Items {
   @httpGet("/")
   public async getAllItems(req: Request, res: Response) {
     try {
-      const items = await this.itemService.getAllItems();
-      res.send(
-        items.filter((i) => !i.deleted && i.showInStore).map(mapItem)
-      );
+      const items = await this.itemService.getStoreItems();
+      res.send(items);
     } catch (error) {
       handleError(res, error, "Error fetching items");
     }
@@ -113,10 +110,8 @@ export class Items {
     const userId = req.user?.user_id;
     if (!userId) return res.status(401).send({ message: "Unauthorized" });
     try {
-      const items = await this.itemService.getAllItems();
-      res.send(
-        items.filter((i) => !i.deleted && i.owner === userId).map(mapItem)
-      );
+      const items = await this.itemService.getMyItems(userId);
+      res.send(items);
     } catch (error) {
       handleError(res, error, "Error fetching your items");
     }
@@ -146,7 +141,7 @@ export class Items {
     if (!query) return res.status(400).send({ message: "Missing search query" });
     try {
       const items = await this.itemService.searchItemsByName(query);
-      res.send(items.map(mapItem));
+      res.send(items);
     } catch (error) {
       handleError(res, error, "Error searching items");
     }
@@ -158,6 +153,7 @@ export class Items {
     description: "Get a single item by itemId",
     params: { itemId: "The id of the item" },
     responseType: {
+      itemId: "string",
       name: "string",
       description: "string",
       owner: "string",
@@ -168,7 +164,7 @@ export class Items {
     example: "GET /api/items/123",
   })
   @httpGet(":itemId")
-  public async healthCheck(req: Request, res: Response) {
+  public async getItem(req: Request, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId")))
       return;
     try {
@@ -176,7 +172,15 @@ export class Items {
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted)
         return res.status(404).send({ message: "Item not found" });
-      res.send(mapItem(item));
+      res.send({
+        itemId: item.itemId,
+        name: item.name,
+        description: item.description,
+        owner: item.owner,
+        price: item.price,
+        iconHash: item.iconHash,
+        showInStore: item.showInStore,
+      });
     } catch (error) {
       handleError(res, error, "Error fetching item");
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User } from "../interfaces/User";
@@ -18,7 +19,7 @@ export interface IUserService {
     steam_username: string | null,
     steam_avatar_url: string | null
   ): Promise<void>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   getDiscordUser(user_id: string): any;
   searchUsersByUsername(query: string): Promise<User[]>;
   updateUserBalance(user_id: string, arg1: number): unknown;
@@ -62,6 +63,12 @@ export interface IUserService {
   getUserByCredentialId(credentialId: string): Promise<User | null>;
   setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
   getAuthenticatorSecret(userId: string): Promise<string | null>;
+  getUserWithCompleteProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null>;
+  getUserWithPublicProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null>;
+  adminGetUserWithProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null>;
+  findByResetToken(reset_token: string): Promise<User | null>;
+  // Nouvelles méthodes pour intégrer SteamOAuth
+  getSteamAuthUrl(): string;
 }
 
 @injectable()
@@ -199,7 +206,7 @@ export class UserService implements IUserService {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   async getDiscordUser(userId: string): Promise<any> {
     try {
       const cached = getCachedUser(userId);
@@ -407,5 +414,261 @@ export class UserService implements IUserService {
   async getAuthenticatorSecret(userId: string): Promise<string | null> {
     const user = await this.getUser(userId);
     return user ? user.authenticator_secret || null : null;
+  }
+
+  /**
+   * Get user with complete profile data using SQL joins to avoid N+1 queries
+   */
+  async getUserWithCompleteProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
+    const query = `
+      SELECT 
+        u.*,
+        -- Inventory data
+        json_group_array(
+          CASE WHEN inv.item_id IS NOT NULL THEN
+            json_object(
+              'itemId', i.itemId,
+              'name', i.name,
+              'description', i.description,
+              'amount', inv.amount,
+              'iconHash', i.iconHash
+            )
+          END
+        ) as inventory,
+        -- Owned items
+        (SELECT json_group_array(
+          json_object(
+            'itemId', oi.itemId,
+            'name', oi.name,
+            'description', oi.description,
+            'owner', oi.owner,
+            'price', oi.price,
+            'iconHash', oi.iconHash,
+            'showInStore', oi.showInStore
+          )
+        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        -- Created games
+        (SELECT json_group_array(
+          json_object(
+            'gameId', g.gameId,
+            'name', g.name,
+            'description', g.description,
+            'price', g.price,
+            'owner_id', g.owner_id,
+            'showInStore', g.showInStore,
+            'iconHash', g.iconHash,
+            'splashHash', g.splashHash,
+            'bannerHash', g.bannerHash,
+            'genre', g.genre,
+            'release_date', g.release_date,
+            'developer', g.developer,
+            'publisher', g.publisher,
+            'platforms', g.platforms,
+            'rating', g.rating,
+            'website', g.website,
+            'trailer_link', g.trailer_link,
+            'multiplayer', g.multiplayer,
+            'download_link', g.download_link
+          )
+        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
+      FROM users u
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
+      GROUP BY u.user_id
+    `;
+    
+    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    if (results.length === 0) return null;
+    
+    const user = results[0];
+    // Parse JSON arrays and filter out null values
+    if (user.inventory) {
+      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
+    }
+    if (user.ownedItems) {
+      user.ownedItems = JSON.parse(user.ownedItems);
+    }
+    if (user.createdGames) {
+      user.createdGames = JSON.parse(user.createdGames);
+    }
+    
+    return user;
+  }
+
+  /**
+   * Get user with public profile data using SQL joins
+   */
+  async getUserWithPublicProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
+    const query = `
+      SELECT 
+        u.*,
+        -- Inventory data
+        json_group_array(
+          CASE WHEN inv.item_id IS NOT NULL THEN
+            json_object(
+              'itemId', i.itemId,
+              'name', i.name,
+              'description', i.description,
+              'amount', inv.amount,
+              'iconHash', i.iconHash
+            )
+          END
+        ) as inventory,
+        -- Owned items
+        (SELECT json_group_array(
+          json_object(
+            'itemId', oi.itemId,
+            'name', oi.name,
+            'description', oi.description,
+            'owner', oi.owner,
+            'price', oi.price,
+            'iconHash', oi.iconHash,
+            'showInStore', oi.showInStore
+          )
+        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        -- Created games (without download_link for public view)
+        (SELECT json_group_array(
+          json_object(
+            'gameId', g.gameId,
+            'name', g.name,
+            'description', g.description,
+            'price', g.price,
+            'owner_id', g.owner_id,
+            'showInStore', g.showInStore,
+            'iconHash', g.iconHash,
+            'splashHash', g.splashHash,
+            'bannerHash', g.bannerHash,
+            'genre', g.genre,
+            'release_date', g.release_date,
+            'developer', g.developer,
+            'publisher', g.publisher,
+            'platforms', g.platforms,
+            'rating', g.rating,
+            'website', g.website,
+            'trailer_link', g.trailer_link,
+            'multiplayer', g.multiplayer
+          )
+        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
+      FROM users u
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
+      GROUP BY u.user_id
+    `;
+    
+    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    if (results.length === 0) return null;
+    
+    const user = results[0];
+    // Parse JSON arrays and filter out null values
+    if (user.inventory) {
+      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
+    }
+    if (user.ownedItems) {
+      user.ownedItems = JSON.parse(user.ownedItems);
+    }
+    if (user.createdGames) {
+      user.createdGames = JSON.parse(user.createdGames);
+    }
+    
+    return user;
+  }
+
+  /**
+   * Admin version that includes disabled users
+   */
+  async adminGetUserWithProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
+    const query = `
+      SELECT 
+        u.*,
+        -- Inventory data
+        json_group_array(
+          CASE WHEN inv.item_id IS NOT NULL THEN
+            json_object(
+              'itemId', i.itemId,
+              'name', i.name,
+              'description', i.description,
+              'amount', inv.amount,
+              'iconHash', i.iconHash
+            )
+          END
+        ) as inventory,
+        -- Owned items
+        (SELECT json_group_array(
+          json_object(
+            'itemId', oi.itemId,
+            'name', oi.name,
+            'description', oi.description,
+            'owner', oi.owner,
+            'price', oi.price,
+            'iconHash', oi.iconHash,
+            'showInStore', oi.showInStore
+          )
+        ) FROM items oi WHERE oi.owner = u.user_id AND oi.deleted = 0 AND oi.showInStore = 1) as ownedItems,
+        -- Created games
+        (SELECT json_group_array(
+          json_object(
+            'gameId', g.gameId,
+            'name', g.name,
+            'description', g.description,
+            'price', g.price,
+            'owner_id', g.owner_id,
+            'showInStore', g.showInStore,
+            'iconHash', g.iconHash,
+            'splashHash', g.splashHash,
+            'bannerHash', g.bannerHash,
+            'genre', g.genre,
+            'release_date', g.release_date,
+            'developer', g.developer,
+            'publisher', g.publisher,
+            'platforms', g.platforms,
+            'rating', g.rating,
+            'website', g.website,
+            'trailer_link', g.trailer_link,
+            'multiplayer', g.multiplayer
+          )
+        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
+      FROM users u
+      LEFT JOIN Inventories inv ON u.user_id = inv.user_id
+      LEFT JOIN items i ON inv.item_id = i.itemId AND i.deleted = 0
+      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
+      GROUP BY u.user_id
+    `;
+    
+    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    if (results.length === 0) return null;
+    
+    const user = results[0];
+    // Parse JSON arrays and filter out null values
+    if (user.inventory) {
+      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
+    }
+    if (user.ownedItems) {
+      user.ownedItems = JSON.parse(user.ownedItems);
+    }
+    if (user.createdGames) {
+      user.createdGames = JSON.parse(user.createdGames);
+    }
+    
+    return user;
+  }
+
+  /**
+   * Find user by reset token
+   */
+  async findByResetToken(reset_token: string): Promise<User | null> {
+    const users = await this.databaseService.read<User[]>(
+      "SELECT * FROM users WHERE forgot_password_token = ?",
+      [reset_token]
+    );
+    return users.length > 0 ? users[0] : null;
+  }
+
+  // Intégrer les fonctionnalités Steam directement
+  getSteamAuthUrl(): string {
+    // Logique du SteamOAuthService
+    const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
+    return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
   }
 }

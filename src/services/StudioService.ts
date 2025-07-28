@@ -10,6 +10,18 @@ import { genKey } from "../utils/GenKey";
 
 export interface IStudioService {
   getStudio(user_id: string): Promise<Studio | null>;
+  getFormattedStudio(user_id: string): Promise<{
+    user_id: string;
+    username: string;
+    verified: boolean;
+    admin_id: string;
+    users: Array<{
+      user_id: string;
+      username: string;
+      verified: boolean;
+      admin: boolean;
+    }>;
+  } | null>;
   setStudioProperties(
     user_id: string,
     admin_id: string,
@@ -18,6 +30,22 @@ export interface IStudioService {
   getUserStudios(
     user_id: string
   ): Promise<Array<Studio & { isAdmin: boolean }>>;
+  getFormattedUserStudios(
+    user_id: string
+  ): Promise<Array<{
+    user_id: string;
+    username: string;
+    verified: boolean;
+    admin_id: string;
+    isAdmin: boolean;
+    apiKey?: string;
+    users: Array<{
+      user_id: string;
+      username: string;
+      verified: boolean;
+      admin: boolean;
+    }>;
+  }>>;
   createStudio(studioName: string, admin_id: string): Promise<void>;
   addUserToStudio(studioId: string, user: User): Promise<void>;
   removeUserFromStudio(studioId: string, userId: string): Promise<void>;
@@ -42,7 +70,7 @@ export class StudioService implements IStudioService {
   private async getStudioUsers(userIds: string[]): Promise<User[]> {
     if (!userIds.length) return [];
     return this.databaseService.read<User[]>(
-      `SELECT user_id as userId, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
+      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
       userIds
     );
   }
@@ -57,6 +85,68 @@ export class StudioService implements IStudioService {
     const userIds = this.parseUserIds(studio.users);
     const users = await this.getStudioUsers(userIds);
     return { ...studio, users };
+  }
+
+  async getFormattedStudio(user_id: string): Promise<{
+    user_id: string;
+    username: string;
+    verified: boolean;
+    admin_id: string;
+    users: Array<{
+      user_id: string;
+      username: string;
+      verified: boolean;
+      admin: boolean;
+    }>;
+  } | null> {
+    const studioInfo = await this.databaseService.read<Array<{
+      studio_user_id: string;
+      username: string;
+      verified: boolean;
+      admin_id: string;
+      users: string;
+    }>>(
+      `SELECT s.user_id as studio_user_id, u.username, u.verified, s.admin_id, s.users
+       FROM studios s
+       INNER JOIN users u ON s.user_id = u.user_id
+       WHERE s.user_id = ?`,
+      [user_id]
+    );
+
+    if (!studioInfo.length) return null;
+
+    const studio = studioInfo[0];
+    const userIds = this.parseUserIds(studio.users);
+    
+    if (!userIds.length) {
+      return {
+        user_id: studio.studio_user_id,
+        username: studio.username,
+        verified: studio.verified,
+        admin_id: studio.admin_id,
+        users: []
+      };
+    }
+
+    const users = await this.databaseService.read<Array<{
+      user_id: string;
+      username: string;
+      verified: boolean;
+      admin: boolean;
+    }>>(
+      `SELECT user_id, username, verified, admin 
+       FROM users 
+       WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
+      userIds
+    );
+
+    return {
+      user_id: studio.studio_user_id,
+      username: studio.username,
+      verified: studio.verified,
+      admin_id: studio.admin_id,
+      users
+    };
   }
 
   async setStudioProperties(
@@ -88,9 +178,71 @@ export class StudioService implements IStudioService {
           username: studioUser?.username,
           verified: studioUser?.verified,
           users,
+          isAdmin: studio.admin_id === user_id,
           apiKey: studio.admin_id == user_id ? genKey(studio.user_id) : null,
         });
       }
+    }
+    return result;
+  }
+
+  async getFormattedUserStudios(
+    user_id: string
+  ): Promise<Array<{
+    user_id: string;
+    username: string;
+    verified: boolean;
+    admin_id: string;
+    isAdmin: boolean;
+    apiKey?: string;
+    users: Array<{
+      user_id: string;
+      username: string;
+      verified: boolean;
+      admin: boolean;
+    }>;
+  }>> {
+    // Récupère tous les studios où l'utilisateur est membre ou admin
+    const studiosInfo = await this.databaseService.read<Array<{
+      studio_user_id: string;
+      username: string;
+      verified: boolean;
+      admin_id: string;
+      users: string;
+    }>>(
+      `SELECT s.user_id as studio_user_id, u.username, u.verified, s.admin_id, s.users
+       FROM studios s
+       INNER JOIN users u ON s.user_id = u.user_id
+       WHERE s.admin_id = ? OR JSON_EXTRACT(s.users, '$') LIKE ?`,
+      [user_id, `%"${user_id}"%`]
+    );
+
+    const result = [];
+    for (const studio of studiosInfo) {
+      const userIds = this.parseUserIds(studio.users);
+      const isAdmin = studio.admin_id === user_id;
+      
+      const users = userIds.length > 0 ? await this.databaseService.read<Array<{
+        user_id: string;
+        username: string;
+        verified: boolean;
+        admin: boolean;
+      }>>(
+        `SELECT user_id, username, verified, admin 
+         FROM users 
+         WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
+        userIds
+      ) : [];
+
+      result.push({
+        user_id: studio.studio_user_id,
+        username: studio.username,
+        verified: studio.verified,
+        admin_id: studio.admin_id,
+        isAdmin,
+        apiKey: isAdmin ? genKey(studio.studio_user_id) : undefined,
+        users
+      });
     }
     return result;
   }

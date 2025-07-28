@@ -18,7 +18,6 @@ import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
 import { Schema } from "yup";
-import { filterGame } from "../utils/helpers";
 import { AuthenticatedRequestWithOwner, OwnerCheck } from "../middlewares/OwnerCheck";
 
 // --- UTILS ---
@@ -80,8 +79,8 @@ export class Games {
   @httpGet("/")
   public async listGames(req: Request, res: Response) {
     try {
-      const games = await this.gameService.listGames();
-      res.send(games.filter(g => g.showInStore).map(g => filterGame(g)));
+      const games = await this.gameService.getStoreGames();
+      res.send(games);
     } catch (error) {
       handleError(res, error, "Error listing games");
     }
@@ -100,14 +99,8 @@ export class Games {
     const query = (req.query.q as string)?.trim();
     if (!query) return res.status(400).send({ message: "Missing search query" });
     try {
-      const games = await this.gameService.listGames();
-      res.send(
-        games.filter(
-          g => g.showInStore && [g.name, g.description, g.genre].some(
-            v => v && v.toLowerCase().includes(query.toLowerCase())
-          )
-        ).map(g => filterGame(g))
-      );
+      const games = await this.gameService.searchGames(query);
+      res.send(games);
     } catch (error) {
       handleError(res, error, "Error searching games");
     }
@@ -125,8 +118,8 @@ export class Games {
   public async getMyCreatedGames(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user.user_id;
-      const games = await this.gameService.listGames();
-      res.send(games.filter(g => g.owner_id === userId).map(g => filterGame(g, userId)));
+      const games = await this.gameService.getMyCreatedGames(userId);
+      res.send(games);
     } catch (error) {
       handleError(res, error, "Error fetching your created games");
     }
@@ -144,7 +137,8 @@ export class Games {
   @httpGet("/list/@me", LoggedCheck.middleware)
   public async getUserGames(req: AuthenticatedRequest, res: Response) {
     try {
-      res.send(await this.gameService.getUserGames(req.user.user_id));
+      const games = await this.gameService.getUserOwnedGames(req.user.user_id);
+      res.send(games);
     } catch (error) {
       handleError(res, error, "Error fetching user games");
     }
@@ -163,11 +157,28 @@ export class Games {
     if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
     try {
       const { gameId } = req.params;
-      const game = await this.gameService.getGame(gameId);
+      // Utilise la méthode publique qui exclut automatiquement download_link
+      const game = await this.gameService.getGameForPublic(gameId);
       if (!game) return res.status(404).send({ message: "Game not found" });
-      res.send(filterGame(game));
+      res.send(game);
     } catch (error) {
       handleError(res, error, "Error fetching game");
+    }
+  }
+
+  // Si on veut une route pour les propriétaires
+  @httpGet(":gameId/details", LoggedCheck.middleware)
+  public async getGameDetails(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
+    try {
+      const { gameId } = req.params;
+      const userId = req.user.user_id;
+      // Utilise la méthode propriétaire qui inclut download_link si autorisé
+      const game = await this.gameService.getGameForOwner(gameId, userId);
+      if (!game) return res.status(404).send({ message: "Game not found" });
+      res.send(game);
+    } catch (error) {
+      handleError(res, error, "Error fetching game details");
     }
   }
 
@@ -215,7 +226,7 @@ export class Games {
       if (req.user.user_id !== game.owner_id) return res.status(403).send({ message: "You are not the owner of this game" });
       await this.gameService.updateGame(req.params.gameId, req.body);
       const updatedGame = await this.gameService.getGame(req.params.gameId);
-      res.status(200).send(updatedGame ? filterGame(updatedGame, req.user.user_id) : null);
+      res.status(200).send(updatedGame);
     } catch (error) {
       handleError(res, error, "Error updating game");
     }

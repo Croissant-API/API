@@ -12,6 +12,7 @@ import { TradeItem } from "../interfaces/Trade";
 import { tradeItemActionSchema } from "../validators/TradeValidator";
 import { ValidationError } from "yup";
 import { Schema } from "yup";
+import { describe } from "../decorators/describe";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -36,21 +37,37 @@ export class Trades {
   constructor(@inject("TradeService") private tradeService: ITradeService) {}
 
   // --- Démarrage ou récupération de trade ---
+  @describe({
+    endpoint: "/trades/start-or-latest/:userId",
+    method: "POST",
+    description: "Start a new trade or get the latest pending trade with a user",
+    params: { userId: "The ID of the user to trade with" },
+    responseType: {
+      id: "string",
+      fromUserId: "string",
+      toUserId: "string",
+      fromUserItems: ["object"],
+      toUserItems: ["object"],
+      approvedFromUser: "boolean",
+      approvedToUser: "boolean",
+      status: "string",
+      createdAt: "string",
+      updatedAt: "string"
+    },
+    example: "POST /api/trades/start-or-latest/user123",
+    requiresAuth: true
+  })
   @httpPost("/start-or-latest/:userId", LoggedCheck.middleware)
-  public async startOrGetPendingTrade(
-    req: AuthenticatedRequest,
-    res: Response
-  ) {
+  public async startOrGetPendingTrade(req: AuthenticatedRequest, res: Response) {
     try {
       const fromUserId = req.user.user_id;
       const toUserId = req.params.userId;
+      
       if (fromUserId === toUserId) {
         return res.status(400).send({ message: "Cannot trade with yourself" });
       }
-      const trade = await this.tradeService.startOrGetPendingTrade(
-        fromUserId,
-        toUserId
-      );
+      
+      const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId);
       res.status(200).send(trade);
     } catch (error) {
       handleError(res, error, "Error starting or getting trade");
@@ -58,34 +75,100 @@ export class Trades {
   }
 
   // --- Lecture ---
+  @describe({
+    endpoint: "/trades/:id",
+    method: "GET",
+    description: "Get a trade by ID with enriched item information",
+    params: { id: "The ID of the trade" },
+    responseType: {
+      id: "string",
+      fromUserId: "string",
+      toUserId: "string",
+      fromUserItems: [{
+        itemId: "string",
+        name: "string",
+        description: "string",
+        iconHash: "string",
+        amount: "number"
+      }],
+      toUserItems: [{
+        itemId: "string",
+        name: "string",
+        description: "string",
+        iconHash: "string",
+        amount: "number"
+      }],
+      approvedFromUser: "boolean",
+      approvedToUser: "boolean",
+      status: "string",
+      createdAt: "string",
+      updatedAt: "string"
+    },
+    example: "GET /api/trades/trade123",
+    requiresAuth: true
+  })
   @httpGet("/:id", LoggedCheck.middleware)
   public async getTradeById(req: AuthenticatedRequest, res: Response) {
     try {
       const id = req.params.id;
-      const trade = await this.tradeService.getTradeById(id);
+      const trade = await this.tradeService.getFormattedTradeById(id);
+      
       if (!trade) {
         return res.status(404).send({ message: "Trade not found" });
       }
-      if (
-        trade.fromUserId !== req.user.user_id &&
-        trade.toUserId !== req.user.user_id
-      ) {
+      
+      if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
         return res.status(403).send({ message: "Forbidden" });
       }
+      
       res.send(trade);
     } catch (error) {
       handleError(res, error, "Error fetching trade");
     }
   }
 
+  @describe({
+    endpoint: "/trades/user/:userId",
+    method: "GET",
+    description: "Get all trades for a user with enriched item information",
+    params: { userId: "The ID of the user" },
+    responseType: [{
+      id: "string",
+      fromUserId: "string",
+      toUserId: "string",
+      fromUserItems: [{
+        itemId: "string",
+        name: "string",
+        description: "string",
+        iconHash: "string",
+        amount: "number"
+      }],
+      toUserItems: [{
+        itemId: "string",
+        name: "string",
+        description: "string",
+        iconHash: "string",
+        amount: "number"
+      }],
+      approvedFromUser: "boolean",
+      approvedToUser: "boolean",
+      status: "string",
+      createdAt: "string",
+      updatedAt: "string"
+    }],
+    example: "GET /api/trades/user/user123",
+    requiresAuth: true
+  })
   @httpGet("/user/:userId", LoggedCheck.middleware)
   public async getTradesByUser(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.params.userId;
+      
       if (userId !== req.user.user_id) {
         return res.status(403).send({ message: "Forbidden" });
       }
-      const trades = await this.tradeService.getTradesByUser(userId);
+      
+      const trades = await this.tradeService.getFormattedTradesByUser(userId);
       res.send(trades);
     } catch (error) {
       handleError(res, error, "Error fetching trades");
@@ -93,40 +176,75 @@ export class Trades {
   }
 
   // --- Actions sur une trade ---
+  @describe({
+    endpoint: "/trades/:id/add-item",
+    method: "POST",
+    description: "Add an item to a trade",
+    params: { id: "The ID of the trade" },
+    body: {
+      tradeItem: {
+        itemId: "The ID of the item to add",
+        amount: "The amount of the item to add"
+      }
+    },
+    responseType: { message: "string" },
+    example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}}',
+    requiresAuth: true
+  })
   @httpPost("/:id/add-item", LoggedCheck.middleware)
   public async addItemToTrade(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
+    
     try {
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
-      await this.tradeService.addItemToTrade(
-        tradeId,
-        req.user.user_id,
-        tradeItem
-      );
+      
+      await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
       res.status(200).send({ message: "Item added to trade" });
     } catch (error) {
       handleError(res, error, "Error adding item to trade");
     }
   }
 
+  @describe({
+    endpoint: "/trades/:id/remove-item",
+    method: "POST",
+    description: "Remove an item from a trade",
+    params: { id: "The ID of the trade" },
+    body: {
+      tradeItem: {
+        itemId: "The ID of the item to remove",
+        amount: "The amount of the item to remove"
+      }
+    },
+    responseType: { message: "string" },
+    example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}}',
+    requiresAuth: true
+  })
   @httpPost("/:id/remove-item", LoggedCheck.middleware)
   public async removeItemFromTrade(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(tradeItemActionSchema, req.body, res))) return;
+    
     try {
       const tradeId = req.params.id;
       const { tradeItem } = req.body as { tradeItem: TradeItem };
-      await this.tradeService.removeItemFromTrade(
-        tradeId,
-        req.user.user_id,
-        tradeItem
-      );
+      
+      await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
       res.status(200).send({ message: "Item removed from trade" });
     } catch (error) {
       handleError(res, error, "Error removing item from trade");
     }
   }
 
+  @describe({
+    endpoint: "/trades/:id/approve",
+    method: "PUT",
+    description: "Approve a trade",
+    params: { id: "The ID of the trade" },
+    responseType: { message: "string" },
+    example: "PUT /api/trades/trade123/approve",
+    requiresAuth: true
+  })
   @httpPut("/:id/approve", LoggedCheck.middleware)
   public async approveTrade(req: AuthenticatedRequest, res: Response) {
     try {
@@ -138,6 +256,15 @@ export class Trades {
     }
   }
 
+  @describe({
+    endpoint: "/trades/:id/cancel",
+    method: "PUT",
+    description: "Cancel a trade",
+    params: { id: "The ID of the trade" },
+    responseType: { message: "string" },
+    example: "PUT /api/trades/trade123/cancel",
+    requiresAuth: true
+  })
   @httpPut("/:id/cancel", LoggedCheck.middleware)
   public async cancelTrade(req: AuthenticatedRequest, res: Response) {
     try {

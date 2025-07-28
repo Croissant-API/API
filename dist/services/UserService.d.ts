@@ -31,6 +31,23 @@ export interface IUserService {
     getUserByCredentialId(credentialId: string): Promise<User | null>;
     setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
     getAuthenticatorSecret(userId: string): Promise<string | null>;
+    getUserWithCompleteProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    getUserWithPublicProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    adminGetUserWithProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    findByResetToken(reset_token: string): Promise<User | null>;
+    getSteamAuthUrl(): string;
 }
 export declare class UserService implements IUserService {
     private databaseService;
@@ -97,4 +114,33 @@ export declare class UserService implements IUserService {
     getUserByCredentialId(credentialId: string): Promise<User | null>;
     setAuthenticatorSecret(userId: string, secret: string | null): Promise<void>;
     getAuthenticatorSecret(userId: string): Promise<string | null>;
+    /**
+     * Get user with complete profile data using SQL joins to avoid N+1 queries
+     */
+    getUserWithCompleteProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    /**
+     * Get user with public profile data using SQL joins
+     */
+    getUserWithPublicProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    /**
+     * Admin version that includes disabled users
+     */
+    adminGetUserWithProfile(user_id: string): Promise<(User & {
+        inventory?: any[];
+        ownedItems?: any[];
+        createdGames?: any[];
+    }) | null>;
+    /**
+     * Find user by reset token
+     */
+    findByResetToken(reset_token: string): Promise<User | null>;
+    getSteamAuthUrl(): string;
 }

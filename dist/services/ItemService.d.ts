@@ -4,6 +4,8 @@ export interface IItemService {
     createItem(item: Omit<Item, "id">): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;
     getAllItems(): Promise<Item[]>;
+    getStoreItems(): Promise<Item[]>;
+    getMyItems(userId: string): Promise<Item[]>;
     updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
     searchItemsByName(query: string): Promise<Item[]>;
@@ -15,6 +17,8 @@ export declare class ItemService implements IItemService {
     createItem(item: Omit<Item, "id">): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;
     getAllItems(): Promise<Item[]>;
+    getStoreItems(): Promise<Item[]>;
+    getMyItems(userId: string): Promise<Item[]>;
     updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId">>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
     /**

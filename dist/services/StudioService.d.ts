@@ -4,9 +4,35 @@ import { User } from "../interfaces/User";
 import { IUserService } from "./UserService";
 export interface IStudioService {
     getStudio(user_id: string): Promise<Studio | null>;
+    getFormattedStudio(user_id: string): Promise<{
+        user_id: string;
+        username: string;
+        verified: boolean;
+        admin_id: string;
+        users: Array<{
+            user_id: string;
+            username: string;
+            verified: boolean;
+            admin: boolean;
+        }>;
+    } | null>;
     setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;
     getUserStudios(user_id: string): Promise<Array<Studio & {
         isAdmin: boolean;
+    }>>;
+    getFormattedUserStudios(user_id: string): Promise<Array<{
+        user_id: string;
+        username: string;
+        verified: boolean;
+        admin_id: string;
+        isAdmin: boolean;
+        apiKey?: string;
+        users: Array<{
+            user_id: string;
+            username: string;
+            verified: boolean;
+            admin: boolean;
+        }>;
     }>>;
     createStudio(studioName: string, admin_id: string): Promise<void>;
     addUserToStudio(studioId: string, user: User): Promise<void>;
@@ -20,9 +46,35 @@ export declare class StudioService implements IStudioService {
     private parseUserIds;
     private getStudioUsers;
     getStudio(user_id: string): Promise<Studio | null>;
+    getFormattedStudio(user_id: string): Promise<{
+        user_id: string;
+        username: string;
+        verified: boolean;
+        admin_id: string;
+        users: Array<{
+            user_id: string;
+            username: string;
+            verified: boolean;
+            admin: boolean;
+        }>;
+    } | null>;
     setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;
     getUserStudios(user_id: string): Promise<Array<Studio & {
         isAdmin: boolean;
+    }>>;
+    getFormattedUserStudios(user_id: string): Promise<Array<{
+        user_id: string;
+        username: string;
+        verified: boolean;
+        admin_id: string;
+        isAdmin: boolean;
+        apiKey?: string;
+        users: Array<{
+            user_id: string;
+            username: string;
+            verified: boolean;
+            admin: boolean;
+        }>;
     }>>;
     createStudio(studioName: string, admin_id: string): Promise<void>;
     /**

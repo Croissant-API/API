@@ -20,7 +20,6 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-const helpers_1 = require("../utils/helpers");
 const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 // --- UTILS ---
 const gameResponseFields = {
@@ -68,8 +67,8 @@ let Games = class Games {
     // --- LISTING & SEARCH ---
     async listGames(req, res) {
         try {
-            const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.showInStore).map(g => (0, helpers_1.filterGame)(g)));
+            const games = await this.gameService.getStoreGames();
+            res.send(games);
         }
         catch (error) {
             handleError(res, error, "Error listing games");
@@ -80,8 +79,8 @@ let Games = class Games {
         if (!query)
             return res.status(400).send({ message: "Missing search query" });
         try {
-            const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g)));
+            const games = await this.gameService.searchGames(query);
+            res.send(games);
         }
         catch (error) {
             handleError(res, error, "Error searching games");
@@ -90,8 +89,8 @@ let Games = class Games {
     async getMyCreatedGames(req, res) {
         try {
             const userId = req.user.user_id;
-            const games = await this.gameService.listGames();
-            res.send(games.filter(g => g.owner_id === userId).map(g => (0, helpers_1.filterGame)(g, userId)));
+            const games = await this.gameService.getMyCreatedGames(userId);
+            res.send(games);
         }
         catch (error) {
             handleError(res, error, "Error fetching your created games");
@@ -99,7 +98,8 @@ let Games = class Games {
     }
     async getUserGames(req, res) {
         try {
-            res.send(await this.gameService.getUserGames(req.user.user_id));
+            const games = await this.gameService.getUserOwnedGames(req.user.user_id);
+            res.send(games);
         }
         catch (error) {
             handleError(res, error, "Error fetching user games");
@@ -110,13 +110,31 @@ let Games = class Games {
             return;
         try {
             const { gameId } = req.params;
-            const game = await this.gameService.getGame(gameId);
+            // Utilise la méthode publique qui exclut automatiquement download_link
+            const game = await this.gameService.getGameForPublic(gameId);
             if (!game)
                 return res.status(404).send({ message: "Game not found" });
-            res.send((0, helpers_1.filterGame)(game));
+            res.send(game);
         }
         catch (error) {
             handleError(res, error, "Error fetching game");
+        }
+    }
+    // Si on veut une route pour les propriétaires
+    async getGameDetails(req, res) {
+        if (!(await validateOr400(GameValidator_1.gameIdParamSchema, req.params, res)))
+            return;
+        try {
+            const { gameId } = req.params;
+            const userId = req.user.user_id;
+            // Utilise la méthode propriétaire qui inclut download_link si autorisé
+            const game = await this.gameService.getGameForOwner(gameId, userId);
+            if (!game)
+                return res.status(404).send({ message: "Game not found" });
+            res.send(game);
+        }
+        catch (error) {
+            handleError(res, error, "Error fetching game details");
         }
     }
     // --- CREATION & MODIFICATION ---
@@ -165,7 +183,7 @@ let Games = class Games {
                 return res.status(403).send({ message: "You are not the owner of this game" });
             await this.gameService.updateGame(req.params.gameId, req.body);
             const updatedGame = await this.gameService.getGame(req.params.gameId);
-            res.status(200).send(updatedGame ? (0, helpers_1.filterGame)(updatedGame, req.user.user_id) : null);
+            res.status(200).send(updatedGame);
         }
         catch (error) {
             handleError(res, error, "Error updating game");
@@ -301,6 +319,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getGame", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)(":gameId/details", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "getGameDetails", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

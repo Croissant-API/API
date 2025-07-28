@@ -21,7 +21,6 @@ const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
 const yup_1 = require("yup");
-const helpers_1 = require("../utils/helpers");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -48,8 +47,8 @@ let Items = class Items {
     // --- LECTURE ---
     async getAllItems(req, res) {
         try {
-            const items = await this.itemService.getAllItems();
-            res.send(items.filter((i) => !i.deleted && i.showInStore).map(helpers_1.mapItem));
+            const items = await this.itemService.getStoreItems();
+            res.send(items);
         }
         catch (error) {
             handleError(res, error, "Error fetching items");
@@ -60,8 +59,8 @@ let Items = class Items {
         if (!userId)
             return res.status(401).send({ message: "Unauthorized" });
         try {
-            const items = await this.itemService.getAllItems();
-            res.send(items.filter((i) => !i.deleted && i.owner === userId).map(helpers_1.mapItem));
+            const items = await this.itemService.getMyItems(userId);
+            res.send(items);
         }
         catch (error) {
             handleError(res, error, "Error fetching your items");
@@ -73,13 +72,13 @@ let Items = class Items {
             return res.status(400).send({ message: "Missing search query" });
         try {
             const items = await this.itemService.searchItemsByName(query);
-            res.send(items.map(helpers_1.mapItem));
+            res.send(items);
         }
         catch (error) {
             handleError(res, error, "Error searching items");
         }
     }
-    async healthCheck(req, res) {
+    async getItem(req, res) {
         if (!(await validateOr400(ItemValidator_1.itemIdParamValidator, req.params, res, "Invalid itemId")))
             return;
         try {
@@ -87,7 +86,15 @@ let Items = class Items {
             const item = await this.itemService.getItem(itemId);
             if (!item || item.deleted)
                 return res.status(404).send({ message: "Item not found" });
-            res.send((0, helpers_1.mapItem)(item));
+            res.send({
+                itemId: item.itemId,
+                name: item.name,
+                description: item.description,
+                owner: item.owner,
+                price: item.price,
+                iconHash: item.iconHash,
+                showInStore: item.showInStore,
+            });
         }
         catch (error) {
             handleError(res, error, "Error fetching item");
@@ -355,7 +362,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/items",
         method: "GET",
-        description: "Get all non-deleted items",
+        description: "Get all non-deleted items visible in store",
         responseType: [
             {
                 itemId: "string",
@@ -428,6 +435,7 @@ __decorate([
         description: "Get a single item by itemId",
         params: { itemId: "The id of the item" },
         responseType: {
+            itemId: "string",
             name: "string",
             description: "string",
             owner: "string",
@@ -441,7 +449,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Items.prototype, "healthCheck", null);
+], Items.prototype, "getItem", null);
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items/create",

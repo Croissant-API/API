@@ -56,23 +56,18 @@ let Lobbies = class Lobbies {
     }
     // --- Récupération d’un lobby ---
     async getLobby(req, res) {
+        if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res)))
+            return;
         try {
-            await LobbyValidator_1.lobbyIdParamSchema.validate(req.params);
             const lobbyId = req.params.lobbyId;
-            const lobby = await this.lobbyService.getLobby(lobbyId);
+            const lobby = await this.lobbyService.getFormattedLobby(lobbyId);
             if (!lobby) {
                 return res.status(404).send({ message: "Lobby not found" });
             }
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching lobby", error: message });
+            handleError(res, error, "Error fetching lobby");
         }
     }
     async getMyLobby(req, res) {
@@ -85,20 +80,13 @@ let Lobbies = class Lobbies {
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching user lobby", error: message });
+            handleError(res, error, "Error fetching user lobby");
         }
     }
     async getUserLobby(req, res) {
+        if (!(await validateOr400(LobbyValidator_1.userIdParamSchema, req.params, res)))
+            return;
         try {
-            await LobbyValidator_1.userIdParamSchema.validate(req.params);
             const { userId } = req.params;
             const lobby = await this.lobbyService.getUserLobby(userId);
             if (!lobby) {
@@ -107,15 +95,7 @@ let Lobbies = class Lobbies {
             res.send(lobby);
         }
         catch (error) {
-            if (error instanceof yup_1.ValidationError) {
-                return res
-                    .status(400)
-                    .send({ message: "Validation failed", errors: error.errors });
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            res
-                .status(500)
-                .send({ message: "Error fetching user lobby", error: message });
+            handleError(res, error, "Error fetching user lobby");
         }
     }
     // --- Actions sur un lobby ---
@@ -162,7 +142,17 @@ __decorate([
         method: "GET",
         description: "Get a lobby by lobbyId",
         params: { lobbyId: "The id of the lobby" },
-        responseType: { lobbyId: "string", users: ["string"] },
+        responseType: {
+            lobbyId: "string",
+            users: [{
+                    username: "string",
+                    user_id: "string",
+                    verified: "boolean",
+                    steam_username: "string",
+                    steam_avatar_url: "string",
+                    steam_id: "string"
+                }]
+        },
         example: "GET /api/lobbies/123",
     }),
     (0, inversify_express_utils_1.httpGet)("/:lobbyId"),

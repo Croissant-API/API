@@ -1,17 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
 import { User } from "interfaces/User";
 import { IUserService } from "./UserService";
 
+interface LobbyUser {
+  username: string;
+  user_id: string;
+  verified: boolean;
+  steam_username?: string;
+  steam_avatar_url?: string;
+  steam_id?: string;
+}
+
 export interface ILobbyService {
   getLobby(lobbyId: string): Promise<Lobby | null>;
+  getFormattedLobby(lobbyId: string): Promise<{ lobbyId: string; users: LobbyUser[] } | null>;
   joinLobby(lobbyId: string, userId: string): Promise<void>;
   leaveLobby(lobbyId: string, userId: string): Promise<void>;
   getUserLobby(
     userId: string
-  ): Promise<{ lobbyId: string; users: (User | null)[] } | null>;
+  ): Promise<{ lobbyId: string; users: LobbyUser[] } | null>;
+  getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
   createLobby(lobbyId: string, users?: string[]): Promise<void>;
   deleteLobby(lobbyId: string): Promise<void>;
 }
@@ -29,6 +39,15 @@ export class LobbyService implements ILobbyService {
       [lobbyId]
     );
     return rows[0] || null;
+  }
+
+  async getFormattedLobby(lobbyId: string): Promise<{ lobbyId: string; users: LobbyUser[] } | null> {
+    const lobby = await this.getLobby(lobbyId);
+    if (!lobby) return null;
+    
+    const userIds = parseUsers(lobby.users);
+    const users = await this.getFormattedLobbyUsers(userIds);
+    return { lobbyId, users };
   }
 
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
@@ -57,19 +76,32 @@ export class LobbyService implements ILobbyService {
 
   async getUserLobby(
     userId: string
-  ): Promise<{ lobbyId: string; users: any[] } | null> {
+  ): Promise<{ lobbyId: string; users: LobbyUser[] } | null> {
     const rows = await this.databaseService.read<
       { lobbyId: string; users: string }[]
-    >("SELECT lobbyId, users FROM lobbies");
-    for (const row of rows) {
-      const userIds = parseUsers(row.users);
-      if (!userIds.includes(userId)) continue;
-      const users = (await Promise.all(userIds.map((u) => this.userService.getUser(u))))
-        .filter((user): user is User => user !== null)
-        .map(mapLobbyUser);
-      return { lobbyId: row.lobbyId, users };
-    }
-    return null;
+    >("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", 
+    [`%"${userId}"%`]);
+    
+    if (rows.length === 0) return null;
+    
+    const row = rows[0];
+    const userIds = parseUsers(row.users);
+    const users = await this.getFormattedLobbyUsers(userIds);
+    return { lobbyId: row.lobbyId, users };
+  }
+
+  async getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]> {
+    if (userIds.length === 0) return [];
+    
+    const placeholders = userIds.map(() => '?').join(',');
+    const users = await this.databaseService.read<User[]>(
+      `SELECT user_id, username, verified, steam_username, steam_avatar_url, steam_id 
+       FROM users 
+       WHERE user_id IN (${placeholders})`,
+      userIds
+    );
+    
+    return users.map(mapLobbyUser);
   }
 
   async createLobby(lobbyId: string, users: string[] = []): Promise<void> {
@@ -86,7 +118,7 @@ export class LobbyService implements ILobbyService {
   }
 }
 
-function mapLobbyUser(user: User) {
+function mapLobbyUser(user: User): LobbyUser {
   return {
     username: user.username,
     user_id: user.user_id,
