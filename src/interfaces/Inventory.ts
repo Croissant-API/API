@@ -3,14 +3,7 @@ export interface InventoryItem {
   item_id: string;
   amount: number;
   metadata?: { [key: string]: unknown };
-  // Données de l'item
-  itemId?: string;
-  name?: string;
-  description?: string;
-  iconHash?: string;
-  price?: number;
-  owner?: string;
-  showInStore?: boolean;
+  sellable: boolean; // Ajout de sellable
 }
 
 export interface Inventory {

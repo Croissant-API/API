@@ -486,7 +486,7 @@ export class TradeService implements ITradeService {
   // Échange les items et passe la trade à completed
   private async exchangeTradeItems(trade: Trade): Promise<void> {
     // Pour les items avec _unique_id, utiliser transferItem pour préserver l'ID unique
-    // Pour les items sans métadonnées, utiliser la méthode classique remove/add
+    // Pour les items sans métadonnées, utiliser la méthode classique remove/add avec gestion de sellable
     
     for (const item of trade.fromUserItems) {
       if (item.metadata?._unique_id) {
@@ -498,7 +498,13 @@ export class TradeService implements ITradeService {
           item.metadata._unique_id as string
         );
       } else {
-        // Pour les items sans métadonnées, utiliser remove/add
+        // Pour les items sans métadonnées, vérifier s'ils sont sellable
+        const inventory = await this.inventoryService.getInventory(trade.fromUserId);
+        const inventoryItem = inventory.inventory.find(
+          invItem => invItem.item_id === item.itemId && !invItem.metadata
+        );
+        const isSellable = inventoryItem?.sellable || false;
+        
         await this.inventoryService.removeItem(
           trade.fromUserId,
           item.itemId,
@@ -507,7 +513,9 @@ export class TradeService implements ITradeService {
         await this.inventoryService.addItem(
           trade.toUserId,
           item.itemId,
-          item.amount
+          item.amount,
+          undefined,
+          isSellable
         );
       }
     }
@@ -521,6 +529,13 @@ export class TradeService implements ITradeService {
           item.metadata._unique_id as string
         );
       } else {
+        // Pour les items sans métadonnées, vérifier s'ils sont sellable
+        const inventory = await this.inventoryService.getInventory(trade.toUserId);
+        const inventoryItem = inventory.inventory.find(
+          invItem => invItem.item_id === item.itemId && !invItem.metadata
+        );
+        const isSellable = inventoryItem?.sellable || false;
+        
         await this.inventoryService.removeItem(
           trade.toUserId,
           item.itemId,
@@ -529,7 +544,9 @@ export class TradeService implements ITradeService {
         await this.inventoryService.addItem(
           trade.fromUserId,
           item.itemId,
-          item.amount
+          item.amount,
+          undefined,
+          isSellable
         );
       }
     }
