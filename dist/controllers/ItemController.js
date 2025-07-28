@@ -287,7 +287,7 @@ let Items = class Items {
             }
             else {
                 // Consommer des items sans métadonnées
-                const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(targetUser.user_id, itemId, amount);
+                const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadataSellable(targetUser.user_id, itemId, amount);
                 if (!hasEnoughItems) {
                     return res.status(400).send({
                         message: "User doesn't have enough items without metadata"

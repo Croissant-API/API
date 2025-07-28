@@ -503,7 +503,7 @@ export class Items {
         res.status(200).send({ message: "Item with metadata consumed" });
       } else {
         // Consommer des items sans métadonnées
-        const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadata(
+        const hasEnoughItems = await this.inventoryService.hasItemWithoutMetadataSellable(
           targetUser.user_id,
           itemId,
           amount
