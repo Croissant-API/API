@@ -76,6 +76,15 @@ let LobbyService = class LobbyService {
             lobbyId,
         ]);
     }
+    async getUserLobbies(userId) {
+        return await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
+    }
+    async leaveAllLobbies(userId) {
+        const lobbies = await this.getUserLobbies(userId);
+        for (const lobby of lobbies) {
+            await this.leaveLobby(lobby.lobbyId, userId);
+        }
+    }
 };
 LobbyService = __decorate([
     (0, inversify_1.injectable)(),

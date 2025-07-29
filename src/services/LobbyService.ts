@@ -24,6 +24,8 @@ export interface ILobbyService {
   getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
   createLobby(lobbyId: string, users?: string[]): Promise<void>;
   deleteLobby(lobbyId: string): Promise<void>;
+  getUserLobbies(userId: string): Promise<{ lobbyId: string; users: string }[]>;
+  leaveAllLobbies(userId: string): Promise<void>;
 }
 
 @injectable()
@@ -115,6 +117,20 @@ export class LobbyService implements ILobbyService {
     await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [
       lobbyId,
     ]);
+  }
+
+  async getUserLobbies(userId: string): Promise<{ lobbyId: string; users: string }[]> {
+    return await this.databaseService.read<{ lobbyId: string; users: string }[]>(
+      "SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?",
+      [`%"${userId}"%`]
+    );
+  }
+
+  async leaveAllLobbies(userId: string): Promise<void> {
+    const lobbies = await this.getUserLobbies(userId);
+    for (const lobby of lobbies) {
+      await this.leaveLobby(lobby.lobbyId, userId);
+    }
   }
 }
 

@@ -24,6 +24,11 @@ export interface ILobbyService {
     getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;
+    getUserLobbies(userId: string): Promise<{
+        lobbyId: string;
+        users: string;
+    }[]>;
+    leaveAllLobbies(userId: string): Promise<void>;
 }
 export declare class LobbyService implements ILobbyService {
     private databaseService;
@@ -43,5 +48,10 @@ export declare class LobbyService implements ILobbyService {
     getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;
+    getUserLobbies(userId: string): Promise<{
+        lobbyId: string;
+        users: string;
+    }[]>;
+    leaveAllLobbies(userId: string): Promise<void>;
 }
 export {};

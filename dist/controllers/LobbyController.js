@@ -103,6 +103,8 @@ let Lobbies = class Lobbies {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res)))
             return;
         try {
+            // Quitter tous les autres lobbies avant de rejoindre le nouveau
+            await this.lobbyService.leaveAllLobbies(req.user.user_id);
             await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
             res.status(200).send({ message: "Joined lobby" });
         }
@@ -192,7 +194,7 @@ __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies/:lobbyId/join",
         method: "POST",
-        description: "Join a lobby.",
+        description: "Join a lobby. This will make the user leave all other lobbies first.",
         params: { lobbyId: "The id of the lobby" },
         responseType: { message: "string" },
         example: "POST /api/lobbies/123/join",
