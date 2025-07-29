@@ -20,7 +20,6 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
-const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 // --- UTILS ---
 const gameResponseFields = {
     gameId: "string",
@@ -222,24 +221,30 @@ let Games = class Games {
         }
     }
     async transferOwnership(req, res) {
-        const { itemId } = req.params;
+        if (!req.user) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const { gameId } = req.params;
         const { newOwnerId } = req.body;
-        if (!itemId || !newOwnerId) {
+        if (!gameId || !newOwnerId) {
             return res.status(400).send({ message: "Invalid input" });
         }
         try {
-            const game = await this.gameService.getGame(itemId);
+            const game = await this.gameService.getGame(gameId);
             if (!game) {
                 return res.status(404).send({ message: "Game not found" });
+            }
+            if (game.owner_id !== req.user.user_id) {
+                return res.status(403).send({ message: "You are not the owner of this game" });
             }
             const newOwner = await this.userService.getUser(newOwnerId);
             if (!newOwner) {
                 return res.status(404).send({ message: "New owner not found" });
             }
             // Optionally, handle versioning: increment version or log transfer
-            await this.gameService.transferOwnership(itemId, newOwnerId);
+            await this.gameService.transferOwnership(gameId, newOwnerId);
             // Fetch updated game with version if available
-            const updatedGame = await this.gameService.getGame(itemId);
+            const updatedGame = await this.gameService.getGame(gameId);
             res.status(200).send({
                 message: "Ownership transferred",
                 game: updatedGame
@@ -344,7 +349,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "buyGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:itemId", OwnerCheck_1.OwnerCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/transfer-ownership/:gameId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)

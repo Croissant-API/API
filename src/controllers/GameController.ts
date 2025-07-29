@@ -18,8 +18,6 @@ import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
 import { Schema } from "yup";
-import { AuthenticatedRequestWithOwner, OwnerCheck } from "../middlewares/OwnerCheck";
-
 // --- UTILS ---
 const gameResponseFields = {
   gameId: "string",
@@ -65,7 +63,7 @@ export class Games {
   constructor(
     @inject("GameService") private gameService: IGameService,
     @inject("UserService") private userService: IUserService
-  ) {}
+  ) { }
 
   // --- LISTING & SEARCH ---
 
@@ -261,34 +259,40 @@ export class Games {
     }
   }
 
-    @httpPost("/transfer-ownership/:itemId", OwnerCheck.middleware)
-    public async transferOwnership(req: AuthenticatedRequestWithOwner, res: Response) {
-      const { itemId } = req.params;
-      const { newOwnerId } = req.body;
-      if (!itemId || !newOwnerId) {
-        return res.status(400).send({ message: "Invalid input" });
-      }
-      try {
-        const game = await this.gameService.getGame(itemId);
-        if (!game) {
-          return res.status(404).send({ message: "Game not found" });
-        }
-        const newOwner = await this.userService.getUser(newOwnerId);
-        if (!newOwner) {
-          return res.status(404).send({ message: "New owner not found" });
-        }
-        // Optionally, handle versioning: increment version or log transfer
-        await this.gameService.transferOwnership(itemId, newOwnerId);
-
-        // Fetch updated game with version if available
-        const updatedGame = await this.gameService.getGame(itemId);
-
-        res.status(200).send({ 
-          message: "Ownership transferred",
-          game: updatedGame
-        });
-      } catch (error) {
-        handleError(res, error, "Error transferring ownership");
-      }
+  @httpPost("/transfer-ownership/:gameId", LoggedCheck.middleware)
+  public async transferOwnership(req: AuthenticatedRequest, res: Response) {
+    if(!req.user) {
+      return res.status(401).send({ message: "Unauthorized" });
     }
+    const { gameId } = req.params;
+    const { newOwnerId } = req.body;
+    if (!gameId || !newOwnerId) {
+      return res.status(400).send({ message: "Invalid input" });
+    }
+    try {
+      const game = await this.gameService.getGame(gameId);
+      if (!game) {
+        return res.status(404).send({ message: "Game not found" });
+      }
+      if( game.owner_id !== req.user.user_id) {
+        return res.status(403).send({ message: "You are not the owner of this game" });
+      }
+      const newOwner = await this.userService.getUser(newOwnerId);
+      if (!newOwner) {
+        return res.status(404).send({ message: "New owner not found" });
+      }
+      // Optionally, handle versioning: increment version or log transfer
+      await this.gameService.transferOwnership(gameId, newOwnerId);
+
+      // Fetch updated game with version if available
+      const updatedGame = await this.gameService.getGame(gameId);
+
+      res.status(200).send({
+        message: "Ownership transferred",
+        game: updatedGame
+      });
+    } catch (error) {
+      handleError(res, error, "Error transferring ownership");
+    }
+  }
 }
