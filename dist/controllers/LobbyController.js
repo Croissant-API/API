@@ -75,9 +75,9 @@ let Lobbies = class Lobbies {
             const userId = req.user.user_id;
             const lobby = await this.lobbyService.getUserLobby(userId);
             if (!lobby) {
-                return res.status(404).send({ message: "User is not in any lobby" });
+                return res.status(200).send({ success: false, message: "User is not in any lobby" });
             }
-            res.send(lobby);
+            res.send({ success: true, ...lobby });
         }
         catch (error) {
             handleError(res, error, "Error fetching user lobby");
