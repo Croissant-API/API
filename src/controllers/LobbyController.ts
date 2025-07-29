@@ -94,7 +94,7 @@ export class Lobbies {
     endpoint: "/lobbies/user/@me",
     method: "GET",
     description: "Get the lobby the authenticated user is in.",
-    responseType: { lobbyId: "string", users: ["string"] },
+    responseType: { success: "boolean", lobbyId: "string", users: ["string"] },
     example: "GET /api/lobbies/user/@me",
     requiresAuth: true,
   })
