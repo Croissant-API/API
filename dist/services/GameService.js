@@ -146,6 +146,15 @@ let GameService = class GameService {
             throw new Error("Game not found");
         await this.updateGame(gameId, { owner_id: newOwnerId });
     }
+    async canUserGiftGame() {
+        // Pour créer un gift, l'utilisateur doit juste avoir assez de crédits
+        // Il n'a pas besoin de posséder le jeu
+        return true;
+    }
+    async userOwnsGame(gameId, userId) {
+        const userGames = await this.getUserGames(userId);
+        return userGames.some(game => game.gameId === gameId);
+    }
 };
 GameService = __decorate([
     (0, inversify_1.injectable)(),

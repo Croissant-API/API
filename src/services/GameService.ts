@@ -21,6 +21,8 @@ export interface IGameService {
   searchGames(query: string): Promise<Game[]>;
   getGameForPublic(gameId: string): Promise<Game | null>;
   getGameForOwner(gameId: string, userId: string): Promise<Game | null>;
+  canUserGiftGame(): Promise<boolean>;
+  userOwnsGame(gameId: string, userId: string): Promise<boolean>;
 }
 
 @injectable()
@@ -210,6 +212,17 @@ export class GameService implements IGameService {
     const game = await this.getGame(gameId);
     if (!game) throw new Error("Game not found");
     await this.updateGame(gameId, { owner_id: newOwnerId });
+  }
+
+  async canUserGiftGame(): Promise<boolean> {
+    // Pour créer un gift, l'utilisateur doit juste avoir assez de crédits
+    // Il n'a pas besoin de posséder le jeu
+    return true;
+  }
+
+  async userOwnsGame(gameId: string, userId: string): Promise<boolean> {
+    const userGames = await this.getUserGames(userId);
+    return userGames.some(game => game.gameId === gameId);
   }
 }
 

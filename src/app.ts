@@ -20,7 +20,7 @@ import "./controllers/SearchController";
 import "./controllers/StripeController";
 import "./controllers/WebAuthnController";
 import "./controllers/AuthenticatorController";
-// import "./controllers/LogController";
+import "./controllers/GameGiftController";
 
 const server = new InversifyExpressServer(container);
 

@@ -12,6 +12,7 @@ import { ISteamOAuthService, SteamOAuthService } from "./services/SteamOAuthServ
 import { IMailService, MailService } from "./services/MailService";
 import { IStudioService, StudioService } from "./services/StudioService";
 import { ILogService, LogService } from "./services/LogService";
+import { IGameGiftService, GameGiftService } from "./services/GameGiftService";
 
 const container = new Container();
 
@@ -27,5 +28,6 @@ container.bind<ISteamOAuthService>("SteamOAuthService").to(SteamOAuthService).in
 container.bind<IMailService>("MailService").to(MailService).inSingletonScope();
 container.bind<IStudioService>("StudioService").to(StudioService).inSingletonScope();
 container.bind<ILogService>("LogService").to(LogService).inSingletonScope();
+container.bind<IGameGiftService>("GameGiftService").to(GameGiftService).inSingletonScope();
 
 export default container;
