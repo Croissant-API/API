@@ -3,7 +3,8 @@ export interface InventoryItem {
   item_id: string;
   amount: number;
   metadata?: { [key: string]: unknown };
-  sellable: boolean; // Ajout de sellable
+  sellable: boolean;
+  purchasePrice?: number; // Prix d'achat stocké dans la DB
 }
 
 export interface Inventory {

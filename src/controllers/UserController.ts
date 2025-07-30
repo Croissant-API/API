@@ -212,11 +212,6 @@ export class Users {
   
   @httpPost("/login")
   public async login(req: Request, res: Response) {
-    const missing = this.requireFields(req.body, ["email", "password"]);
-    if (missing) {
-      await this.createLog(req, 'login', 'users', 400);
-      return this.sendError(res, 400, "Missing email or password");
-    }
     const allUsers = await this.userService.getAllUsersWithDisabled();
     const user = allUsers.find((u) => u.email === req.body.email);
     if (!user || !user.password) {

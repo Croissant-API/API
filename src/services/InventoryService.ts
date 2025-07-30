@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
   getItemAmount(userId: string, itemId: string): Promise<number>;
-  addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable?: boolean): Promise<void>;
+  addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable?: boolean, purchasePrice?: number): Promise<void>;
   removeItem(userId: string, itemId: string, amount: number): Promise<void>;
   removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
   setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
@@ -18,6 +18,7 @@ export interface IInventoryService {
   transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
   hasItemWithoutMetadataSellable(userId: string, itemId: string, amount?: number): Promise<boolean>;
   removeSellableItem(userId: string, itemId: string, amount: number): Promise<void>;
+  removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void>;
 }
 
 @injectable()
@@ -62,6 +63,7 @@ export class InventoryService implements IInventoryService {
          inv.amount, 
          inv.metadata,
          inv.sellable,
+         inv.purchasePrice,
          i.itemId,
          i.name,
          i.description,
@@ -90,6 +92,7 @@ export class InventoryService implements IInventoryService {
       amount: item.amount,
       metadata: this.parseMetadata(item.metadata ?? null),
       sellable: !!item.sellable,
+      purchasePrice: item.purchasePrice,
       // Données de l'item
       itemId: item.itemId,
       name: item.name,
@@ -112,7 +115,7 @@ export class InventoryService implements IInventoryService {
     return items.length === 0 || !items[0].amount ? 0 : items[0].amount;
   }
 
-  async addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable: boolean = false): Promise<void> {
+  async addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable: boolean = false, purchasePrice?: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
     if (metadata) {
@@ -122,26 +125,26 @@ export class InventoryService implements IInventoryService {
       for (let i = 0; i < amount; i++) {
         const uniqueMetadata = { ...metadataWithUniqueId, _unique_id: uuidv4() };
         await this.databaseService.update(
-          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable) VALUES (?, ?, ?, ?, ?)",
-          [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0]
+          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
+          [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice]
         );
       }
     } else {
-      // Items sans métadonnées : peuvent s'empiler seulement s'ils ont le même état sellable
+      // Items sans métadonnées : peuvent s'empiler seulement s'ils ont le même état sellable ET le même prix d'achat
       const items = await this.databaseService.read<InventoryItem[]>(
-        "SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?",
-        [correctedUserId, itemId, sellable ? 1 : 0]
+        "SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))",
+        [correctedUserId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]
       );
 
       if (items.length > 0) {
         await this.databaseService.update(
-          "UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?",
-          [amount, correctedUserId, itemId, sellable ? 1 : 0]
+          "UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))",
+          [amount, correctedUserId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]
         );
       } else {
         await this.databaseService.update(
-          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable) VALUES (?, ?, ?, ?, ?)",
-          [correctedUserId, itemId, amount, null, sellable ? 1 : 0]
+          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
+          [correctedUserId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]
         );
       }
     }
@@ -158,7 +161,7 @@ export class InventoryService implements IInventoryService {
       return;
     }
 
-    // Items sans métadonnées seulement - par défaut sellable = false
+    // Items sans métadonnées seulement - par défaut sellable = false, pas de prix d'achat
     const items = await this.databaseService.read<InventoryItem[]>(
       "SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL",
       [correctedUserId, itemId]
@@ -171,8 +174,8 @@ export class InventoryService implements IInventoryService {
       );
     } else {
       await this.databaseService.update(
-        `INSERT INTO inventories (user_id, item_id, amount, metadata, sellable) VALUES (?, ?, ?, ?, ?)`,
-        [correctedUserId, itemId, amount, null, 0]
+        `INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`,
+        [correctedUserId, itemId, amount, null, 0, null]
       );
     }
   }
@@ -282,6 +285,38 @@ export class InventoryService implements IInventoryService {
         await this.databaseService.update(
           `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`,
           [newAmount, correctedUserId, itemId]
+        );
+      }
+      remainingToRemove -= toRemoveFromStack;
+    }
+  }
+
+  // Nouvelle méthode pour supprimer spécifiquement les items sellable avec un prix donné
+  async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void> {
+    const correctedUserId = await this.getCorrectedUserId(userId);
+
+    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null; sellable: boolean; purchasePrice: number })[]>(
+      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ? ORDER BY amount DESC`,
+      [correctedUserId, itemId, purchasePrice]
+    );
+
+    let remainingToRemove = amount;
+
+    for (const item of items) {
+      if (remainingToRemove <= 0) break;
+
+      const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
+      const newAmount = item.amount - toRemoveFromStack;
+
+      if (newAmount <= 0) {
+        await this.databaseService.update(
+          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
+          [correctedUserId, itemId, purchasePrice]
+        );
+      } else {
+        await this.databaseService.update(
+          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
+          [newAmount, correctedUserId, itemId, purchasePrice]
         );
       }
       remainingToRemove -= toRemoveFromStack;

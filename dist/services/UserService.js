@@ -274,6 +274,7 @@ let UserService = UserService_1 = class UserService {
               'amount', inv.amount,
               'iconHash', i.iconHash,
               'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'purchasePrice', inv.purchasePrice,
               'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END
@@ -376,6 +377,7 @@ let UserService = UserService_1 = class UserService {
               'amount', inv.amount,
               'iconHash', i.iconHash,
               'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'purchasePrice', inv.purchasePrice,
               'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END
@@ -468,6 +470,7 @@ let UserService = UserService_1 = class UserService {
               'amount', inv.amount,
               'iconHash', i.iconHash,
               'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'purchasePrice', inv.purchasePrice,
               'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
             )
           END

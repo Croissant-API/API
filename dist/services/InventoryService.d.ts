@@ -6,7 +6,7 @@ export interface IInventoryService {
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number, metadata?: {
         [key: string]: unknown;
-    }, sellable?: boolean): Promise<void>;
+    }, sellable?: boolean, purchasePrice?: number): Promise<void>;
     removeItem(userId: string, itemId: string, amount: number): Promise<void>;
     removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
     setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
@@ -18,6 +18,7 @@ export interface IInventoryService {
     transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
     hasItemWithoutMetadataSellable(userId: string, itemId: string, amount?: number): Promise<boolean>;
     removeSellableItem(userId: string, itemId: string, amount: number): Promise<void>;
+    removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void>;
 }
 export declare class InventoryService implements IInventoryService {
     private databaseService;
@@ -29,7 +30,7 @@ export declare class InventoryService implements IInventoryService {
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number, metadata?: {
         [key: string]: unknown;
-    }, sellable?: boolean): Promise<void>;
+    }, sellable?: boolean, purchasePrice?: number): Promise<void>;
     setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
     updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: {
         [key: string]: unknown;
@@ -40,5 +41,6 @@ export declare class InventoryService implements IInventoryService {
     hasItemWithoutMetadata(userId: string, itemId: string, amount?: number): Promise<boolean>;
     hasItemWithoutMetadataSellable(userId: string, itemId: string, amount?: number): Promise<boolean>;
     removeSellableItem(userId: string, itemId: string, amount: number): Promise<void>;
+    removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void>;
     transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }

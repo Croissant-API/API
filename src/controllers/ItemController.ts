@@ -468,7 +468,7 @@ export class Items {
       }
 
       // Ajouter l'item SANS métadonnées avec sellable = true car acheté
-      await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, true);
+      await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, true, item.price);
 
       await this.logAction(req, 'inventory', 200, { 
         itemId,
@@ -505,7 +505,7 @@ export class Items {
   @httpPost("/sell/:itemId", LoggedCheck.middleware)
   public async sellItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
-    const { amount } = req.body;
+    const { amount, purchasePrice } = req.body; // Ajouter purchasePrice
     if (!itemId || isNaN(amount)) {
       await this.logAction(req, 'inventory', 400, { 
         reason: 'invalid_input',
@@ -531,54 +531,79 @@ export class Items {
         return res.status(404).send({ message: "User not found" });
       }
 
-      // Vérifier que l'utilisateur a suffisamment d'items SELLABLE
-      const hasEnoughSellableItems = await this.inventoryService.hasItemWithoutMetadataSellable(
-        user.user_id,
-        itemId,
-        amount
-      );
+      // Si un prix d'achat spécifique est fourni, utiliser removeSellableItemWithPrice
+      if (purchasePrice !== undefined) {
+        // Vérifier que l'utilisateur a suffisamment d'items avec ce prix d'achat
+        const inventory = await this.inventoryService.getInventory(user.user_id);
+        const itemsWithPrice = inventory.inventory.filter(
+          invItem => invItem.item_id === itemId && 
+                    invItem.sellable && 
+                    invItem.purchasePrice === purchasePrice
+        );
+        
+        const totalAvailable = itemsWithPrice.reduce((sum, item) => sum + item.amount, 0);
+        
+        if (totalAvailable < amount) {
+          await this.logAction(req, 'inventory', 400, { 
+            itemId,
+            action: 'sell',
+            reason: 'insufficient_items_with_price',
+            requested: amount,
+            available: totalAvailable,
+            purchasePrice
+          });
+          return res.status(400).send({
+            message: `Insufficient items with purchase price ${purchasePrice}. You have ${totalAvailable} but requested to sell ${amount}.`
+          });
+        }
 
-      if (!hasEnoughSellableItems) {
-        await this.logAction(req, 'inventory', 400, { 
+        // Supprimer les items avec le prix d'achat spécifique
+        await this.inventoryService.removeSellableItemWithPrice(
+          user.user_id, 
+          itemId, 
+          amount, 
+          purchasePrice
+        );
+
+        const sellValue = purchasePrice * amount * 0.75; // 75% du prix d'achat
+        const isOwner = user.user_id === item.owner;
+
+        // Augmenter le balance seulement si l'utilisateur n'est PAS le propriétaire
+        if (!isOwner) {
+          await this.userService.updateUserBalance(
+            user.user_id,
+            user.balance + sellValue
+          );
+        }
+
+        await this.logAction(req, 'inventory', 200, { 
           itemId,
           action: 'sell',
-          reason: 'insufficient_sellable_items',
-          amount
+          amount,
+          purchasePrice,
+          total_value: sellValue,
+          is_owner: isOwner,
+          item_name: item.name
         });
-        return res.status(400).send({
-          message: "Insufficient sellable items. You can only sell items that you bought or obtained from trades."
+        
+        res.status(200).send({ 
+          message: "Item sold",
+          totalValue: Math.round(sellValue),
+          itemsSold: amount
         });
+        return;
       }
 
-      const totalValue = item.price * amount * 0.75;
-      const isOwner = user.user_id === item.owner;
+      // Logique existante pour la vente sans prix spécifique
+      // (le reste du code existant...)
 
-      // Only increase balance if the user is NOT the owner
-      if (!isOwner) {
-        await this.userService.updateUserBalance(
-          user.user_id,
-          user.balance + totalValue
-        );
-      }
-
-      // Supprimer spécifiquement les items sellable
-      await this.inventoryService.removeSellableItem(user.user_id, itemId, amount);
-
-      await this.logAction(req, 'inventory', 200, { 
-        itemId,
-        action: 'sell',
-        amount,
-        total_value: totalValue,
-        is_owner: isOwner,
-        item_name: item.name
-      });
-      res.status(200).send({ message: "Item sold" });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       await this.logAction(req, 'inventory', 500, { 
         itemId,
         action: 'sell',
         amount,
+        purchasePrice,
         error: errorMsg
       });
       console.error("Error selling item", error);

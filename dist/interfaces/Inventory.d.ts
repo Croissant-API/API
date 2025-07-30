@@ -6,6 +6,7 @@ export interface InventoryItem {
         [key: string]: unknown;
     };
     sellable: boolean;
+    purchasePrice?: number;
 }
 export interface Inventory {
     user_id: string;
