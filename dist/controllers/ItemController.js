@@ -54,7 +54,7 @@ let Items = class Items {
                 requestBody.metadata = metadata;
             }
             await this.logService.createLog({
-                ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
+                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
                 controller: 'ItemController',
                 original_path: req.originalUrl,
