@@ -41,7 +41,7 @@ export class Lobbies {
   private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
     try {
       await this.logService.createLog({
-        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        ip_address: req.headers["x-forwarded-for"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
         controller: `LobbyController.${controller}`,
         original_path: req.originalUrl,

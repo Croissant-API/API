@@ -42,7 +42,7 @@ export class SearchController {
             }
 
             await this.logService.createLog({
-                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                ip_address: req.headers["x-forwarded-for"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
                 controller: 'SearchController',
                 original_path: req.originalUrl,

@@ -47,7 +47,7 @@ let Lobbies = class Lobbies {
     async createLog(req, controller, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
-                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                ip_address: req.headers["x-forwarded-for"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
                 controller: `LobbyController.${controller}`,
                 original_path: req.originalUrl,
