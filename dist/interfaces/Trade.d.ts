@@ -5,6 +5,7 @@ export interface TradeItem {
         [key: string]: unknown;
         _unique_id?: string;
     };
+    purchasePrice?: number;
 }
 export type TradeStatus = "pending" | "approved" | "completed" | "canceled";
 export interface Trade {

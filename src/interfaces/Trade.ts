@@ -2,6 +2,7 @@ export interface TradeItem {
   itemId: string;
   amount: number;
   metadata?: { [key: string]: unknown; _unique_id?: string }; // Métadonnées complètes incluant _unique_id
+  purchasePrice?: number; // Prix d'achat pour identifier les items spécifiques
 }
 
 export type TradeStatus = "pending" | "approved" | "completed" | "canceled";

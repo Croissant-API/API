@@ -18,6 +18,7 @@ export interface ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -29,6 +30,7 @@ export interface ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -51,6 +53,7 @@ export interface ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -62,6 +65,7 @@ export interface ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -95,6 +99,7 @@ export declare class TradeService implements ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -106,6 +111,7 @@ export declare class TradeService implements ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;
@@ -128,6 +134,7 @@ export declare class TradeService implements ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         toUserItems: Array<{
             itemId: string;
@@ -139,6 +146,7 @@ export declare class TradeService implements ITradeService {
             metadata?: {
                 [key: string]: unknown;
             };
+            purchasePrice?: number;
         }>;
         approvedFromUser: boolean;
         approvedToUser: boolean;

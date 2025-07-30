@@ -91,7 +91,8 @@ let TradeService = class TradeService {
                 iconHash: item.iconHash,
                 amount: ti.amount,
                 uniqueId: ti.metadata?._unique_id,
-                metadata: ti.metadata
+                metadata: ti.metadata,
+                purchasePrice: ti.purchasePrice // Transmettre le purchasePrice
             });
         }
         return enrichedItems;
@@ -177,10 +178,21 @@ let TradeService = class TradeService {
             }
         }
         else {
-            // Pour les items sans métadonnées, vérifier la quantité disponible
-            const hasItem = await this.inventoryService.hasItemWithoutMetadata(userId, tradeItem.itemId, tradeItem.amount);
-            if (!hasItem)
-                throw new Error("User does not have enough of the item");
+            // Pour les items sans métadonnées, vérifier avec le prix d'achat si spécifié
+            if (tradeItem.purchasePrice !== undefined) {
+                const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories 
+           WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`, [userId, tradeItem.itemId, tradeItem.purchasePrice]);
+                const totalAvailable = inventoryItems.reduce((sum, item) => sum + item.amount, 0);
+                if (totalAvailable < tradeItem.amount) {
+                    throw new Error("User does not have enough of the item with specified purchase price");
+                }
+            }
+            else {
+                // Vérification normale sans prix spécifique
+                const hasItem = await this.inventoryService.hasItemWithoutMetadata(userId, tradeItem.itemId, tradeItem.amount);
+                if (!hasItem)
+                    throw new Error("User does not have enough of the item");
+            }
         }
         const items = [...trade[userKey]];
         // Pour les items avec _unique_id, ne pas les empiler
@@ -194,8 +206,10 @@ let TradeService = class TradeService {
             items.push({ ...tradeItem });
         }
         else {
-            // Pour les items sans métadonnées, on peut les empiler
-            const idx = items.findIndex((i) => i.itemId === tradeItem.itemId && !i.metadata?._unique_id);
+            // Pour les items sans métadonnées, vérifier l'empilage avec le prix d'achat
+            const idx = items.findIndex((i) => i.itemId === tradeItem.itemId &&
+                !i.metadata?._unique_id &&
+                i.purchasePrice === tradeItem.purchasePrice);
             if (idx >= 0) {
                 items[idx].amount += tradeItem.amount;
             }
@@ -223,8 +237,10 @@ let TradeService = class TradeService {
                 i.metadata?._unique_id === tradeItem.metadata?._unique_id);
         }
         else {
-            // Pour les items sans métadonnées, chercher un item empilable
-            idx = items.findIndex((i) => i.itemId === tradeItem.itemId && !i.metadata?._unique_id);
+            // Pour les items sans métadonnées, chercher avec le prix d'achat
+            idx = items.findIndex((i) => i.itemId === tradeItem.itemId &&
+                !i.metadata?._unique_id &&
+                i.purchasePrice === tradeItem.purchasePrice);
         }
         if (idx === -1)
             throw new Error("Item not found in trade");
@@ -281,20 +297,26 @@ let TradeService = class TradeService {
     }
     // Échange les items et passe la trade à completed
     async exchangeTradeItems(trade) {
-        // Pour les items avec _unique_id, utiliser transferItem pour préserver l'ID unique
-        // Pour les items sans métadonnées, utiliser la méthode classique remove/add avec gestion de sellable
         for (const item of trade.fromUserItems) {
             if (item.metadata?._unique_id) {
-                // Transférer directement l'item avec son unique_id préservé
                 await this.inventoryService.transferItem(trade.fromUserId, trade.toUserId, item.itemId, item.metadata._unique_id);
             }
             else {
-                // Pour les items sans métadonnées, vérifier s'ils sont sellable
-                const inventory = await this.inventoryService.getInventory(trade.fromUserId);
-                const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
-                const isSellable = inventoryItem?.sellable || false;
-                await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
-                await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount, undefined, isSellable);
+                // Pour les items sans métadonnées, utiliser le prix d'achat spécifique si fourni
+                if (item.purchasePrice !== undefined) {
+                    await this.inventoryService.removeSellableItemWithPrice(trade.fromUserId, item.itemId, item.amount, item.purchasePrice);
+                    await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount, undefined, true, // Les items échangés restent sellable
+                    item.purchasePrice);
+                }
+                else {
+                    // Méthode normale pour les items sans prix spécifique
+                    const inventory = await this.inventoryService.getInventory(trade.fromUserId);
+                    const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                    const isSellable = inventoryItem?.sellable || false;
+                    const purchasePrice = inventoryItem?.purchasePrice;
+                    await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
+                    await this.inventoryService.addItem(trade.toUserId, item.itemId, item.amount, undefined, isSellable, purchasePrice);
+                }
             }
         }
         for (const item of trade.toUserItems) {
@@ -302,12 +324,21 @@ let TradeService = class TradeService {
                 await this.inventoryService.transferItem(trade.toUserId, trade.fromUserId, item.itemId, item.metadata._unique_id);
             }
             else {
-                // Pour les items sans métadonnées, vérifier s'ils sont sellable
-                const inventory = await this.inventoryService.getInventory(trade.toUserId);
-                const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
-                const isSellable = inventoryItem?.sellable || false;
-                await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
-                await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount, undefined, isSellable);
+                // Pour les items sans métadonnées, utiliser le prix d'achat spécifique si fourni
+                if (item.purchasePrice !== undefined) {
+                    await this.inventoryService.removeSellableItemWithPrice(trade.toUserId, item.itemId, item.amount, item.purchasePrice);
+                    await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount, undefined, true, // Les items échangés restent sellable
+                    item.purchasePrice);
+                }
+                else {
+                    // Méthode normale pour les items sans prix spécifique
+                    const inventory = await this.inventoryService.getInventory(trade.toUserId);
+                    const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                    const isSellable = inventoryItem?.sellable || false;
+                    const purchasePrice = inventoryItem?.purchasePrice;
+                    await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
+                    await this.inventoryService.addItem(trade.fromUserId, item.itemId, item.amount, undefined, isSellable, purchasePrice);
+                }
             }
         }
         // Met à jour la trade
