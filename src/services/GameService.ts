@@ -23,6 +23,8 @@ export interface IGameService {
   getGameForOwner(gameId: string, userId: string): Promise<Game | null>;
   canUserGiftGame(): Promise<boolean>;
   userOwnsGame(gameId: string, userId: string): Promise<boolean>;
+  transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void>;
+  canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{ canTransfer: boolean; reason?: string }>;
 }
 
 @injectable()
@@ -223,6 +225,60 @@ export class GameService implements IGameService {
   async userOwnsGame(gameId: string, userId: string): Promise<boolean> {
     const userGames = await this.getUserGames(userId);
     return userGames.some(game => game.gameId === gameId);
+  }
+
+  async transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void> {
+    // Vérifier que l'expéditeur possède le jeu
+    const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
+    if (!fromUserOwns) {
+      throw new Error("You don't own this game");
+    }
+
+    // Vérifier que le destinataire ne possède pas déjà le jeu
+    const toUserOwns = await this.userOwnsGame(gameId, toUserId);
+    if (toUserOwns) {
+      throw new Error("Recipient already owns this game");
+    }
+
+    // Vérifier que l'expéditeur n'est pas le créateur du jeu
+    const game = await this.getGame(gameId);
+    if (!game) {
+      throw new Error("Game not found");
+    }
+    
+    if (game.owner_id === fromUserId) {
+      throw new Error("Game creator cannot transfer their copy");
+    }
+
+    // Effectuer le transfert
+    await this.removeOwner(gameId, fromUserId);
+    await this.addOwner(gameId, toUserId);
+  }
+
+  async canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{ canTransfer: boolean; reason?: string }> {
+    // Vérifier que l'expéditeur possède le jeu
+    const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
+    if (!fromUserOwns) {
+      return { canTransfer: false, reason: "You don't own this game" };
+    }
+
+    // Vérifier que le destinataire ne possède pas déjà le jeu
+    const toUserOwns = await this.userOwnsGame(gameId, toUserId);
+    if (toUserOwns) {
+      return { canTransfer: false, reason: "Recipient already owns this game" };
+    }
+
+    // Vérifier que l'expéditeur n'est pas le créateur du jeu
+    const game = await this.getGame(gameId);
+    if (!game) {
+      return { canTransfer: false, reason: "Game not found" };
+    }
+    
+    if (game.owner_id === fromUserId) {
+      return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
+    }
+
+    return { canTransfer: true };
   }
 }
 

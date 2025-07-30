@@ -294,4 +294,84 @@ export class Games {
       handleError(res, error, "Error transferring ownership");
     }
   }
+
+  @describe({
+    endpoint: "/games/:gameId/transfer",
+    method: "POST",
+    description: "Transfer your copy of a game to another user",
+    params: { gameId: "The id of the game" },
+    body: { targetUserId: "The id of the recipient user" },
+    responseType: { message: "string" },
+    example: "POST /api/games/123/transfer { targetUserId: '456' }",
+    requiresAuth: true,
+  })
+  @httpPost(":gameId/transfer", LoggedCheck.middleware)
+  public async transferGame(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
+    
+    const { gameId } = req.params;
+    const { targetUserId } = req.body;
+    const fromUserId = req.user.user_id;
+
+    if (!targetUserId) {
+      return res.status(400).send({ message: "Target user ID is required" });
+    }
+
+    if (fromUserId === targetUserId) {
+      return res.status(400).send({ message: "Cannot transfer game to yourself" });
+    }
+
+    try {
+      // Vérifier que le destinataire existe
+      const targetUser = await this.userService.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).send({ message: "Target user not found" });
+      }
+
+      // Vérifier si le transfert est possible
+      const canTransfer = await this.gameService.canTransferGame(gameId, fromUserId, targetUserId);
+      if (!canTransfer.canTransfer) {
+        return res.status(400).send({ message: canTransfer.reason });
+      }
+
+      // Effectuer le transfert
+      await this.gameService.transferGameCopy(gameId, fromUserId, targetUserId);
+
+      res.status(200).send({ 
+        message: `Game successfully transferred to ${targetUser.username}` 
+      });
+    } catch (error) {
+      handleError(res, error, "Error transferring game");
+    }
+  }
+
+  @describe({
+    endpoint: "/games/:gameId/can-transfer",
+    method: "GET",
+    description: "Check if you can transfer your copy of a game to another user",
+    params: { gameId: "The id of the game" },
+    query: { targetUserId: "The id of the recipient user" },
+    responseType: { canTransfer: "boolean", reason: "string" },
+    example: "GET /api/games/123/can-transfer?targetUserId=456",
+    requiresAuth: true,
+  })
+  @httpGet(":gameId/can-transfer", LoggedCheck.middleware)
+  public async canTransferGame(req: AuthenticatedRequest, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
+    
+    const { gameId } = req.params;
+    const { targetUserId } = req.query;
+    const fromUserId = req.user.user_id;
+
+    if (!targetUserId) {
+      return res.status(400).send({ message: "Target user ID is required" });
+    }
+
+    try {
+      const result = await this.gameService.canTransferGame(gameId, fromUserId, targetUserId as string);
+      res.send(result);
+    } catch (error) {
+      handleError(res, error, "Error checking transfer eligibility");
+    }
+  }
 }

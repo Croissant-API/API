@@ -155,6 +155,50 @@ let GameService = class GameService {
         const userGames = await this.getUserGames(userId);
         return userGames.some(game => game.gameId === gameId);
     }
+    async transferGameCopy(gameId, fromUserId, toUserId) {
+        // Vérifier que l'expéditeur possède le jeu
+        const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
+        if (!fromUserOwns) {
+            throw new Error("You don't own this game");
+        }
+        // Vérifier que le destinataire ne possède pas déjà le jeu
+        const toUserOwns = await this.userOwnsGame(gameId, toUserId);
+        if (toUserOwns) {
+            throw new Error("Recipient already owns this game");
+        }
+        // Vérifier que l'expéditeur n'est pas le créateur du jeu
+        const game = await this.getGame(gameId);
+        if (!game) {
+            throw new Error("Game not found");
+        }
+        if (game.owner_id === fromUserId) {
+            throw new Error("Game creator cannot transfer their copy");
+        }
+        // Effectuer le transfert
+        await this.removeOwner(gameId, fromUserId);
+        await this.addOwner(gameId, toUserId);
+    }
+    async canTransferGame(gameId, fromUserId, toUserId) {
+        // Vérifier que l'expéditeur possède le jeu
+        const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
+        if (!fromUserOwns) {
+            return { canTransfer: false, reason: "You don't own this game" };
+        }
+        // Vérifier que le destinataire ne possède pas déjà le jeu
+        const toUserOwns = await this.userOwnsGame(gameId, toUserId);
+        if (toUserOwns) {
+            return { canTransfer: false, reason: "Recipient already owns this game" };
+        }
+        // Vérifier que l'expéditeur n'est pas le créateur du jeu
+        const game = await this.getGame(gameId);
+        if (!game) {
+            return { canTransfer: false, reason: "Game not found" };
+        }
+        if (game.owner_id === fromUserId) {
+            return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
+        }
+        return { canTransfer: true };
+    }
 };
 GameService = __decorate([
     (0, inversify_1.injectable)(),

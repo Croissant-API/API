@@ -18,6 +18,11 @@ export interface IGameService {
     getGameForOwner(gameId: string, userId: string): Promise<Game | null>;
     canUserGiftGame(): Promise<boolean>;
     userOwnsGame(gameId: string, userId: string): Promise<boolean>;
+    transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void>;
+    canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{
+        canTransfer: boolean;
+        reason?: string;
+    }>;
 }
 export declare class GameService implements IGameService {
     private databaseService;
@@ -45,4 +50,9 @@ export declare class GameService implements IGameService {
     transferOwnership(gameId: string, newOwnerId: string): Promise<void>;
     canUserGiftGame(): Promise<boolean>;
     userOwnsGame(gameId: string, userId: string): Promise<boolean>;
+    transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void>;
+    canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{
+        canTransfer: boolean;
+        reason?: string;
+    }>;
 }
