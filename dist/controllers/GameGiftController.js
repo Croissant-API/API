@@ -17,45 +17,63 @@ const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let GameGifts = class GameGifts {
-    constructor(giftService, gameService, userService) {
+    constructor(giftService, gameService, userService, logService) {
         this.giftService = giftService;
         this.gameService = gameService;
         this.userService = userService;
+        this.logService = logService;
+    }
+    // Helper pour créer des logs
+    async createLog(req, controller, tableName, statusCode, userId) {
+        try {
+            await this.logService.createLog({
+                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
+                table_name: tableName,
+                controller: `GameGiftController.${controller}`,
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: req.body,
+                user_id: userId,
+                status_code: statusCode
+            });
+        }
+        catch (error) {
+            console.error('Error creating log:', error);
+        }
     }
     async createGift(req, res) {
         const { gameId, message } = req.body;
         const userId = req.user.user_id;
         if (!gameId) {
+            await this.createLog(req, 'createGift', 'gifts', 400, userId);
             return res.status(400).send({ message: "Game ID is required" });
         }
         try {
-            // Vérifier que le jeu existe
             const game = await this.gameService.getGame(gameId);
             if (!game) {
+                await this.createLog(req, 'createGift', 'gifts', 404, userId);
                 return res.status(404).send({ message: "Game not found" });
             }
-            // Vérifier le solde de l'utilisateur
             const user = await this.userService.getUser(userId);
             if (!user) {
+                await this.createLog(req, 'createGift', 'gifts', 404, userId);
                 return res.status(404).send({ message: "User not found" });
             }
             if (user.balance < game.price) {
+                await this.createLog(req, 'createGift', 'gifts', 400, userId);
                 return res.status(400).send({
                     message: `Insufficient balance. Required: ${game.price}, Available: ${user.balance}`
                 });
             }
-            // Ne pas débiter ni créditer si l'utilisateur est le propriétaire du jeu
             if (userId !== game.owner_id) {
-                // Débiter le montant du compte de l'utilisateur
                 await this.userService.updateUserBalance(userId, user.balance - game.price);
-                // Créditer le propriétaire du jeu (75% du prix)
                 const owner = await this.userService.getUser(game.owner_id);
                 if (owner) {
                     await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
                 }
             }
-            // Créer le gift
             const gift = await this.giftService.createGift(gameId, userId, message);
+            await this.createLog(req, 'createGift', 'gifts', 201, userId);
             res.status(201).send({
                 message: "Gift created successfully",
                 gift: {
@@ -68,6 +86,7 @@ let GameGifts = class GameGifts {
             });
         }
         catch (error) {
+            await this.createLog(req, 'createGift', 'gifts', 500, userId);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error creating gift", error: msg });
         }
@@ -76,29 +95,30 @@ let GameGifts = class GameGifts {
         const { giftCode } = req.body;
         const userId = req.user.user_id;
         if (!giftCode) {
+            await this.createLog(req, 'claimGift', 'gifts', 400, userId);
             return res.status(400).send({ message: "Gift code is required" });
         }
         try {
-            // Vérifier que le gift existe
             const gift = await this.giftService.getGift(giftCode);
             if (!gift) {
+                await this.createLog(req, 'claimGift', 'gifts', 404, userId);
                 return res.status(404).send({ message: "Invalid gift code" });
             }
-            // Vérifier que l'utilisateur ne possède pas déjà le jeu
             const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, userId);
             if (userOwnsGame) {
+                await this.createLog(req, 'claimGift', 'gifts', 400, userId);
                 return res.status(400).send({ message: "You already own this game" });
             }
-            // Réclamer le gift
             const claimedGift = await this.giftService.claimGift(giftCode, userId);
-            // Ajouter le jeu à la bibliothèque de l'utilisateur
             await this.gameService.addOwner(gift.gameId, userId);
+            await this.createLog(req, 'claimGift', 'gifts', 200, userId);
             res.status(200).send({
                 message: "Gift claimed successfully",
                 gift: claimedGift
             });
         }
         catch (error) {
+            await this.createLog(req, 'claimGift', 'gifts', 400, userId);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(400).send({ message: msg });
         }
@@ -106,7 +126,6 @@ let GameGifts = class GameGifts {
     async getSentGifts(req, res) {
         try {
             const gifts = await this.giftService.getUserSentGifts(req.user.user_id);
-            // Enrichir avec les informations des jeux
             const enrichedGifts = await Promise.all(gifts.map(async (gift) => {
                 const game = await this.gameService.getGameForPublic(gift.gameId);
                 return {
@@ -114,9 +133,11 @@ let GameGifts = class GameGifts {
                     game
                 };
             }));
+            await this.createLog(req, 'getSentGifts', 'gifts', 200, req.user.user_id);
             res.send(enrichedGifts);
         }
         catch (error) {
+            await this.createLog(req, 'getSentGifts', 'gifts', 500, req.user.user_id);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching sent gifts", error: msg });
         }
@@ -124,7 +145,6 @@ let GameGifts = class GameGifts {
     async getReceivedGifts(req, res) {
         try {
             const gifts = await this.giftService.getUserReceivedGifts(req.user.user_id);
-            // Enrichir avec les informations des jeux et utilisateurs
             const enrichedGifts = await Promise.all(gifts.map(async (gift) => {
                 const game = await this.gameService.getGameForPublic(gift.gameId);
                 const fromUser = await this.userService.getUser(gift.fromUserId);
@@ -134,9 +154,11 @@ let GameGifts = class GameGifts {
                     fromUser: fromUser ? { id: fromUser.user_id, username: fromUser.username } : null
                 };
             }));
+            await this.createLog(req, 'getReceivedGifts', 'gifts', 200, req.user.user_id);
             res.send(enrichedGifts);
         }
         catch (error) {
+            await this.createLog(req, 'getReceivedGifts', 'gifts', 500, req.user.user_id);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching received gifts", error: msg });
         }
@@ -146,12 +168,13 @@ let GameGifts = class GameGifts {
         try {
             const gift = await this.giftService.getGift(giftCode);
             if (!gift) {
+                await this.createLog(req, 'getGiftInfo', 'gifts', 404, req.user.user_id);
                 return res.status(404).send({ message: "Gift not found" });
             }
             const game = await this.gameService.getGameForPublic(gift.gameId);
             const fromUser = await this.userService.getUser(gift.fromUserId);
-            // Vérifier si l'utilisateur actuel possède déjà le jeu
             const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, req.user.user_id);
+            await this.createLog(req, 'getGiftInfo', 'gifts', 200, req.user.user_id);
             res.send({
                 gift: {
                     gameId: gift.gameId,
@@ -167,6 +190,7 @@ let GameGifts = class GameGifts {
             });
         }
         catch (error) {
+            await this.createLog(req, 'getGiftInfo', 'gifts', 500, req.user.user_id);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error fetching gift info", error: msg });
         }
@@ -175,33 +199,33 @@ let GameGifts = class GameGifts {
         const { giftId } = req.params;
         const userId = req.user.user_id;
         try {
-            // Récupérer les infos du gift avant de le révoquer
             const gifts = await this.giftService.getUserSentGifts(userId);
             const gift = gifts.find(g => g.id === giftId);
             if (!gift) {
+                await this.createLog(req, 'revokeGift', 'gifts', 404, userId);
                 return res.status(404).send({ message: "Gift not found" });
             }
             if (!gift.isActive) {
+                await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
                 return res.status(400).send({ message: "Gift is no longer active" });
             }
-            // Révoquer le gift
             await this.giftService.revokeGift(giftId, userId);
-            // Rembourser l'utilisateur
             const game = await this.gameService.getGame(gift.gameId);
             if (game) {
                 const user = await this.userService.getUser(userId);
                 if (user) {
                     await this.userService.updateUserBalance(userId, user.balance + game.price);
                 }
-                // Débiter le propriétaire du jeu (75% du prix)
                 const owner = await this.userService.getUser(game.owner_id);
                 if (owner) {
                     await this.userService.updateUserBalance(game.owner_id, owner.balance - game.price * 0.75);
                 }
             }
+            await this.createLog(req, 'revokeGift', 'gifts', 200, userId);
             res.send({ message: "Gift revoked successfully and refund processed" });
         }
         catch (error) {
+            await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
             const msg = error instanceof Error ? error.message : String(error);
             res.status(400).send({ message: msg });
         }
@@ -248,6 +272,7 @@ GameGifts = __decorate([
     __param(0, (0, inversify_1.inject)("GameGiftService")),
     __param(1, (0, inversify_1.inject)("GameService")),
     __param(2, (0, inversify_1.inject)("UserService")),
-    __metadata("design:paramtypes", [Object, Object, Object])
+    __param(3, (0, inversify_1.inject)("LogService")),
+    __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], GameGifts);
 exports.GameGifts = GameGifts;

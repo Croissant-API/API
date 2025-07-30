@@ -1,11 +1,14 @@
 import { Request, Response } from "express";
 import { IGameService } from "../services/GameService";
+import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { IUserService } from "../services/UserService";
 export declare class Games {
     private gameService;
     private userService;
-    constructor(gameService: IGameService, userService: IUserService);
+    private logService;
+    constructor(gameService: IGameService, userService: IUserService, logService: ILogService);
+    private createLog;
     listGames(req: Request, res: Response): Promise<void>;
     searchGames(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyCreatedGames(req: AuthenticatedRequest, res: Response): Promise<void>;
