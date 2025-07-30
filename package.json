@@ -12,7 +12,8 @@
     "dev": "npx ts-node-dev src/index.ts",
     "build": "npx tsc",
     "test": "npx tsc && npx jest --detectOpenHandles --forceExit",
-    "test-watch": "npx tsc && npx jest --watch --detectOpenHandles  --forceExit"
+    "test-watch": "npx tsc && npx jest --watch --detectOpenHandles  --forceExit",
+    "migrate:logs": "npx ts-node src/database/migrate-logs.ts"
   },
   "dependencies": {
     "@peculiar/webcrypto": "^1.5.0",

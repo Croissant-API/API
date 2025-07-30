@@ -4,10 +4,36 @@ import { Request, Response } from "express";
 import { IStudioService } from "../services/StudioService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { describe } from "../decorators/describe";
+import { ILogService } from "../services/LogService";
 
 @controller("/studios")
 export class Studios {
-  constructor(@inject("StudioService") private studioService: IStudioService) {}
+  constructor(
+    @inject("StudioService") private studioService: IStudioService,
+    @inject("LogService") private logService: ILogService
+  ) {}
+
+  // Helper pour les logs
+  private async logAction(
+    req: Request,
+    tableName?: string,
+    statusCode?: number
+  ) {
+    try {
+      await this.logService.createLog({
+        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        table_name: tableName,
+        controller: 'StudioController',
+        original_path: req.originalUrl,
+        http_method: req.method,
+        request_body: req.body,
+        user_id: (req as AuthenticatedRequest).user?.user_id as string,
+        status_code: statusCode
+      });
+    } catch (error) {
+      console.error('Failed to log action:', error);
+    }
+  }
 
   // --- Création de studio ---
   @describe({
@@ -22,18 +48,22 @@ export class Studios {
   @httpPost("/", LoggedCheck.middleware)
   async createStudio(req: AuthenticatedRequest, res: Response) {
     if (req.user.isStudio) {
+      await this.logAction(req, 'studios', 403);
       return res
         .status(403)
         .send({ message: "A studio can't create another studio" });
     }
     const { studioName } = req.body;
     if (!studioName) {
+      await this.logAction(req, 'studios', 400);
       return res.status(400).send({ message: "Missing required fields" });
     }
     try {
       await this.studioService.createStudio(studioName, req.user.user_id);
+      await this.logAction(req, 'studios', 201);
       res.status(201).send({ message: "Studio created" });
     } catch (error) {
+      await this.logAction(req, 'studios', 500);
       handleError(res, error, "Error creating studio");
     }
   }
@@ -66,10 +96,13 @@ export class Studios {
     try {
       const studio = await this.studioService.getFormattedStudio(studioId);
       if (!studio) {
+        await this.logAction(req, 'studios', 404);
         return res.status(404).send({ message: "Studio not found" });
       }
+      await this.logAction(req, 'studios', 200);
       res.send(studio);
     } catch (error) {
+      await this.logAction(req, 'studios', 500);
       handleError(res, error, "Error fetching studio");
     }
   }
@@ -106,8 +139,10 @@ export class Studios {
       const studios = await this.studioService.getFormattedUserStudios(
         req.user.user_id
       );
+      await this.logAction(req, 'studios', 200);
       res.send(studios);
     } catch (error) {
+      await this.logAction(req, 'studios', 500);
       handleError(res, error, "Error fetching user studios");
     }
   }
@@ -127,23 +162,35 @@ export class Studios {
   async addUserToStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
-    if (!userId) return res.status(400).send({ message: "Missing userId" });
+    if (!userId) {
+      await this.logAction(req, 'studio_users', 400);
+      return res.status(400).send({ message: "Missing userId" });
+    }
     try {
       const user = await this.studioService.getUser(userId);
-      if (!user) return res.status(404).send({ message: "User not found" });
+      if (!user) {
+        await this.logAction(req, 'studio_users', 404);
+        return res.status(404).send({ message: "User not found" });
+      }
 
       // Vérifier que l'utilisateur connecté est admin du studio
       const studio = await this.studioService.getStudio(studioId);
-      if (!studio) return res.status(404).send({ message: "Studio not found" });
+      if (!studio) {
+        await this.logAction(req, 'studio_users', 404);
+        return res.status(404).send({ message: "Studio not found" });
+      }
       if (studio.admin_id !== req.user.user_id) {
+        await this.logAction(req, 'studio_users', 403);
         return res
           .status(403)
           .send({ message: "Only the studio admin can add users" });
       }
 
       await this.studioService.addUserToStudio(studioId, user);
+      await this.logAction(req, 'studio_users', 200);
       res.send({ message: "User added to studio" });
     } catch (error) {
+      await this.logAction(req, 'studio_users', 500);
       handleError(res, error, "Error adding user to studio");
     }
   }
@@ -162,21 +209,31 @@ export class Studios {
   async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
-    if (!userId) return res.status(400).send({ message: "Missing userId" });
+    if (!userId) {
+      await this.logAction(req, 'studio_users', 400);
+      return res.status(400).send({ message: "Missing userId" });
+    }
     try {
       const studio = await this.studioService.getStudio(studioId);
-      if (!studio) return res.status(404).send({ message: "Studio not found" });
+      if (!studio) {
+        await this.logAction(req, 'studio_users', 404);
+        return res.status(404).send({ message: "Studio not found" });
+      }
       if (studio.admin_id === userId) {
+        await this.logAction(req, 'studio_users', 403);
         return res.status(403).send({ message: "Cannot remove the studio admin" });
       }
       if (req.user.user_id !== studio.admin_id) {
+        await this.logAction(req, 'studio_users', 403);
         return res
           .status(403)
           .send({ message: "Only the studio admin can remove users" });
       }
       await this.studioService.removeUserFromStudio(studioId, userId);
+      await this.logAction(req, 'studio_users', 200);
       res.send({ message: "User removed from studio" });
     } catch (error) {
+      await this.logAction(req, 'studio_users', 500);
       handleError(res, error, "Error removing user from studio");
     }
   }

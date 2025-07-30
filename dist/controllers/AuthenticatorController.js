@@ -47,7 +47,6 @@ let Authenticator = class Authenticator {
     constructor(userService) {
         this.userService = userService;
     }
-    // --- Création de studio ---
     async generateKey(req, res) {
         const user = req.user;
         if (!user || !user.email) {

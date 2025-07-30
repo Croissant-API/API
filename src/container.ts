@@ -11,6 +11,7 @@ import { IOAuth2Service, OAuth2Service } from "./services/OAuth2Service";
 import { ISteamOAuthService, SteamOAuthService } from "./services/SteamOAuthService";
 import { IMailService, MailService } from "./services/MailService";
 import { IStudioService, StudioService } from "./services/StudioService";
+import { ILogService, LogService } from "./services/LogService";
 
 const container = new Container();
 
@@ -25,5 +26,6 @@ container.bind<IOAuth2Service>("OAuth2Service").to(OAuth2Service).inSingletonSco
 container.bind<ISteamOAuthService>("SteamOAuthService").to(SteamOAuthService).inSingletonScope();
 container.bind<IMailService>("MailService").to(MailService).inSingletonScope();
 container.bind<IStudioService>("StudioService").to(StudioService).inSingletonScope();
+container.bind<ILogService>("LogService").to(LogService).inSingletonScope();
 
 export default container;

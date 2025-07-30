@@ -8,6 +8,7 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 
 // --- UTILS ---
 import { ValidationError, Schema } from "yup";
+import { ILogService } from "../services/LogService"; // Ajout import LogService
 
 function handleError(
   res: Response,
@@ -42,8 +43,28 @@ async function validateOr400(
 @controller("/inventory")
 export class Inventories {
   constructor(
-    @inject("InventoryService") private inventoryService: IInventoryService
+    @inject("InventoryService") private inventoryService: IInventoryService,
+    @inject("LogService") private logService: ILogService // Ajout injection LogService
   ) {}
+
+  // Helper pour créer des logs
+  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+    try {
+      await this.logService.createLog({
+        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        table_name: tableName,
+        controller: `InventoryController.${controller}`,
+        original_path: req.originalUrl,
+        http_method: req.method,
+        request_body: req.body,
+        user_id: userId,
+        status_code: statusCode
+      });
+    } catch (error) {
+      // On ne bloque jamais la route sur une erreur de log
+      console.error('Error creating log:', error);
+    }
+  }
 
   // --- Inventaire de l'utilisateur courant ---
   @describe({
@@ -76,8 +97,10 @@ export class Inventories {
     const userId = req.user.user_id;
     try {
       const inventory = await this.inventoryService.getInventory(userId);
+      await this.createLog(req, 'getMyInventory', 'inventory', 200, userId);
       res.send(inventory);
     } catch (error) {
+      await this.createLog(req, 'getMyInventory', 'inventory', 500, userId);
       handleError(res, error, "Error fetching inventory");
     }
   }
@@ -110,13 +133,17 @@ export class Inventories {
   })
   @httpGet("/:userId")
   public async getInventory(req: Request, res: Response) {
-    if (!(await validateOr400(userIdParamSchema, { userId: req.params.userId }, res)))
+    if (!(await validateOr400(userIdParamSchema, { userId: req.params.userId }, res))) {
+      await this.createLog(req, 'getInventory', 'inventory', 400, req.params.userId);
       return;
+    }
     const userId = req.params.userId;
     try {
       const inventory = await this.inventoryService.getInventory(userId);
+      await this.createLog(req, 'getInventory', 'inventory', 200, userId);
       res.send(inventory);
     } catch (error) {
+      await this.createLog(req, 'getInventory', 'inventory', 500, userId);
       handleError(res, error, "Error fetching inventory");
     }
   }
@@ -124,6 +151,7 @@ export class Inventories {
   // --- Route générique (prompt) ---
   @httpGet("/")
   public async getAllInventories(req: Request, res: Response) {
+    await this.createLog(req, 'getAllInventories', 'inventory', 400);
     res.send({ message: "Please specify /api/inventory/<userId>" });
   }
 }

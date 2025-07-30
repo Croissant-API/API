@@ -105,8 +105,9 @@ async function validateOr400(schema, data, res) {
     }
 }
 let StripeController = class StripeController {
-    constructor(userService) {
+    constructor(userService, logService) {
         this.userService = userService;
+        this.logService = logService;
         if (!STRIPE_API_KEY) {
             throw new Error("Stripe API key is not set in environment variables");
         }
@@ -114,12 +115,37 @@ let StripeController = class StripeController {
             apiVersion: "2025-06-30.basil"
         });
     }
+    // Helper pour les logs
+    async logAction(req, tableName, statusCode, metadata) {
+        try {
+            const requestBody = { ...req.body };
+            // Ajouter les métadonnées si fournies
+            if (metadata) {
+                requestBody.metadata = metadata;
+            }
+            await this.logService.createLog({
+                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                table_name: tableName,
+                controller: 'StripeController',
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: req.user?.user_id,
+                status_code: statusCode
+            });
+        }
+        catch (error) {
+            console.error('Failed to log action:', error);
+        }
+    }
     async handleWebhook(req, res) {
         if (!STRIPE_WEBHOOK_SECRET) {
+            await this.logAction(req, 'stripe_webhooks', 500);
             return handleError(res, new Error("Webhook secret not configured"), "Stripe webhook secret is not set", 500);
         }
         const sig = req.headers["stripe-signature"];
         if (!sig) {
+            await this.logAction(req, 'stripe_webhooks', 400);
             return handleError(res, new Error("Missing signature"), "Missing Stripe signature", 400);
         }
         let event;
@@ -128,24 +154,37 @@ let StripeController = class StripeController {
             sig, STRIPE_WEBHOOK_SECRET);
         }
         catch (err) {
+            await this.logAction(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
             return handleError(res, err, "Webhook signature verification failed", 400);
         }
         try {
             await this.processWebhookEvent(event);
+            await this.logAction(req, 'stripe_webhooks', 200, {
+                event_type: event.type,
+                event_id: event.id
+            });
             res.status(200).send({ received: true });
         }
         catch (error) {
+            await this.logAction(req, 'stripe_webhooks', 500, {
+                event_type: event.type,
+                event_id: event.id,
+                error: error instanceof Error ? error.message : String(error)
+            });
             handleError(res, error, "Error processing webhook event");
         }
     }
     // --- CHECKOUT ---
     async checkoutEndpoint(req, res) {
-        if (!(await validateOr400(checkoutQuerySchema, req.query, res)))
+        if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
+            await this.logAction(req, 'stripe_sessions', 400);
             return;
+        }
         try {
             const { tier } = req.query;
             const selectedTier = CREDIT_TIERS.find(t => t.id === tier);
             if (!selectedTier) {
+                await this.logAction(req, 'stripe_sessions', 400, { tier, reason: 'invalid_tier' });
                 return res.status(400).send({
                     message: "Invalid tier selected",
                     availableTiers: CREDIT_TIERS.map(t => t.id)
@@ -153,18 +192,32 @@ let StripeController = class StripeController {
             }
             const session = await this.createCheckoutSession(selectedTier, req.user.user_id);
             if (!session.url) {
+                await this.logAction(req, 'stripe_sessions', 500, {
+                    tier: selectedTier.id,
+                    reason: 'no_session_url'
+                });
                 return res.status(500).send({
                     message: "Failed to create checkout session",
                     error: "Stripe session URL is null"
                 });
             }
+            await this.logAction(req, 'stripe_sessions', 200, {
+                tier: selectedTier.id,
+                credits: selectedTier.credits,
+                price: selectedTier.price,
+                session_id: session.id
+            });
             res.send({ url: session.url });
         }
         catch (error) {
+            await this.logAction(req, 'stripe_sessions', 500, {
+                error: error instanceof Error ? error.message : String(error)
+            });
             handleError(res, error, "Error creating checkout session");
         }
     }
     async getTiers(req, res) {
+        await this.logAction(req, undefined, 200);
         res.send(CREDIT_TIERS);
     }
     // --- PRIVATE METHODS ---
@@ -196,8 +249,11 @@ let StripeController = class StripeController {
         if (isNaN(creditsToAdd) || creditsToAdd <= 0) {
             throw new Error(`Invalid credits amount: ${metadata.credits}`);
         }
+        const oldBalance = user.balance;
         await this.userService.updateUserBalance(user.user_id, user.balance + creditsToAdd);
+        // Log du succès du paiement et de l'ajout de crédits
         console.log(`Added ${creditsToAdd} credits to user ${user.user_id} (${user.username})`);
+        console.log(`Balance updated: ${oldBalance} -> ${oldBalance + creditsToAdd}`);
     }
     async createCheckoutSession(tier, userId) {
         return await this.stripe.checkout.sessions.create({
@@ -257,6 +313,7 @@ __decorate([
 StripeController = __decorate([
     (0, inversify_express_utils_1.controller)("/stripe"),
     __param(0, (0, inversify_1.inject)("UserService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("LogService")),
+    __metadata("design:paramtypes", [Object, Object])
 ], StripeController);
 exports.StripeController = StripeController;

@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import { ILobbyService } from "../services/LobbyService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 export declare class Lobbies {
     private lobbyService;
-    constructor(lobbyService: ILobbyService);
+    private logService;
+    constructor(lobbyService: ILobbyService, logService: ILogService);
+    private createLog;
     createLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
     getLobby(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyLobby(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

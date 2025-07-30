@@ -220,6 +220,7 @@ let Games = class Games {
             handleError(res, error, "Error purchasing game");
         }
     }
+    // --- PROPRIÉTÉ ---
     async transferOwnership(req, res) {
         if (!req.user) {
             return res.status(401).send({ message: "Unauthorized" });

@@ -1,15 +1,18 @@
 import { Request, Response } from "express";
 import { IUserService } from "../services/UserService";
+import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
 export declare class Users {
     private userService;
+    private logService;
     private mailService;
     private studioService;
     private steamOAuthService;
-    constructor(userService: IUserService, mailService: MailService, studioService: StudioService, steamOAuthService: any);
+    constructor(userService: IUserService, logService: ILogService, mailService: MailService, studioService: StudioService, steamOAuthService: any);
     private sendError;
+    private createLog;
     private requireFields;
     private mapUser;
     private mapUserSearch;

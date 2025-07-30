@@ -3,6 +3,7 @@ import { controller, httpGet, httpPost } from "inversify-express-utils";
 import Stripe from "stripe";
 import { inject } from "inversify";
 import { IUserService } from "../services/UserService";
+import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { ValidationError, Schema } from "yup";
 import * as yup from "yup";
@@ -79,7 +80,8 @@ export class StripeController {
     private stripe: Stripe;
 
     constructor(
-        @inject("UserService") private userService: IUserService
+        @inject("UserService") private userService: IUserService,
+        @inject("LogService") private logService: ILogService
     ) {
         if (!STRIPE_API_KEY) {
             throw new Error("Stripe API key is not set in environment variables");
@@ -89,15 +91,47 @@ export class StripeController {
         });
     }
 
+    // Helper pour les logs
+    private async logAction(
+        req: Request,
+        tableName?: string,
+        statusCode?: number,
+        metadata?: object
+    ) {
+        try {
+            const requestBody = { ...req.body };
+            
+            // Ajouter les métadonnées si fournies
+            if (metadata) {
+                requestBody.metadata = metadata;
+            }
+
+            await this.logService.createLog({
+                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                table_name: tableName,
+                controller: 'StripeController',
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: (req as AuthenticatedRequest).user?.user_id as string,
+                status_code: statusCode
+            });
+        } catch (error) {
+            console.error('Failed to log action:', error);
+        }
+    }
+
     @httpPost("/webhook")
     public async handleWebhook(req: Request, res: Response) {
         if (!STRIPE_WEBHOOK_SECRET) {
+            await this.logAction(req, 'stripe_webhooks', 500);
             return handleError(res, new Error("Webhook secret not configured"), 
                 "Stripe webhook secret is not set", 500);
         }
 
         const sig = req.headers["stripe-signature"] as string;
         if (!sig) {
+            await this.logAction(req, 'stripe_webhooks', 400);
             return handleError(res, new Error("Missing signature"), 
                 "Missing Stripe signature", 400);
         }
@@ -110,13 +144,23 @@ export class StripeController {
                 STRIPE_WEBHOOK_SECRET
             );
         } catch (err) {
+            await this.logAction(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
             return handleError(res, err, "Webhook signature verification failed", 400);
         }
 
         try {
             await this.processWebhookEvent(event);
+            await this.logAction(req, 'stripe_webhooks', 200, { 
+                event_type: event.type,
+                event_id: event.id 
+            });
             res.status(200).send({ received: true });
         } catch (error) {
+            await this.logAction(req, 'stripe_webhooks', 500, { 
+                event_type: event.type,
+                event_id: event.id,
+                error: error instanceof Error ? error.message : String(error)
+            });
             handleError(res, error, "Error processing webhook event");
         }
     }
@@ -124,13 +168,17 @@ export class StripeController {
     // --- CHECKOUT ---
     @httpGet("/checkout", LoggedCheck.middleware)
     public async checkoutEndpoint(req: AuthenticatedRequest, res: Response) {
-        if (!(await validateOr400(checkoutQuerySchema, req.query, res))) return;
+        if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
+            await this.logAction(req, 'stripe_sessions', 400);
+            return;
+        }
 
         try {
             const { tier } = req.query as { tier: string };
             const selectedTier = CREDIT_TIERS.find(t => t.id === tier);
             
             if (!selectedTier) {
+                await this.logAction(req, 'stripe_sessions', 400, { tier, reason: 'invalid_tier' });
                 return res.status(400).send({ 
                     message: "Invalid tier selected",
                     availableTiers: CREDIT_TIERS.map(t => t.id)
@@ -140,20 +188,34 @@ export class StripeController {
             const session = await this.createCheckoutSession(selectedTier, req.user.user_id);
             
             if (!session.url) {
+                await this.logAction(req, 'stripe_sessions', 500, { 
+                    tier: selectedTier.id,
+                    reason: 'no_session_url'
+                });
                 return res.status(500).send({ 
                     message: "Failed to create checkout session",
                     error: "Stripe session URL is null" 
                 });
             }
 
+            await this.logAction(req, 'stripe_sessions', 200, { 
+                tier: selectedTier.id,
+                credits: selectedTier.credits,
+                price: selectedTier.price,
+                session_id: session.id
+            });
             res.send({ url: session.url });
         } catch (error) {
+            await this.logAction(req, 'stripe_sessions', 500, { 
+                error: error instanceof Error ? error.message : String(error)
+            });
             handleError(res, error, "Error creating checkout session");
         }
     }
 
     @httpGet("/tiers")
     public async getTiers(req: Request, res: Response) {
+        await this.logAction(req, undefined, 200);
         res.send(CREDIT_TIERS);
     }
 
@@ -191,12 +253,15 @@ export class StripeController {
             throw new Error(`Invalid credits amount: ${metadata.credits}`);
         }
 
+        const oldBalance = user.balance;
         await this.userService.updateUserBalance(
             user.user_id, 
             user.balance + creditsToAdd
         );
 
+        // Log du succès du paiement et de l'ajout de crédits
         console.log(`Added ${creditsToAdd} credits to user ${user.user_id} (${user.username})`);
+        console.log(`Balance updated: ${oldBalance} -> ${oldBalance + creditsToAdd}`);
     }
 
     private async createCheckoutSession(

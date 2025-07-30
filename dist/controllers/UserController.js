@@ -27,9 +27,10 @@ const GenKey_1 = require("../utils/GenKey");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
 let Users = class Users {
-    constructor(userService, mailService, studioService, steamOAuthService // Assuming you have a SteamOAuthService
+    constructor(userService, logService, mailService, studioService, steamOAuthService // Assuming you have a SteamOAuthService
     ) {
         this.userService = userService;
+        this.logService = logService;
         this.mailService = mailService;
         this.studioService = studioService;
         this.steamOAuthService = steamOAuthService;
@@ -37,6 +38,24 @@ let Users = class Users {
     // Helper simplifié - garde seulement les essentiels
     sendError(res, status, message) {
         return res.status(status).send({ message });
+    }
+    // Helper pour créer des logs
+    async createLog(req, controller, tableName, statusCode, userId) {
+        try {
+            await this.logService.createLog({
+                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                table_name: tableName,
+                controller: `UserController.${controller}`,
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: req.body,
+                user_id: userId,
+                status_code: statusCode
+            });
+        }
+        catch (error) {
+            console.error('Error creating log:', error);
+        }
     }
     // Ce helper peut être inline dans les méthodes
     requireFields(obj, fields) {
@@ -75,6 +94,7 @@ let Users = class Users {
     async loginOAuth(req, res) {
         const { email, provider, providerId, username } = req.body;
         if (!email || !provider || !providerId) {
+            await this.createLog(req, 'loginOAuth', 'users', 400);
             return res
                 .status(400)
                 .send({ message: "Missing email, provider or providerId" });
@@ -92,6 +112,7 @@ let Users = class Users {
             const userId = crypto_1.default.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
+            await this.createLog(req, 'loginOAuth', 'users', 201, userId);
         }
         else {
             if ((provider === "discord" && !user.discord_id) ||
@@ -104,12 +125,15 @@ let Users = class Users {
                 (provider === "google" &&
                     user.google_id &&
                     user.google_id !== providerId)) {
+                await this.createLog(req, 'loginOAuth', 'users', 401, user.user_id);
                 return res.status(401).send({ message: "OAuth providerId mismatch" });
             }
         }
         if (user.disabled) {
+            await this.createLog(req, 'loginOAuth', 'users', 403, user.user_id);
             return res.status(403).send({ message: "Account is disabled" });
         }
+        await this.createLog(req, 'loginOAuth', 'users', 200, user.user_id);
         res.status(200).send({
             message: "Login successful",
             user: {
@@ -123,10 +147,12 @@ let Users = class Users {
     async register(req, res) {
         const missing = this.requireFields(req.body, ["username", "email"]);
         if (missing || (!req.body.password && !req.body.provider)) {
+            await this.createLog(req, 'register', 'users', 400);
             return this.sendError(res, 400, "Missing required fields");
         }
         const users = await this.userService.getAllUsersWithDisabled();
         if (users.find((u) => u.email === req.body.email)) {
+            await this.createLog(req, 'register', 'users', 400);
             return this.sendError(res, 400, "Email already exists");
         }
         let userId = req.body.userId;
@@ -135,6 +161,7 @@ let Users = class Users {
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(req.body.email)) {
+            await this.createLog(req, 'register', 'users', 400);
             return this.sendError(res, 400, "Invalid email address");
         }
         let hashedPassword = null;
@@ -144,29 +171,36 @@ let Users = class Users {
         try {
             const user = await this.userService.createUser(userId, req.body.username, req.body.email, hashedPassword, req.body.provider, req.body.providerId);
             await this.mailService.sendAccountConfirmationMail(user.email);
+            await this.createLog(req, 'register', 'users', 201, userId);
             res
                 .status(201)
                 .send({ message: "User registered", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
             console.error("Error registering user", error);
+            await this.createLog(req, 'register', 'users', 500);
             this.sendError(res, 500, "Error registering user");
         }
     }
     async login(req, res) {
         const missing = this.requireFields(req.body, ["email", "password"]);
-        if (missing)
+        if (missing) {
+            await this.createLog(req, 'login', 'users', 400);
             return this.sendError(res, 400, "Missing email or password");
+        }
         const allUsers = await this.userService.getAllUsersWithDisabled();
         const user = allUsers.find((u) => u.email === req.body.email);
         if (!user || !user.password) {
+            await this.createLog(req, 'login', 'users', 401);
             return this.sendError(res, 401, "Invalid credentials");
         }
         const valid = await bcryptjs_1.default.compare(req.body.password, user.password);
         if (!valid) {
+            await this.createLog(req, 'login', 'users', 401, user.user_id);
             return this.sendError(res, 401, "Invalid credentials");
         }
         if (user.disabled) {
+            await this.createLog(req, 'login', 'users', 403, user.user_id);
             return this.sendError(res, 403, "Account is disabled");
         }
         this.mailService
@@ -174,6 +208,7 @@ let Users = class Users {
             .catch((err) => {
             console.error("Error sending connection notification email", err);
         });
+        await this.createLog(req, 'login', 'users', 200, user.user_id);
         if (!user.authenticator_secret) {
             res.status(200).send({
                 message: "Login successful",
@@ -193,14 +228,19 @@ let Users = class Users {
     }
     async getMe(req, res) {
         const userId = req.user?.user_id;
-        if (!userId)
+        if (!userId) {
+            await this.createLog(req, 'getMe', 'users', 401);
             return this.sendError(res, 401, "Unauthorized");
+        }
         // Get user with all related data in one call
         const userWithData = await this.userService.getUserWithCompleteProfile(userId);
-        if (!userWithData)
+        if (!userWithData) {
+            await this.createLog(req, 'getMe', 'users', 404, userId);
             return this.sendError(res, 404, "User not found");
+        }
         const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || userId);
         const roles = [req.originalUser?.user_id, ...studios.map((s) => s.user_id)];
+        await this.createLog(req, 'getMe', 'users', 200, userId);
         res.send({
             ...this.mapUser(userWithData),
             verificationKey: (0, GenKey_1.genVerificationKey)(userWithData.user_id),
@@ -217,125 +257,168 @@ let Users = class Users {
     async changeUsername(req, res) {
         const userId = req.user?.user_id;
         const { username } = req.body;
-        if (!userId)
+        if (!userId) {
+            await this.createLog(req, 'changeUsername', 'users', 401);
             return this.sendError(res, 401, "Unauthorized");
+        }
         if (!username || typeof username !== "string" || username.trim().length < 3) {
+            await this.createLog(req, 'changeUsername', 'users', 400, userId);
             return this.sendError(res, 400, "Invalid username (min 3 characters)");
         }
         try {
             await this.userService.updateUser(userId, username.trim());
+            await this.createLog(req, 'changeUsername', 'users', 200, userId);
             res.status(200).send({ message: "Username updated" });
         }
         catch (error) {
+            await this.createLog(req, 'changeUsername', 'users', 500, userId);
             this.sendError(res, 500, "Error updating username");
         }
     }
     async changePassword(req, res) {
         const { oldPassword, newPassword, confirmPassword } = req.body;
-        if (!newPassword || !confirmPassword)
+        if (!newPassword || !confirmPassword) {
+            await this.createLog(req, 'changePassword', 'users', 400, req.user?.user_id);
             return this.sendError(res, 400, "Missing newPassword or confirmPassword");
-        if (newPassword !== confirmPassword)
+        }
+        if (newPassword !== confirmPassword) {
+            await this.createLog(req, 'changePassword', 'users', 400, req.user?.user_id);
             return this.sendError(res, 400, "New password and confirm password do not match");
+        }
         const userId = req.user?.user_id;
-        if (!userId)
+        if (!userId) {
+            await this.createLog(req, 'changePassword', 'users', 401);
             return this.sendError(res, 401, "Unauthorized");
+        }
         const user = await this.userService.getUser(userId);
-        if (!user)
+        if (!user) {
+            await this.createLog(req, 'changePassword', 'users', 404, userId);
             return this.sendError(res, 404, "User not found");
+        }
         let valid = true;
         if (user.password)
             valid = await bcryptjs_1.default.compare(oldPassword, user.password);
-        if (!valid)
+        if (!valid) {
+            await this.createLog(req, 'changePassword', 'users', 401, userId);
             return this.sendError(res, 401, "Invalid current password");
+        }
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         try {
             await this.userService.updateUserPassword(userId, hashedPassword);
+            await this.createLog(req, 'changePassword', 'users', 200, userId);
             res.status(200).send({ message: "Password changed successfully" });
         }
         catch (error) {
+            await this.createLog(req, 'changePassword', 'users', 500, userId);
             this.sendError(res, 500, "Error changing password");
         }
     }
     async forgotPassword(req, res) {
         const { email } = req.body;
-        if (!email)
+        if (!email) {
+            await this.createLog(req, 'forgotPassword', 'users', 400);
             return this.sendError(res, 400, "Email is required");
+        }
         const user = await this.userService.findByEmail(email);
-        if (!user)
+        if (!user) {
+            await this.createLog(req, 'forgotPassword', 'users', 404);
             return this.sendError(res, 404, "Invalid email");
+        }
         const passwordResetToken = await this.userService.generatePasswordResetToken(email);
         await this.mailService.sendPasswordResetMail(email, passwordResetToken);
+        await this.createLog(req, 'forgotPassword', 'users', 200, user.user_id);
         res.status(200).send({ message: "Password reset email sent" });
     }
     async resetPassword(req, res) {
         const { new_password, confirm_password, reset_token } = req.body;
-        if (!new_password || !reset_token || !confirm_password)
+        if (!new_password || !reset_token || !confirm_password) {
+            await this.createLog(req, 'resetPassword', 'users', 400);
             return this.sendError(res, 400, "Missing required fields");
-        if (new_password !== confirm_password)
+        }
+        if (new_password !== confirm_password) {
+            await this.createLog(req, 'resetPassword', 'users', 400);
             return this.sendError(res, 400, "New password and confirm password do not match");
+        }
         const user = await this.userService.findByResetToken(reset_token);
-        if (!user)
+        if (!user) {
+            await this.createLog(req, 'resetPassword', 'users', 404);
             return this.sendError(res, 404, "Invalid user");
+        }
         const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
         try {
             await this.userService.updateUserPassword(user.user_id, hashedPassword);
+            await this.createLog(req, 'resetPassword', 'users', 200, user.user_id);
             res.status(200).send({ message: "Password reset successfully", token: (0, GenKey_1.genKey)(user.user_id) });
         }
         catch (error) {
+            await this.createLog(req, 'resetPassword', 'users', 500, user.user_id);
             this.sendError(res, 500, "Error resetting password");
         }
     }
     async steamRedirect(req, res) {
         const url = this.steamOAuthService.getAuthUrl();
+        await this.createLog(req, 'steamRedirect', 'users', 200);
         res.send(url);
     }
     async steamAssociate(req, res) {
         const user = req.user;
         if (!user) {
+            await this.createLog(req, 'steamAssociate', 'users', 401);
             return res.status(401).send({ message: "Unauthorized" });
         }
         try {
             const steamId = await this.steamOAuthService.verifySteamOpenId(req.query);
             if (!steamId) {
+                await this.createLog(req, 'steamAssociate', 'users', 400, user.user_id);
                 return res.status(400).send({ message: "Steam authentication failed" });
             }
             const profile = await this.steamOAuthService.getSteamProfile(steamId);
             if (!profile) {
+                await this.createLog(req, 'steamAssociate', 'users', 400, user.user_id);
                 return res
                     .status(400)
                     .send({ message: "Unable to fetch Steam profile" });
             }
             await this.userService.updateSteamFields(user.user_id, profile.steamid, profile.personaname, profile.avatarfull);
+            await this.createLog(req, 'steamAssociate', 'users', 200, user.user_id);
             res.send(`<html><head><meta http-equiv="refresh" content="0;url=/settings"></head><body>Redirecting to <a href="/settings">/settings</a>...</body></html>`);
         }
         catch (error) {
             console.error("Error associating Steam account", error);
+            await this.createLog(req, 'steamAssociate', 'users', 500, user?.user_id);
         }
     }
     async unlinkSteam(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
+            await this.createLog(req, 'unlinkSteam', 'users', 401);
             return res.status(401).send({ message: "Unauthorized" });
         }
         try {
             await this.userService.updateSteamFields(userId, null, null, null);
+            await this.createLog(req, 'unlinkSteam', 'users', 200, userId);
             res.status(200).send({ message: "Steam account unlinked" });
         }
         catch (error) {
             console.error("Error unlinking Steam account", error);
             const message = error instanceof Error ? error.message : String(error);
+            await this.createLog(req, 'unlinkSteam', 'users', 500, userId);
             this.sendError(res, 500, "Error unlinking Steam account");
         }
     }
     async searchUsers(req, res) {
         const query = req.query.q?.trim();
-        if (!query)
+        if (!query) {
+            await this.createLog(req, 'searchUsers', 'users', 400);
             return this.sendError(res, 400, "Missing search query");
+        }
         try {
             const users = await this.userService.searchUsersByUsername(query);
+            await this.createLog(req, 'searchUsers', 'users', 200);
             res.send(users.map(user => this.mapUserSearch(user)));
         }
         catch (error) {
+            await this.createLog(req, 'searchUsers', 'users', 500);
             this.sendError(res, 500, "Error searching users");
         }
     }
@@ -344,13 +427,17 @@ let Users = class Users {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
+            await this.createLog(req, 'getUser', 'users', 400);
             return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
         // Get user with all related data in one call
         const userWithData = await this.userService.getUserWithPublicProfile(userId);
-        if (!userWithData)
+        if (!userWithData) {
+            await this.createLog(req, 'getUser', 'users', 404);
             return this.sendError(res, 404, "User not found");
+        }
+        await this.createLog(req, 'getUser', 'users', 200);
         res.send({
             ...this.mapUserSearch(userWithData),
             inventory: userWithData.inventory || [],
@@ -360,16 +447,21 @@ let Users = class Users {
     }
     async adminSearchUsers(req, res) {
         if (!req.user?.admin) {
+            await this.createLog(req, 'adminSearchUsers', 'users', 403, req.user?.user_id);
             return res.status(403).send({ message: "Forbidden" });
         }
         const query = req.query.q?.trim();
-        if (!query)
+        if (!query) {
+            await this.createLog(req, 'adminSearchUsers', 'users', 400, req.user.user_id);
             return this.sendError(res, 400, "Missing search query");
+        }
         try {
             const users = await this.userService.adminSearchUsers(query);
+            await this.createLog(req, 'adminSearchUsers', 'users', 200, req.user.user_id);
             res.send(users.map(user => this.mapUserSearch(user)));
         }
         catch (error) {
+            await this.createLog(req, 'adminSearchUsers', 'users', 500, req.user.user_id);
             this.sendError(res, 500, "Error searching users");
         }
     }
@@ -377,13 +469,16 @@ let Users = class Users {
         const { userId } = req.params;
         const adminUserId = req.user?.user_id;
         if (!adminUserId) {
+            await this.createLog(req, 'disableAccount', 'users', 401);
             return res.status(401).send({ message: "Unauthorized" });
         }
         try {
             await this.userService.disableAccount(userId, adminUserId);
+            await this.createLog(req, 'disableAccount', 'users', 200, adminUserId);
             res.status(200).send({ message: "Account disabled" });
         }
         catch (error) {
+            await this.createLog(req, 'disableAccount', 'users', 403, adminUserId);
             res.status(403).send({
                 message: error instanceof Error ? error.message : String(error),
             });
@@ -393,13 +488,16 @@ let Users = class Users {
         const { userId } = req.params;
         const adminUserId = req.user?.user_id;
         if (!adminUserId) {
+            await this.createLog(req, 'reenableAccount', 'users', 401);
             return res.status(401).send({ message: "Unauthorized" });
         }
         try {
             await this.userService.reenableAccount(userId, adminUserId);
+            await this.createLog(req, 'reenableAccount', 'users', 200, adminUserId);
             res.status(200).send({ message: "Account re-enabled" });
         }
         catch (error) {
+            await this.createLog(req, 'reenableAccount', 'users', 403, adminUserId);
             res.status(403).send({
                 message: error instanceof Error ? error.message : String(error),
             });
@@ -407,19 +505,24 @@ let Users = class Users {
     }
     async adminGetUser(req, res) {
         if (!req.user?.admin) {
+            await this.createLog(req, 'adminGetUser', 'users', 403, req.user?.user_id);
             return res.status(403).send({ message: "Forbidden" });
         }
         try {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
         catch (err) {
+            await this.createLog(req, 'adminGetUser', 'users', 400, req.user?.user_id);
             return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
         // Get user with all related data in one call (admin version includes disabled users)
         const userWithData = await this.userService.adminGetUserWithProfile(userId);
-        if (!userWithData)
+        if (!userWithData) {
+            await this.createLog(req, 'adminGetUser', 'users', 404, req.user?.user_id);
             return this.sendError(res, 404, "User not found");
+        }
+        await this.createLog(req, 'adminGetUser', 'users', 200, req.user?.user_id);
         res.send({
             ...this.mapUserSearch(userWithData),
             disabled: userWithData.disabled,
@@ -430,68 +533,99 @@ let Users = class Users {
     }
     async transferCredits(req, res) {
         const { targetUserId, amount } = req.body;
-        if (!targetUserId || isNaN(amount) || amount <= 0)
+        if (!targetUserId || isNaN(amount) || amount <= 0) {
+            await this.createLog(req, 'transferCredits', 'users', 400, req.user?.user_id);
             return this.sendError(res, 400, "Invalid input");
+        }
         try {
             const sender = req.user;
-            if (!sender)
+            if (!sender) {
+                await this.createLog(req, 'transferCredits', 'users', 401);
                 return this.sendError(res, 401, "Unauthorized");
-            if (sender.user_id === targetUserId)
+            }
+            if (sender.user_id === targetUserId) {
+                await this.createLog(req, 'transferCredits', 'users', 400, sender.user_id);
                 return this.sendError(res, 400, "Cannot transfer credits to yourself");
+            }
             const recipient = await this.userService.getUser(targetUserId);
-            if (!recipient)
+            if (!recipient) {
+                await this.createLog(req, 'transferCredits', 'users', 404, sender.user_id);
                 return this.sendError(res, 404, "Recipient not found");
-            if (sender.balance < amount)
+            }
+            if (sender.balance < amount) {
+                await this.createLog(req, 'transferCredits', 'users', 400, sender.user_id);
                 return this.sendError(res, 400, "Insufficient balance");
+            }
             await this.userService.updateUserBalance(sender.user_id, sender.balance - Number(amount));
             await this.userService.updateUserBalance(recipient.user_id, recipient.balance + Number(amount));
+            await this.createLog(req, 'transferCredits', 'users', 200, sender.user_id);
             res.status(200).send({ message: "Credits transferred" });
         }
         catch (error) {
+            await this.createLog(req, 'transferCredits', 'users', 500, req.user?.user_id);
             this.sendError(res, 500, "Error transferring credits");
         }
     }
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
-        if (!userId || !verificationKey)
+        if (!userId || !verificationKey) {
+            await this.createLog(req, 'checkVerificationKey', 'users', 400);
             return this.sendError(res, 400, "Missing userId or verificationKey");
+        }
         const user = await this.userService.getUser(userId);
-        if (!user)
+        if (!user) {
+            await this.createLog(req, 'checkVerificationKey', 'users', 404, userId);
             return this.sendError(res, 404, "User not found");
+        }
         const expectedKey = (0, GenKey_1.genVerificationKey)(user.user_id);
-        res.send({ success: verificationKey === expectedKey });
+        const isValid = verificationKey === expectedKey;
+        await this.createLog(req, 'checkVerificationKey', 'users', isValid ? 200 : 401, userId);
+        res.send({ success: isValid });
     }
     async changeRole(req, res) {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
-        if (!userId)
+        if (!userId) {
+            await this.createLog(req, 'changeRole', 'users', 401);
             return this.sendError(res, 401, "Unauthorized");
-        if (!role || typeof role !== "string")
+        }
+        if (!role || typeof role !== "string") {
+            await this.createLog(req, 'changeRole', 'users', 400, userId);
             return this.sendError(res, 400, "Invalid role");
+        }
         try {
             const studios = await this.studioService.getUserStudios(userId);
             const roles = [userId, ...studios.map((s) => s.user_id)];
-            if (!roles.includes(role))
+            if (!roles.includes(role)) {
+                await this.createLog(req, 'changeRole', 'users', 403, userId);
                 return this.sendError(res, 403, "Forbidden: Invalid role");
+            }
             res.cookie("role", role, {
                 httpOnly: false,
                 sameSite: "lax",
                 secure: process.env.NODE_ENV === "production",
                 maxAge: 30 * 24 * 60 * 60 * 1000,
             });
+            await this.createLog(req, 'changeRole', 'users', 200, userId);
             return res.status(200).send({ message: "Role updated successfully" });
         }
         catch (error) {
+            await this.createLog(req, 'changeRole', 'users', 500, userId);
             this.sendError(res, 500, "Error setting role cookie");
         }
     }
     async isValidResetToken(req, res) {
         const { reset_token } = req.query;
-        if (!reset_token)
+        if (!reset_token) {
+            await this.createLog(req, 'isValidResetToken', 'users', 400);
             return this.sendError(res, 400, "Missing required fields");
+        }
         const user = await this.userService.findByResetToken(reset_token);
-        if (!user)
+        if (!user) {
+            await this.createLog(req, 'isValidResetToken', 'users', 404);
             return this.sendError(res, 404, "Invalid reset token");
+        }
+        await this.createLog(req, 'isValidResetToken', 'users', 200, user.user_id);
         res.status(200).send({ message: "Valid reset token", user });
     }
 };
@@ -707,10 +841,11 @@ __decorate([
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
-    __param(1, (0, inversify_1.inject)("MailService")),
-    __param(2, (0, inversify_1.inject)("StudioService")),
-    __param(3, (0, inversify_1.inject)("SteamOAuthService")),
-    __metadata("design:paramtypes", [Object, MailService_1.MailService,
+    __param(1, (0, inversify_1.inject)("LogService")),
+    __param(2, (0, inversify_1.inject)("MailService")),
+    __param(3, (0, inversify_1.inject)("StudioService")),
+    __param(4, (0, inversify_1.inject)("SteamOAuthService")),
+    __metadata("design:paramtypes", [Object, Object, MailService_1.MailService,
         StudioService_1.StudioService, Object])
 ], Users);
 exports.Users = Users;

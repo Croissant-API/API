@@ -14,7 +14,7 @@ import { IUserService } from "../services/UserService";
 export class Authenticator {
     constructor(@inject("UserService") private userService: IUserService) { }
 
-    // --- Création de studio ---
+    
     @httpPost("/generateKey", LoggedCheck.middleware)
     async generateKey(req: AuthenticatedRequest, res: Response) {
         const user = req.user;
@@ -31,6 +31,7 @@ export class Authenticator {
         });
     }
 
+    
     @httpPost("/registerKey", LoggedCheck.middleware)
     async registerKey(req: AuthenticatedRequest, res: Response) {
         const user = req.user;
@@ -49,6 +50,7 @@ export class Authenticator {
         res.status(200).send({ message: "Key registered successfully" });
     }
 
+    
     @httpPost("/verifyKey")
     async verifyKey(req: Request, res: Response) {
         const { code, userId } = req.body;
@@ -71,6 +73,7 @@ export class Authenticator {
         }
     }
 
+    
     @httpPost("/delete", LoggedCheck.middleware)
     async deleteKey(req: AuthenticatedRequest, res: Response) {
         const user = req.user;

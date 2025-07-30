@@ -18,16 +18,42 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const helpers_1 = require("../utils/helpers");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 let SearchController = class SearchController {
-    constructor(userService, itemService, gameService, inventoryService) {
+    constructor(userService, itemService, gameService, inventoryService, logService) {
         this.userService = userService;
         this.itemService = itemService;
         this.gameService = gameService;
         this.inventoryService = inventoryService;
+        this.logService = logService;
+    }
+    // Helper pour les logs
+    async logAction(req, tableName, statusCode, metadata) {
+        try {
+            const requestBody = { ...req.body };
+            // Ajouter les métadonnées si fournies
+            if (metadata) {
+                requestBody.metadata = metadata;
+            }
+            await this.logService.createLog({
+                ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+                table_name: tableName,
+                controller: 'SearchController',
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: req.user?.user_id,
+                status_code: statusCode
+            });
+        }
+        catch (error) {
+            console.error('Failed to log action:', error);
+        }
     }
     async globalSearch(req, res) {
         const query = req.query.q?.trim();
-        if (!query)
+        if (!query) {
+            await this.logAction(req, 'search', 400, { reason: 'missing_query' });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
+        }
         try {
             const users = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
@@ -44,19 +70,35 @@ let SearchController = class SearchController {
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
             const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
+            await this.logAction(req, 'search', 200, {
+                query,
+                results_count: {
+                    users: detailledUsers.filter(u => u !== null).length,
+                    items: items.length,
+                    games: filteredGames.length
+                }
+            });
             res.send({ users: detailledUsers, items, games: filteredGames });
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
+            await this.logAction(req, 'search', 500, {
+                query,
+                error: msg
+            });
             res.status(500).send({ message: "Error searching", error: msg });
         }
     }
     async adminSearch(req, res) {
-        if (!req.user?.admin)
+        if (!req.user?.admin) {
+            await this.logAction(req, 'search', 403, { reason: 'not_admin' });
             return (0, helpers_1.sendError)(res, 403, "Forbidden");
+        }
         const query = req.query.q?.trim();
-        if (!query)
+        if (!query) {
+            await this.logAction(req, 'search', 400, { reason: 'missing_query', admin_search: true });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
+        }
         try {
             const users = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
@@ -72,10 +114,24 @@ let SearchController = class SearchController {
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
             const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
+            await this.logAction(req, 'search', 200, {
+                query,
+                admin_search: true,
+                results_count: {
+                    users: detailledUsers.filter(u => u !== null).length,
+                    items: items.length,
+                    games: filteredGames.length
+                }
+            });
             res.send({ users: detailledUsers, items, games: filteredGames });
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
+            await this.logAction(req, 'search', 500, {
+                query,
+                admin_search: true,
+                error: msg
+            });
             res.status(500).send({ message: "Error searching", error: msg });
         }
     }
@@ -98,6 +154,7 @@ SearchController = __decorate([
     __param(1, (0, inversify_1.inject)("ItemService")),
     __param(2, (0, inversify_1.inject)("GameService")),
     __param(3, (0, inversify_1.inject)("InventoryService")),
-    __metadata("design:paramtypes", [Object, Object, Object, Object])
+    __param(4, (0, inversify_1.inject)("LogService")),
+    __metadata("design:paramtypes", [Object, Object, Object, Object, Object])
 ], SearchController);
 exports.SearchController = SearchController;

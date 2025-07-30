@@ -18,6 +18,7 @@ import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
 import { Schema } from "yup";
+
 // --- UTILS ---
 const gameResponseFields = {
   gameId: "string",
@@ -102,6 +103,7 @@ export class Games {
     } catch (error) {
       handleError(res, error, "Error searching games");
     }
+  
   }
 
   @describe({
@@ -181,7 +183,6 @@ export class Games {
   }
 
   // --- CREATION & MODIFICATION ---
-
   @httpPost("/", LoggedCheck.middleware)
   public async createGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(createGameBodySchema, req.body, res))) return;
@@ -213,7 +214,6 @@ export class Games {
       handleError(res, error, "Error creating game");
     }
   }
-
   @httpPut(":gameId", LoggedCheck.middleware)
   public async updateGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(gameIdParamSchema, req.params, res))) return;
@@ -231,7 +231,6 @@ export class Games {
   }
 
   // --- ACHAT ---
-
   @httpPost(":gameId/buy", LoggedCheck.middleware)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
@@ -258,7 +257,7 @@ export class Games {
       handleError(res, error, "Error purchasing game");
     }
   }
-
+  // --- PROPRIÉTÉ ---
   @httpPost("/transfer-ownership/:gameId", LoggedCheck.middleware)
   public async transferOwnership(req: AuthenticatedRequest, res: Response) {
     if(!req.user) {
