@@ -50,7 +50,7 @@ let Inventories = class Inventories {
     async createLog(req, controller, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
-                ip_address: req.headers["x-forwarded-for"] as string || req.socket.remoteAddress as string,
+                ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
                 controller: `InventoryController.${controller}`,
                 original_path: req.originalUrl,

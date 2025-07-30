@@ -26,7 +26,7 @@ let Studios = class Studios {
     async logAction(req, tableName, statusCode) {
         try {
             await this.logService.createLog({
-                ip_address: req.headers["x-forwarded-for"] as string || req.socket.remoteAddress as string,
+                ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
                 controller: 'StudioController',
                 original_path: req.originalUrl,
