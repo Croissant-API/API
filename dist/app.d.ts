@@ -14,4 +14,5 @@ import "./controllers/StripeController";
 import "./controllers/WebAuthnController";
 import "./controllers/AuthenticatorController";
 import "./controllers/GameGiftController";
+import "./controllers/MarketplaceController";
 export declare const app: express.Application;
