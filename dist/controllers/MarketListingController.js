@@ -16,7 +16,6 @@ exports.MarketListingController = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const describe_1 = require("../decorators/describe");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -142,7 +141,6 @@ let MarketListingController = class MarketListingController {
             handleError(res, error, "Error while searching market listings");
         }
     }
-    // Buy
     async buyMarketListing(req, res) {
         if (!req.user || !req.user.user_id) {
             return res.status(401).send({ message: "Unauthorized" });
@@ -162,115 +160,48 @@ let MarketListingController = class MarketListingController {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings",
-        method: "POST",
-        description: "Créer un ordre de vente (mettre un item en vente)",
-        body: {
-            inventoryItem: "InventoryItem à mettre en vente",
-            sellingPrice: "Prix de vente"
-        },
-        // responseType: "MarketListing",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "createMarketListing", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/:id/cancel",
-        method: "PUT",
-        description: "Annuler un ordre de vente et récupérer l'item",
-        params: { id: "ID de l'ordre de vente" },
-        responseType: { message: "string" },
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpPut)("/:id/cancel", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "cancelMarketListing", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/user/:userId",
-        method: "GET",
-        description: "Récupérer tous les ordres de vente d'un utilisateur",
-        params: { userId: "ID de l'utilisateur" },
-        responseType: ["MarketListing"],
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "getMarketListingsByUser", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/item/:itemId",
-        method: "GET",
-        description: "Récupérer tous les ordres de vente actifs pour un item",
-        params: { itemId: "ID de l'item" },
-        responseType: ["MarketListing"],
-        requiresAuth: false
-    }),
     (0, inversify_express_utils_1.httpGet)("/item/:itemId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "getActiveListingsForItem", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/:id",
-        method: "GET",
-        description: "Récupérer un ordre de vente par son ID",
-        params: { id: "ID de l'ordre de vente" },
-        // responseType: "MarketListing",
-        requiresAuth: false
-    }),
     (0, inversify_express_utils_1.httpGet)("/:id"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "getMarketListingById", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings",
-        method: "GET",
-        description: "Récupérer les ordres de vente enrichis (avec détails item)",
-        query: { limit: "number", offset: "number" },
-        responseType: ["EnrichedMarketListing"],
-        requiresAuth: false
-    }),
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "getEnrichedMarketListings", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/search",
-        method: "GET",
-        description: "Recherche d'ordres de vente par nom d'item",
-        query: { q: "string", limit: "number" },
-        responseType: ["EnrichedMarketListing"],
-        requiresAuth: false
-    }),
     (0, inversify_express_utils_1.httpGet)("/search"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "searchMarketListings", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/market-listings/:id/buy",
-        method: "POST",
-        description: "Acheter un item d'un ordre de vente",
-        params: { id: "ID de l'ordre de vente" },
-        body: { amount: "number" },
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpPost)("/:id/buy", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

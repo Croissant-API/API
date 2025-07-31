@@ -10,7 +10,6 @@ import { IMarketListingService } from "../services/MarketListingService";
 import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { InventoryItem } from "../interfaces/Inventory";
-import { describe } from "../decorators/describe";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -51,17 +50,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings",
-        method: "POST",
-        description: "Créer un ordre de vente (mettre un item en vente)",
-        body: {
-            inventoryItem: "InventoryItem à mettre en vente",
-            sellingPrice: "Prix de vente"
-        },
-        // responseType: "MarketListing",
-        requiresAuth: true
-    })
     @httpPost("/", LoggedCheck.middleware)
     public async createMarketListing(req: AuthenticatedRequest, res: Response) {
         const sellerId = req.user.user_id;
@@ -82,14 +70,7 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings/:id/cancel",
-        method: "PUT",
-        description: "Annuler un ordre de vente et récupérer l'item",
-        params: { id: "ID de l'ordre de vente" },
-        responseType: { message: "string" },
-        requiresAuth: true
-    })
+
     @httpPut("/:id/cancel", LoggedCheck.middleware)
     public async cancelMarketListing(req: AuthenticatedRequest, res: Response) {
         const sellerId = req.user.user_id;
@@ -105,14 +86,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings/user/:userId",
-        method: "GET",
-        description: "Récupérer tous les ordres de vente d'un utilisateur",
-        params: { userId: "ID de l'utilisateur" },
-        responseType: ["MarketListing"],
-        requiresAuth: true
-    })
     @httpGet("/user/:userId", LoggedCheck.middleware)
     public async getMarketListingsByUser(req: AuthenticatedRequest, res: Response) {
         const userId = req.params.userId;
@@ -130,14 +103,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings/item/:itemId",
-        method: "GET",
-        description: "Récupérer tous les ordres de vente actifs pour un item",
-        params: { itemId: "ID de l'item" },
-        responseType: ["MarketListing"],
-        requiresAuth: false
-    })
     @httpGet("/item/:itemId")
     public async getActiveListingsForItem(req: AuthenticatedRequest, res: Response) {
         const itemId = req.params.itemId;
@@ -149,14 +114,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings/:id",
-        method: "GET",
-        description: "Récupérer un ordre de vente par son ID",
-        params: { id: "ID de l'ordre de vente" },
-        // responseType: "MarketListing",
-        requiresAuth: false
-    })
     @httpGet("/:id")
     public async getMarketListingById(req: AuthenticatedRequest, res: Response) {
         const listingId = req.params.id;
@@ -171,14 +128,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings",
-        method: "GET",
-        description: "Récupérer les ordres de vente enrichis (avec détails item)",
-        query: { limit: "number", offset: "number" },
-        responseType: ["EnrichedMarketListing"],
-        requiresAuth: false
-    })
     @httpGet("/")
     public async getEnrichedMarketListings(req: AuthenticatedRequest, res: Response) {
         const limit = req.query.limit ? Number(req.query.limit) : 50;
@@ -191,14 +140,6 @@ export class MarketListingController {
         }
     }
 
-    @describe({
-        endpoint: "/market-listings/search",
-        method: "GET",
-        description: "Recherche d'ordres de vente par nom d'item",
-        query: { q: "string", limit: "number" },
-        responseType: ["EnrichedMarketListing"],
-        requiresAuth: false
-    })
     @httpGet("/search")
     public async searchMarketListings(req: AuthenticatedRequest, res: Response) {
         const searchTerm = req.query.q as string;
@@ -214,15 +155,7 @@ export class MarketListingController {
         }
     }
 
-    // Buy
-    @describe({
-        endpoint: "/market-listings/:id/buy",
-        method: "POST",
-        description: "Acheter un item d'un ordre de vente",
-        params: { id: "ID de l'ordre de vente" },
-        body: { amount: "number" },
-        requiresAuth: true
-    })
+
     @httpPost("/:id/buy", LoggedCheck.middleware)
     public async buyMarketListing(req: AuthenticatedRequest, res: Response) {
         if(!req.user || !req.user.user_id) {
