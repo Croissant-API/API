@@ -43,68 +43,124 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const qrcode = __importStar(require("qrcode"));
 const time2fa_1 = require("time2fa");
 const GenKey_1 = require("../utils/GenKey");
+// --- UTILS ---
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
 let Authenticator = class Authenticator {
-    constructor(userService) {
+    constructor(userService
+    // @inject("LogService") private logService: ILogService // à ajouter si tu veux logger en base
+    ) {
         this.userService = userService;
+    }
+    // Helper pour les logs (console ici, à remplacer par logService si besoin)
+    async logAction(req, action, statusCode, metadata) {
+        // Remplace ce log par un appel à logService si besoin
+        console.log(`[AuthenticatorController]`, {
+            user: req.user?.user_id,
+            action,
+            statusCode,
+            path: req.originalUrl,
+            method: req.method,
+            metadata
+        });
     }
     async generateKey(req, res) {
         const user = req.user;
         if (!user || !user.email) {
+            await this.logAction(req, "generateKey", 400);
             return res.status(400).send({ message: "User not authenticated or email missing" });
         }
-        const key = time2fa_1.Totp.generateKey({ issuer: "Croissant API", user: user.email });
-        qrcode.toDataURL(key.url, (err, url) => {
-            if (err) {
-                console.error("Error generating QR code:", err);
-                return res.status(500).send({ message: "Error generating QR code" });
-            }
-            res.status(200).send({ key, qrCode: url });
-        });
+        try {
+            const key = time2fa_1.Totp.generateKey({ issuer: "Croissant API", user: user.email });
+            qrcode.toDataURL(key.url, async (err, url) => {
+                if (err) {
+                    await this.logAction(req, "generateKey", 500, { error: err });
+                    return res.status(500).send({ message: "Error generating QR code" });
+                }
+                await this.logAction(req, "generateKey", 200);
+                res.status(200).send({ key, qrCode: url });
+            });
+        }
+        catch (error) {
+            await this.logAction(req, "generateKey", 500, { error });
+            handleError(res, error, "Error generating key");
+        }
     }
     async registerKey(req, res) {
         const user = req.user;
         const { key, passcode } = req.body;
         if (!user || !user.email || !key) {
+            await this.logAction(req, "registerKey", 400);
             return res.status(400).send({ message: "User not authenticated, email missing, or key missing" });
         }
         if (!passcode) {
+            await this.logAction(req, "registerKey", 400);
             return res.status(400).send({ message: "Passcode is required" });
         }
-        const isValid = time2fa_1.Totp.validate({ secret: key.secret, passcode });
-        if (!isValid) {
-            return res.status(400).send({ message: "Invalid passcode" });
+        try {
+            const isValid = time2fa_1.Totp.validate({ secret: key.secret, passcode });
+            if (!isValid) {
+                await this.logAction(req, "registerKey", 400);
+                return res.status(400).send({ message: "Invalid passcode" });
+            }
+            await this.userService.setAuthenticatorSecret(user.user_id, key.secret);
+            await this.logAction(req, "registerKey", 200);
+            res.status(200).send({ message: "Key registered successfully" });
         }
-        await this.userService.setAuthenticatorSecret(user.user_id, key.secret);
-        res.status(200).send({ message: "Key registered successfully" });
+        catch (error) {
+            await this.logAction(req, "registerKey", 500, { error });
+            handleError(res, error, "Error registering key");
+        }
     }
     async verifyKey(req, res) {
         const { code, userId } = req.body;
         if (!userId) {
+            await this.logAction(req, "verifyKey", 400);
             return res.status(400).send({ message: "User ID is required" });
         }
-        const user = await this.userService.getUser(userId);
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
+        try {
+            const user = await this.userService.getUser(userId);
+            if (!user) {
+                await this.logAction(req, "verifyKey", 404);
+                return res.status(404).send({ message: "User not found" });
+            }
+            const key = user.authenticator_secret;
+            if (!key || !code) {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Key and code are required" });
+            }
+            const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
+            if (isValid) {
+                await this.logAction(req, "verifyKey", 200);
+                return res.status(200).send({ message: "Key verified successfully", token: (0, GenKey_1.genKey)(user.user_id) });
+            }
+            else {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Invalid key or code" });
+            }
         }
-        const key = user.authenticator_secret;
-        if (!key || !code) {
-            return res.status(400).send({ message: "Key and code are required" });
-        }
-        const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
-        if (isValid) {
-            return res.status(200).send({ message: "Key verified successfully", token: (0, GenKey_1.genKey)(user.user_id) });
-        }
-        else {
-            return res.status(400).send({ message: "Invalid key or code" });
+        catch (error) {
+            await this.logAction(req, "verifyKey", 500, { error });
+            handleError(res, error, "Error verifying key");
         }
     }
     async deleteKey(req, res) {
         const user = req.user;
         if (!user || !user.email) {
+            await this.logAction(req, "deleteKey", 400);
             return res.status(400).send({ message: "User not authenticated or email missing" });
         }
-        await this.userService.setAuthenticatorSecret(user.user_id, null);
-        res.status(200).send({ message: "Google Authenticator deleted successfully" });
+        try {
+            await this.userService.setAuthenticatorSecret(user.user_id, null);
+            await this.logAction(req, "deleteKey", 200);
+            res.status(200).send({ message: "Google Authenticator deleted successfully" });
+        }
+        catch (error) {
+            await this.logAction(req, "deleteKey", 500, { error });
+            handleError(res, error, "Error deleting authenticator");
+        }
     }
 };
 __decorate([

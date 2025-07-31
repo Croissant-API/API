@@ -26,29 +26,26 @@ export class SearchController {
         @inject("LogService") private logService: ILogService
     ) { }
 
-    // Helper pour les logs
-    private async logAction(
+    // Helper pour les logs (uniformisé)
+    private async createLog(
         req: Request,
+        action: string,
         tableName?: string,
         statusCode?: number,
+        userId?: string,
         metadata?: object
     ) {
         try {
             const requestBody = { ...req.body };
-            
-            // Ajouter les métadonnées si fournies
-            if (metadata) {
-                requestBody.metadata = metadata;
-            }
-
+            if (metadata) requestBody.metadata = metadata;
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
-                controller: 'SearchController',
+                controller: `SearchController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: requestBody,
-                user_id: (req as AuthenticatedRequest).user?.user_id as string,
+                user_id: userId ?? (req as AuthenticatedRequest).user?.user_id as string,
                 status_code: statusCode
             });
         } catch (error) {
@@ -60,14 +57,14 @@ export class SearchController {
     public async globalSearch(req: Request, res: Response) {
         const query = (req.query.q as string)?.trim();
         if (!query) {
-            await this.logAction(req, 'search', 400, { reason: 'missing_query' });
+            await this.createLog(req, 'globalSearch', 'search', 400, undefined, { reason: 'missing_query' });
             return sendError(res, 400, "Missing search query");
         }
 
         try {
             const users: User[] = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                if (user.disabled) return null; // Skip disabled users
+                if (user.disabled) return null;
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
                 const formattedInventory = await formatInventory(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
@@ -85,7 +82,7 @@ export class SearchController {
                 )
             ).map(g => filterGame(g));
 
-            await this.logAction(req, 'search', 200, { 
+            await this.createLog(req, 'globalSearch', 'search', 200, undefined, {
                 query,
                 results_count: {
                     users: detailledUsers.filter(u => u !== null).length,
@@ -97,7 +94,7 @@ export class SearchController {
             res.send({ users: detailledUsers, items, games: filteredGames });
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.logAction(req, 'search', 500, { 
+            await this.createLog(req, 'globalSearch', 'search', 500, undefined, {
                 query,
                 error: msg
             });
@@ -108,20 +105,19 @@ export class SearchController {
     @httpGet("/admin", LoggedCheck.middleware)
     public async adminSearch(req: AuthenticatedRequest, res: Response) {
         if (!req.user?.admin) {
-            await this.logAction(req, 'search', 403, { reason: 'not_admin' });
+            await this.createLog(req, 'adminSearch', 'search', 403, req.user?.user_id, { reason: 'not_admin' });
             return sendError(res, 403, "Forbidden");
         }
 
         const query = (req.query.q as string)?.trim();
         if (!query) {
-            await this.logAction(req, 'search', 400, { reason: 'missing_query', admin_search: true });
+            await this.createLog(req, 'adminSearch', 'search', 400, req.user?.user_id, { reason: 'missing_query', admin_search: true });
             return sendError(res, 400, "Missing search query");
         }
 
         try {
             const users: User[] = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                // if (user.disabled) return null; // Skip disabled users
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
                 const formattedInventory = await formatInventory(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
@@ -139,7 +135,7 @@ export class SearchController {
                 )
             ).map(g => filterGame(g));
 
-            await this.logAction(req, 'search', 200, { 
+            await this.createLog(req, 'adminSearch', 'search', 200, req.user?.user_id, {
                 query,
                 admin_search: true,
                 results_count: {
@@ -152,7 +148,7 @@ export class SearchController {
             res.send({ users: detailledUsers, items, games: filteredGames });
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.logAction(req, 'search', 500, { 
+            await this.createLog(req, 'adminSearch', 'search', 500, req.user?.user_id, {
                 query,
                 admin_search: true,
                 error: msg

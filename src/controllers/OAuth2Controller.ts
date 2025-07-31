@@ -23,23 +23,19 @@ export class OAuth2 {
   constructor(
     @inject("OAuth2Service") private oauth2Service: IOAuth2Service,
     @inject("LogService") private logService: ILogService
-  ) {}
+  ) { }
 
-  // Helper pour les logs
-  private async logAction(
+  // Helper pour les logs (uniformisé)
+  private async createLog(
     req: Request,
-    tableName?: string,
+    tableName: string,
     statusCode?: number,
+    userId?: string,
     metadata?: object
   ) {
     try {
       const requestBody = { ...req.body };
-      
-      // Ajouter les métadonnées si fournies
-      if (metadata) {
-        requestBody.metadata = metadata;
-      }
-
+      if (metadata) requestBody.metadata = metadata;
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
@@ -47,7 +43,7 @@ export class OAuth2 {
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: requestBody,
-        user_id: (req as AuthenticatedRequest).user?.user_id as string,
+        user_id: userId ?? (req as AuthenticatedRequest).user?.user_id as string,
         status_code: statusCode
       });
     } catch (error) {
@@ -76,13 +72,13 @@ export class OAuth2 {
     try {
       const app = await this.oauth2Service.getFormattedAppByClientId(client_id);
       if (!app) {
-        await this.logAction(req, 'oauth2_apps', 404, { client_id });
+        await this.createLog(req, 'oauth2_apps', 404, undefined, { client_id });
         return res.status(404).send({ message: "App not found" });
       }
-      await this.logAction(req, 'oauth2_apps', 200, { client_id, app_name: app.name });
+      await this.createLog(req, 'oauth2_apps', 200, undefined, { client_id, app_name: app.name });
       res.send(app);
     } catch (error) {
-      await this.logAction(req, 'oauth2_apps', 500, { 
+      await this.createLog(req, 'oauth2_apps', 500, undefined, {
         client_id,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -109,7 +105,7 @@ export class OAuth2 {
   async createApp(req: AuthenticatedRequest, res: Response) {
     const { name, redirect_urls } = req.body;
     if (!name || !redirect_urls || !Array.isArray(redirect_urls)) {
-      await this.logAction(req, 'oauth2_apps', 400, { reason: 'invalid_request_body' });
+      await this.createLog(req, 'oauth2_apps', 400, req.user.user_id, { reason: 'invalid_request_body' });
       return res.status(400).send({ message: "Invalid request body" });
     }
     try {
@@ -118,17 +114,17 @@ export class OAuth2 {
         name,
         redirect_urls
       );
-      await this.logAction(req, 'oauth2_apps', 201, { 
+      await this.createLog(req, 'oauth2_apps', 201, req.user.user_id, {
         app_name: name,
         client_id: app.client_id,
         redirect_urls_count: redirect_urls.length
       });
-      res.status(201).send({ 
-        client_id: app.client_id, 
-        client_secret: app.client_secret 
+      res.status(201).send({
+        client_id: app.client_id,
+        client_secret: app.client_secret
       });
     } catch (error) {
-      await this.logAction(req, 'oauth2_apps', 500, { 
+      await this.createLog(req, 'oauth2_apps', 500, req.user.user_id, {
         app_name: name,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -153,10 +149,10 @@ export class OAuth2 {
   async getMyApps(req: AuthenticatedRequest, res: Response) {
     try {
       const apps = await this.oauth2Service.getFormattedAppsByOwner(req.user.user_id);
-      await this.logAction(req, 'oauth2_apps', 200, { apps_count: apps.length });
+      await this.createLog(req, 'oauth2_apps', 200, req.user.user_id, { apps_count: apps.length });
       res.send(apps);
     } catch (error) {
-      await this.logAction(req, 'oauth2_apps', 500, { 
+      await this.createLog(req, 'oauth2_apps', 500, req.user.user_id, {
         error: error instanceof Error ? error.message : String(error)
       });
       handleError(res, error, "Error fetching apps");
@@ -185,7 +181,7 @@ export class OAuth2 {
         name,
         redirect_urls,
       });
-      await this.logAction(req, 'oauth2_apps', 200, { 
+      await this.createLog(req, 'oauth2_apps', 200, req.user.user_id, {
         client_id,
         updated_fields: {
           name: name ? true : false,
@@ -194,7 +190,7 @@ export class OAuth2 {
       });
       res.status(200).send({ success: true });
     } catch (error) {
-      await this.logAction(req, 'oauth2_apps', 500, { 
+      await this.createLog(req, 'oauth2_apps', 500, req.user.user_id, {
         client_id,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -216,10 +212,10 @@ export class OAuth2 {
     const { client_id } = req.params;
     try {
       await this.oauth2Service.deleteApp(client_id, req.user.user_id);
-      await this.logAction(req, 'oauth2_apps', 204, { client_id });
+      await this.createLog(req, 'oauth2_apps', 204, req.user.user_id, { client_id });
       res.status(204).send();
     } catch (error) {
-      await this.logAction(req, 'oauth2_apps', 500, { 
+      await this.createLog(req, 'oauth2_apps', 500, req.user.user_id, {
         client_id,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -245,35 +241,35 @@ export class OAuth2 {
   async authorize(req: AuthenticatedRequest, res: Response) {
     const { client_id, redirect_uri } = req.query as any;
     const userId = req.user?.user_id;
-    
+
     if (!userId) {
-      await this.logAction(req, 'oauth2_authorizations', 401, { reason: 'no_user_id' });
+      await this.createLog(req, 'oauth2_authorizations', 401, undefined, { reason: 'no_user_id' });
       return res.status(401).send({ message: "Unauthorized" });
     }
-    
+
     if (!client_id || !redirect_uri) {
-      await this.logAction(req, 'oauth2_authorizations', 400, { 
+      await this.createLog(req, 'oauth2_authorizations', 400, userId, {
         reason: 'missing_parameters',
         has_client_id: !!client_id,
         has_redirect_uri: !!redirect_uri
       });
       return res.status(400).send({ message: "Missing client_id or redirect_uri" });
     }
-    
+
     try {
       const code = await this.oauth2Service.generateAuthCode(
         client_id,
         redirect_uri,
         userId
       );
-      await this.logAction(req, 'oauth2_authorizations', 200, { 
+      await this.createLog(req, 'oauth2_authorizations', 200, userId, {
         client_id,
         redirect_uri,
         code_generated: true
       });
       res.send({ code });
     } catch (error) {
-      await this.logAction(req, 'oauth2_authorizations', 500, { 
+      await this.createLog(req, 'oauth2_authorizations', 500, userId, {
         client_id,
         redirect_uri,
         error: error instanceof Error ? error.message : String(error)
@@ -305,34 +301,34 @@ export class OAuth2 {
   @httpGet("/user")
   async getUserByCode(req: Request, res: Response) {
     const { code, client_id } = req.query as any;
-    
+
     if (!code || !client_id) {
-      await this.logAction(req, 'oauth2_user_access', 400, { 
+      await this.createLog(req, 'oauth2_user_access', 400, undefined, {
         reason: 'missing_parameters',
         has_code: !!code,
         has_client_id: !!client_id
       });
       return res.status(400).send({ message: "Missing code or client_id" });
     }
-    
+
     try {
       const user = await this.oauth2Service.getUserByCode(code, client_id);
       if (!user) {
-        await this.logAction(req, 'oauth2_user_access', 404, { 
+        await this.createLog(req, 'oauth2_user_access', 404, undefined, {
           client_id,
           code_provided: true
         });
         return res.status(404).send({ message: "User not found" });
       }
-      
-      await this.logAction(req, 'oauth2_user_access', 200, { 
+
+      await this.createLog(req, 'oauth2_user_access', 200, user.user_id, {
         client_id,
         user_id: user.user_id,
         username: user.username
       });
       res.send(user);
     } catch (error) {
-      await this.logAction(req, 'oauth2_user_access', 500, { 
+      await this.createLog(req, 'oauth2_user_access', 500, undefined, {
         client_id,
         error: error instanceof Error ? error.message : String(error)
       });

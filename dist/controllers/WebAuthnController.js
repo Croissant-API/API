@@ -25,16 +25,19 @@ let WebAuthn = class WebAuthn {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    // Helper pour créer des logs (uniformisé)
+    async createLog(req, action, tableName, statusCode, userId, metadata) {
         try {
+            const requestBody = { ...req.body };
+            if (metadata)
+                requestBody.metadata = metadata;
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `WebAuthnController.${controller}`,
+                controller: `WebAuthnController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
-                request_body: req.body,
+                request_body: requestBody,
                 user_id: userId,
                 status_code: statusCode
             });

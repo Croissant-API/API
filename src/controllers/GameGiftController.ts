@@ -12,6 +12,12 @@ import { IUserService } from "../services/UserService";
 import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 
+// --- UTILS ---
+function handleError(res: Response, error: unknown, message: string, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
+
 @controller("/gifts")
 export class GameGifts {
     constructor(
@@ -21,13 +27,19 @@ export class GameGifts {
         @inject("LogService") private logService: ILogService
     ) { }
 
-    // Helper pour créer des logs
-    private async createLog(req: AuthenticatedRequest, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+    // Helper pour créer des logs (signature uniforme)
+    private async createLog(
+        req: AuthenticatedRequest,
+        action: string,
+        tableName?: string,
+        statusCode?: number,
+        userId?: string
+    ) {
         try {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
                 table_name: tableName,
-                controller: `GameGiftController.${controller}`,
+                controller: `GameGiftController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: req.body,
@@ -92,8 +104,7 @@ export class GameGifts {
             });
         } catch (error) {
             await this.createLog(req, 'createGift', 'gifts', 500, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error creating gift", error: msg });
+            handleError(res, error, "Error creating gift");
         }
     }
 
@@ -130,8 +141,7 @@ export class GameGifts {
             });
         } catch (error) {
             await this.createLog(req, 'claimGift', 'gifts', 400, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(400).send({ message: msg });
+            handleError(res, error, "Error claiming gift", 400);
         }
     }
 
@@ -154,8 +164,7 @@ export class GameGifts {
             res.send(enrichedGifts);
         } catch (error) {
             await this.createLog(req, 'getSentGifts', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching sent gifts", error: msg });
+            handleError(res, error, "Error fetching sent gifts");
         }
     }
 
@@ -180,8 +189,7 @@ export class GameGifts {
             res.send(enrichedGifts);
         } catch (error) {
             await this.createLog(req, 'getReceivedGifts', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching received gifts", error: msg });
+            handleError(res, error, "Error fetching received gifts");
         }
     }
 
@@ -216,8 +224,7 @@ export class GameGifts {
             });
         } catch (error) {
             await this.createLog(req, 'getGiftInfo', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching gift info", error: msg });
+            handleError(res, error, "Error fetching gift info");
         }
     }
 
@@ -259,8 +266,7 @@ export class GameGifts {
             res.send({ message: "Gift revoked successfully and refund processed" });
         } catch (error) {
             await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(400).send({ message: msg });
+            handleError(res, error, "Error revoking gift", 400);
         }
     }
 }

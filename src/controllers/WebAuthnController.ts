@@ -15,16 +15,25 @@ export class WebAuthn {
     @inject("LogService") private logService: ILogService // Injection LogService
   ) { }
 
-  // Helper pour créer des logs
-  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+  // Helper pour créer des logs (uniformisé)
+  private async createLog(
+    req: Request,
+    action: string,
+    tableName?: string,
+    statusCode?: number,
+    userId?: string,
+    metadata?: object
+  ) {
     try {
+      const requestBody = { ...req.body };
+      if (metadata) requestBody.metadata = metadata;
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
-        controller: `WebAuthnController.${controller}`,
+        controller: `WebAuthnController.${action}`,
         original_path: req.originalUrl,
         http_method: req.method,
-        request_body: req.body,
+        request_body: requestBody,
         user_id: userId,
         status_code: statusCode
       });

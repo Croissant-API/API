@@ -25,22 +25,20 @@ let SearchController = class SearchController {
         this.inventoryService = inventoryService;
         this.logService = logService;
     }
-    // Helper pour les logs
-    async logAction(req, tableName, statusCode, metadata) {
+    // Helper pour les logs (uniformisé)
+    async createLog(req, action, tableName, statusCode, userId, metadata) {
         try {
             const requestBody = { ...req.body };
-            // Ajouter les métadonnées si fournies
-            if (metadata) {
+            if (metadata)
                 requestBody.metadata = metadata;
-            }
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: 'SearchController',
+                controller: `SearchController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: requestBody,
-                user_id: req.user?.user_id,
+                user_id: userId ?? req.user?.user_id,
                 status_code: statusCode
             });
         }
@@ -51,14 +49,14 @@ let SearchController = class SearchController {
     async globalSearch(req, res) {
         const query = req.query.q?.trim();
         if (!query) {
-            await this.logAction(req, 'search', 400, { reason: 'missing_query' });
+            await this.createLog(req, 'globalSearch', 'search', 400, undefined, { reason: 'missing_query' });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
         }
         try {
             const users = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
                 if (user.disabled)
-                    return null; // Skip disabled users
+                    return null;
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
                 const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
@@ -70,7 +68,7 @@ let SearchController = class SearchController {
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
             const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
-            await this.logAction(req, 'search', 200, {
+            await this.createLog(req, 'globalSearch', 'search', 200, undefined, {
                 query,
                 results_count: {
                     users: detailledUsers.filter(u => u !== null).length,
@@ -82,7 +80,7 @@ let SearchController = class SearchController {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.logAction(req, 'search', 500, {
+            await this.createLog(req, 'globalSearch', 'search', 500, undefined, {
                 query,
                 error: msg
             });
@@ -91,18 +89,17 @@ let SearchController = class SearchController {
     }
     async adminSearch(req, res) {
         if (!req.user?.admin) {
-            await this.logAction(req, 'search', 403, { reason: 'not_admin' });
+            await this.createLog(req, 'adminSearch', 'search', 403, req.user?.user_id, { reason: 'not_admin' });
             return (0, helpers_1.sendError)(res, 403, "Forbidden");
         }
         const query = req.query.q?.trim();
         if (!query) {
-            await this.logAction(req, 'search', 400, { reason: 'missing_query', admin_search: true });
+            await this.createLog(req, 'adminSearch', 'search', 400, req.user?.user_id, { reason: 'missing_query', admin_search: true });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
         }
         try {
             const users = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                // if (user.disabled) return null; // Skip disabled users
                 const { inventory } = await this.inventoryService.getInventory(user.user_id);
                 const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
                 const items = await this.itemService.getAllItems();
@@ -114,7 +111,7 @@ let SearchController = class SearchController {
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
             const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
-            await this.logAction(req, 'search', 200, {
+            await this.createLog(req, 'adminSearch', 'search', 200, req.user?.user_id, {
                 query,
                 admin_search: true,
                 results_count: {
@@ -127,7 +124,7 @@ let SearchController = class SearchController {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.logAction(req, 'search', 500, {
+            await this.createLog(req, 'adminSearch', 'search', 500, req.user?.user_id, {
                 query,
                 admin_search: true,
                 error: msg

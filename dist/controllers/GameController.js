@@ -64,13 +64,13 @@ let Games = class Games {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    // Helper pour créer des logs (signature uniforme)
+    async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `GameController.${controller}`,
+                controller: `GameController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: req.body,

@@ -22,24 +22,33 @@ export class Users {
     @inject("LogService") private logService: ILogService,
     @inject("MailService") private mailService: MailService,
     @inject("StudioService") private studioService: StudioService,
-    @inject("SteamOAuthService") private steamOAuthService: any // Assuming you have a SteamOAuthService
+    @inject("SteamOAuthService") private steamOAuthService: any
   ) { }
 
-  // Helper simplifié - garde seulement les essentiels
+  // --- HELPERS ---
+
   private sendError(res: Response, status: number, message: string) {
     return res.status(status).send({ message });
   }
 
-  // Helper pour créer des logs
-  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+  private async createLog(
+    req: Request,
+    action: string,
+    tableName?: string,
+    statusCode?: number,
+    userId?: string,
+    metadata?: object
+  ) {
     try {
+      const requestBody = { ...req.body };
+      if (metadata) requestBody.metadata = metadata;
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
-        controller: `UserController.${controller}`,
+        controller: `UserController.${action}`,
         original_path: req.originalUrl,
         http_method: req.method,
-        request_body: req.body,
+        request_body: requestBody,
         user_id: userId,
         status_code: statusCode
       });
@@ -48,7 +57,6 @@ export class Users {
     }
   }
 
-  // Ce helper peut être inline dans les méthodes
   private requireFields(obj: any, fields: string[]): boolean {
     return fields.every(f => obj[f]);
   }
@@ -85,15 +93,13 @@ export class Users {
   }
 
   // --- AUTHENTIFICATION & INSCRIPTION ---
-  
+
   @httpPost("/login-oauth")
   public async loginOAuth(req: Request, res: Response) {
     const { email, provider, providerId, username } = req.body;
     if (!email || !provider || !providerId) {
       await this.createLog(req, 'loginOAuth', 'users', 400);
-      return res
-        .status(400)
-        .send({ message: "Missing email, provider or providerId" });
+      return this.sendError(res, 400, "Missing email, provider or providerId");
     }
 
     const users = await this.userService.getAllUsersWithDisabled();
@@ -140,14 +146,13 @@ export class Users {
           user.google_id !== providerId)
       ) {
         await this.createLog(req, 'loginOAuth', 'users', 401, user.user_id);
-        return res.status(401).send({ message: "OAuth providerId mismatch" });
+        return this.sendError(res, 401, "OAuth providerId mismatch");
       }
     }
     if (user.disabled) {
       await this.createLog(req, 'loginOAuth', 'users', 403, user.user_id);
-      return res.status(403).send({ message: "Account is disabled" });
+      return this.sendError(res, 403, "Account is disabled");
     }
-    
     await this.createLog(req, 'loginOAuth', 'users', 200, user.user_id);
     res.status(200).send({
       message: "Login successful",
@@ -160,7 +165,6 @@ export class Users {
     });
   }
 
-  
   @httpPost("/register")
   public async register(req: Request, res: Response) {
     const missing = this.requireFields(req.body, ["username", "email"]);
@@ -209,7 +213,6 @@ export class Users {
     }
   }
 
-  
   @httpPost("/login")
   public async login(req: Request, res: Response) {
     const allUsers = await this.userService.getAllUsersWithDisabled();
@@ -232,7 +235,7 @@ export class Users {
       .catch((err) => {
         console.error("Error sending connection notification email", err);
       });
-    
+
     await this.createLog(req, 'login', 'users', 200, user.user_id);
     if (!user.authenticator_secret) {
       res.status(200).send({
@@ -251,7 +254,8 @@ export class Users {
     }
   }
 
-  
+  // --- PROFIL UTILISATEUR ---
+
   @describe({
     endpoint: "/users/@me",
     method: "GET",
@@ -277,33 +281,28 @@ export class Users {
       await this.createLog(req, 'getMe', 'users', 401);
       return this.sendError(res, 401, "Unauthorized");
     }
-    
-    // Get user with all related data in one call
     const userWithData = await this.userService.getUserWithCompleteProfile(userId);
     if (!userWithData) {
       await this.createLog(req, 'getMe', 'users', 404, userId);
       return this.sendError(res, 404, "User not found");
     }
-    
     const studios = await this.studioService.getUserStudios(req.originalUser?.user_id || userId);
     const roles = [req.originalUser?.user_id as string, ...studios.map((s) => s.user_id)];
-
     await this.createLog(req, 'getMe', 'users', 200, userId);
-    res.send({ 
-      ...this.mapUser(userWithData), 
-      verificationKey: genVerificationKey(userWithData.user_id), 
-      google_id: userWithData.google_id, 
-      discord_id: userWithData.discord_id, 
-      studios, 
-      roles, 
-      inventory: userWithData.inventory || [], 
-      ownedItems: userWithData.ownedItems || [], 
-      createdGames: userWithData.createdGames || [], 
-      haveAuthenticator: !!userWithData.authenticator_secret 
+    res.send({
+      ...this.mapUser(userWithData),
+      verificationKey: genVerificationKey(userWithData.user_id),
+      google_id: userWithData.google_id,
+      discord_id: userWithData.discord_id,
+      studios,
+      roles,
+      inventory: userWithData.inventory || [],
+      ownedItems: userWithData.ownedItems || [],
+      createdGames: userWithData.createdGames || [],
+      haveAuthenticator: !!userWithData.authenticator_secret
     });
   }
 
-  
   @httpPost("/change-username", LoggedCheck.middleware)
   public async changeUsername(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
@@ -326,7 +325,6 @@ export class Users {
     }
   }
 
-  
   @httpPost("/change-password", LoggedCheck.middleware)
   public async changePassword(req: AuthenticatedRequest, res: Response) {
     const { oldPassword, newPassword, confirmPassword } = req.body;
@@ -365,7 +363,6 @@ export class Users {
     }
   }
 
-  
   @httpPost("/forgot-password")
   public async forgotPassword(req: Request, res: Response) {
     const { email } = req.body;
@@ -384,7 +381,6 @@ export class Users {
     res.status(200).send({ message: "Password reset email sent" });
   }
 
-  
   @httpPost("/reset-password")
   public async resetPassword(req: Request, res: Response) {
     const { new_password, confirm_password, reset_token } = req.body;
@@ -412,7 +408,24 @@ export class Users {
     }
   }
 
-  
+  @httpGet("/validate-reset-token")
+  public async isValidResetToken(req: Request, res: Response) {
+    const { reset_token } = req.query;
+    if (!reset_token) {
+      await this.createLog(req, 'isValidResetToken', 'users', 400);
+      return this.sendError(res, 400, "Missing required fields");
+    }
+    const user = await this.userService.findByResetToken(reset_token as string);
+    if (!user) {
+      await this.createLog(req, 'isValidResetToken', 'users', 404);
+      return this.sendError(res, 404, "Invalid reset token");
+    }
+    await this.createLog(req, 'isValidResetToken', 'users', 200, user.user_id);
+    res.status(200).send({ message: "Valid reset token", user });
+  }
+
+  // --- STEAM ---
+
   @httpGet("/steam-redirect")
   public async steamRedirect(req: Request, res: Response) {
     const url = this.steamOAuthService.getAuthUrl();
@@ -420,7 +433,6 @@ export class Users {
     res.send(url);
   }
 
-  
   @httpGet("/steam-associate", LoggedCheck.middleware)
   public async steamAssociate(req: AuthenticatedRequest, res: Response) {
     const user = req.user;
@@ -459,7 +471,6 @@ export class Users {
     }
   }
 
-  
   @httpPost("/unlink-steam", LoggedCheck.middleware)
   public async unlinkSteam(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
@@ -473,13 +484,13 @@ export class Users {
       res.status(200).send({ message: "Steam account unlinked" });
     } catch (error) {
       console.error("Error unlinking Steam account", error);
-      const message = error instanceof Error ? error.message : String(error);
       await this.createLog(req, 'unlinkSteam', 'users', 500, userId);
       this.sendError(res, 500, "Error unlinking Steam account");
     }
   }
 
-  
+  // --- RECHERCHE UTILISATEUR ---
+
   @describe({
     endpoint: "/users/search",
     method: "GET",
@@ -519,7 +530,6 @@ export class Users {
     }
   }
 
-  
   @describe({
     endpoint: "/users/:userId",
     method: "GET",
@@ -550,24 +560,22 @@ export class Users {
       return this.sendError(res, 400, "Invalid userId");
     }
     const { userId } = req.params;
-    
-    // Get user with all related data in one call
     const userWithData = await this.userService.getUserWithPublicProfile(userId);
     if (!userWithData) {
       await this.createLog(req, 'getUser', 'users', 404);
       return this.sendError(res, 404, "User not found");
     }
-
     await this.createLog(req, 'getUser', 'users', 200);
-    res.send({ 
-      ...this.mapUserSearch(userWithData), 
-      inventory: userWithData.inventory || [], 
-      ownedItems: userWithData.ownedItems || [], 
-      createdGames: userWithData.createdGames || [] 
+    res.send({
+      ...this.mapUserSearch(userWithData),
+      inventory: userWithData.inventory || [],
+      ownedItems: userWithData.ownedItems || [],
+      createdGames: userWithData.createdGames || []
     });
   }
 
-  
+  // --- ADMINISTRATION ---
+
   @httpGet("/admin/search", LoggedCheck.middleware)
   public async adminSearchUsers(req: AuthenticatedRequest, res: Response) {
     if (!req.user?.admin) {
@@ -589,7 +597,6 @@ export class Users {
     }
   }
 
-  
   @httpPost("/admin/disable/:userId", LoggedCheck.middleware)
   public async disableAccount(req: AuthenticatedRequest, res: Response) {
     const { userId } = req.params;
@@ -643,25 +650,23 @@ export class Users {
       return this.sendError(res, 400, "Invalid userId");
     }
     const { userId } = req.params;
-    
-    // Get user with all related data in one call (admin version includes disabled users)
     const userWithData = await this.userService.adminGetUserWithProfile(userId);
     if (!userWithData) {
       await this.createLog(req, 'adminGetUser', 'users', 404, req.user?.user_id);
       return this.sendError(res, 404, "User not found");
     }
-
     await this.createLog(req, 'adminGetUser', 'users', 200, req.user?.user_id);
-    res.send({ 
-      ...this.mapUserSearch(userWithData), 
-      disabled: userWithData.disabled, 
-      inventory: userWithData.inventory || [], 
-      ownedItems: userWithData.ownedItems || [], 
-      createdGames: userWithData.createdGames || [] 
+    res.send({
+      ...this.mapUserSearch(userWithData),
+      disabled: userWithData.disabled,
+      inventory: userWithData.inventory || [],
+      ownedItems: userWithData.ownedItems || [],
+      createdGames: userWithData.createdGames || []
     });
   }
 
-  
+  // --- CRÉDITS ---
+
   @describe({
     endpoint: "/users/transfer-credits",
     method: "POST",
@@ -711,7 +716,8 @@ export class Users {
     }
   }
 
-  
+  // --- VÉRIFICATION ---
+
   @describe({
     endpoint: "/users/auth-verification",
     method: "POST",
@@ -742,7 +748,8 @@ export class Users {
     res.send({ success: isValid });
   }
 
-  
+  // --- RÔLES ---
+
   @httpPost("/change-role", LoggedCheck.middleware)
   async changeRole(req: AuthenticatedRequest, res: Response) {
     const userId = req.originalUser?.user_id;
@@ -774,21 +781,5 @@ export class Users {
       await this.createLog(req, 'changeRole', 'users', 500, userId);
       this.sendError(res, 500, "Error setting role cookie");
     }
-  }
-
-  @httpGet("/validate-reset-token")
-  public async isValidResetToken(req: Request, res: Response) {
-    const { reset_token } = req.query;
-    if (!reset_token) {
-      await this.createLog(req, 'isValidResetToken', 'users', 400);
-      return this.sendError(res, 400, "Missing required fields");
-    }
-    const user = await this.userService.findByResetToken(reset_token as string);
-    if (!user) {
-      await this.createLog(req, 'isValidResetToken', 'users', 404);
-      return this.sendError(res, 404, "Invalid reset token");
-    }
-    await this.createLog(req, 'isValidResetToken', 'users', 200, user.user_id);
-    res.status(200).send({ message: "Valid reset token", user });
   }
 }

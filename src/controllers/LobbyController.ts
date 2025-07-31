@@ -35,15 +35,21 @@ export class Lobbies {
   constructor(
     @inject("LobbyService") private lobbyService: ILobbyService,
     @inject("LogService") private logService: ILogService // Ajout injection LogService
-  ) {}
+  ) { }
 
   // Helper pour créer des logs
-  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+  private async createLog(
+    req: Request,
+    action: string,
+    tableName?: string,
+    statusCode?: number,
+    userId?: string
+  ) {
     try {
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
-        controller: `LobbyController.${controller}`,
+        controller: `LobbyController.${action}`,
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: req.body,
@@ -51,7 +57,6 @@ export class Lobbies {
         status_code: statusCode
       });
     } catch (error) {
-      // On ne bloque jamais la route sur une erreur de log
       console.error('Error creating log:', error);
     }
   }
@@ -87,11 +92,11 @@ export class Lobbies {
     method: "GET",
     description: "Get a lobby by lobbyId",
     params: { lobbyId: "The id of the lobby" },
-    responseType: { 
-      lobbyId: "string", 
+    responseType: {
+      lobbyId: "string",
       users: [{
         username: "string",
-        user_id: "string", 
+        user_id: "string",
         verified: "boolean",
         steam_username: "string",
         steam_avatar_url: "string",

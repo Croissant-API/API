@@ -12,7 +12,7 @@ export declare class SearchController {
     private inventoryService;
     private logService;
     constructor(userService: IUserService, itemService: IItemService, gameService: IGameService, inventoryService: IInventoryService, logService: ILogService);
-    private logAction;
+    private createLog;
     globalSearch(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     adminSearch(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

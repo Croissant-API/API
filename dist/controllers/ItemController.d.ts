@@ -11,7 +11,7 @@ export declare class Items {
     private userService;
     private logService;
     constructor(itemService: IItemService, inventoryService: IInventoryService, userService: IUserService, logService: ILogService);
-    private logAction;
+    private createLog;
     getAllItems(req: Request, res: Response): Promise<void>;
     getMyItems(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     searchItems(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

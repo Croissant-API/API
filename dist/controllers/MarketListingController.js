@@ -25,21 +25,17 @@ let MarketListingController = class MarketListingController {
         this.marketListingService = marketListingService;
         this.logService = logService;
     }
-    // Helper pour les logs
-    async logAction(req, tableName, statusCode, metadata) {
+    // Helper pour les logs (uniformisé)
+    async createLog(req, action, tableName, statusCode, userId) {
         try {
-            const requestBody = { ...req.body };
-            if (metadata) {
-                requestBody.metadata = metadata;
-            }
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: 'MarketListingController',
+                controller: `MarketListingController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
-                request_body: requestBody,
-                user_id: req.user?.user_id,
+                request_body: req.body,
+                user_id: userId ?? req.user?.user_id,
                 status_code: statusCode
             });
         }
@@ -51,16 +47,16 @@ let MarketListingController = class MarketListingController {
         const sellerId = req.user.user_id;
         const { inventoryItem, sellingPrice } = req.body;
         if (!inventoryItem || typeof sellingPrice !== "number") {
-            await this.logAction(req, 'market_listings', 400, { reason: 'missing_fields' });
+            await this.createLog(req, 'createMarketListing', 'market_listings', 400, sellerId);
             return res.status(400).send({ message: "inventoryItem and sellingPrice are required" });
         }
         try {
             const listing = await this.marketListingService.createMarketListing(sellerId, inventoryItem, sellingPrice);
-            await this.logAction(req, 'market_listings', 201, { listing_id: listing.id });
+            await this.createLog(req, 'createMarketListing', 'market_listings', 201, sellerId);
             res.status(201).send(listing);
         }
         catch (error) {
-            await this.logAction(req, 'market_listings', 500, { error });
+            await this.createLog(req, 'createMarketListing', 'market_listings', 500, sellerId);
             handleError(res, error, "Error while creating the market listing");
         }
     }
@@ -69,27 +65,27 @@ let MarketListingController = class MarketListingController {
         const listingId = req.params.id;
         try {
             await this.marketListingService.cancelMarketListing(listingId, sellerId);
-            await this.logAction(req, 'market_listings', 200, { listing_id: listingId, action: 'cancel' });
+            await this.createLog(req, 'cancelMarketListing', 'market_listings', 200, sellerId);
             res.status(200).send({ message: "Market listing cancelled" });
         }
         catch (error) {
-            await this.logAction(req, 'market_listings', 500, { listing_id: listingId, error });
+            await this.createLog(req, 'cancelMarketListing', 'market_listings', 500, sellerId);
             handleError(res, error, "Error while cancelling the market listing");
         }
     }
     async getMarketListingsByUser(req, res) {
         const userId = req.params.userId;
         if (userId !== req.user.user_id) {
-            await this.logAction(req, 'market_listings', 403, { reason: 'unauthorized_user_access', requested_user_id: userId });
+            await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 403, req.user.user_id);
             return res.status(403).send({ message: "Forbidden" });
         }
         try {
             const listings = await this.marketListingService.getMarketListingsByUser(userId);
-            await this.logAction(req, 'market_listings', 200, { user_id: userId, count: listings.length });
+            await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 200, userId);
             res.send(listings);
         }
         catch (error) {
-            await this.logAction(req, 'market_listings', 500, { user_id: userId, error });
+            await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 500, userId);
             handleError(res, error, "Error while fetching market listings");
         }
     }
@@ -97,9 +93,11 @@ let MarketListingController = class MarketListingController {
         const itemId = req.params.itemId;
         try {
             const listings = await this.marketListingService.getActiveListingsForItem(itemId);
+            await this.createLog(req, 'getActiveListingsForItem', 'market_listings', 200, req.user?.user_id);
             res.send(listings);
         }
         catch (error) {
+            await this.createLog(req, 'getActiveListingsForItem', 'market_listings', 500, req.user?.user_id);
             handleError(res, error, "Error while fetching active market listings");
         }
     }
@@ -108,11 +106,14 @@ let MarketListingController = class MarketListingController {
         try {
             const listing = await this.marketListingService.getMarketListingById(listingId);
             if (!listing) {
+                await this.createLog(req, 'getMarketListingById', 'market_listings', 404, req.user?.user_id);
                 return res.status(404).send({ message: "Market listing not found" });
             }
+            await this.createLog(req, 'getMarketListingById', 'market_listings', 200, req.user?.user_id);
             res.send(listing);
         }
         catch (error) {
+            await this.createLog(req, 'getMarketListingById', 'market_listings', 500, req.user?.user_id);
             handleError(res, error, "Error while fetching the market listing");
         }
     }
@@ -121,9 +122,11 @@ let MarketListingController = class MarketListingController {
         const offset = req.query.offset ? Number(req.query.offset) : 0;
         try {
             const listings = await this.marketListingService.getEnrichedMarketListings(limit, offset);
+            await this.createLog(req, 'getEnrichedMarketListings', 'market_listings', 200, req.user?.user_id);
             res.send(listings);
         }
         catch (error) {
+            await this.createLog(req, 'getEnrichedMarketListings', 'market_listings', 500, req.user?.user_id);
             handleError(res, error, "Error while fetching enriched market listings");
         }
     }
@@ -131,30 +134,37 @@ let MarketListingController = class MarketListingController {
         const searchTerm = req.query.q;
         const limit = req.query.limit ? Number(req.query.limit) : 50;
         if (!searchTerm) {
+            await this.createLog(req, 'searchMarketListings', 'market_listings', 400, req.user?.user_id);
             return res.status(400).send({ message: "Parameter q is required" });
         }
         try {
             const listings = await this.marketListingService.searchMarketListings(searchTerm, limit);
+            await this.createLog(req, 'searchMarketListings', 'market_listings', 200, req.user?.user_id);
             res.send(listings);
         }
         catch (error) {
+            await this.createLog(req, 'searchMarketListings', 'market_listings', 500, req.user?.user_id);
             handleError(res, error, "Error while searching market listings");
         }
     }
     async buyMarketListing(req, res) {
         if (!req.user || !req.user.user_id) {
+            await this.createLog(req, 'buyMarketListing', 'market_listings', 401, undefined);
             return res.status(401).send({ message: "Unauthorized" });
         }
         const listingId = req.params.id;
         try {
             const listing = await this.marketListingService.getMarketListingById(listingId);
             if (!listing) {
+                await this.createLog(req, 'buyMarketListing', 'market_listings', 404, req.user.user_id);
                 return res.status(404).send({ message: "Market listing not found" });
             }
             const result = await this.marketListingService.buyMarketListing(listing.id, req.user.user_id);
+            await this.createLog(req, 'buyMarketListing', 'market_listings', 200, req.user.user_id);
             res.send(result);
         }
         catch (error) {
+            await this.createLog(req, 'buyMarketListing', 'market_listings', 500, req.user.user_id);
             handleError(res, error, "Error while buying market listing");
         }
     }

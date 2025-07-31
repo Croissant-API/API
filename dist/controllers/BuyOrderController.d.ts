@@ -6,6 +6,7 @@ export declare class BuyOrderController {
     private buyOrderService;
     private itemService;
     constructor(buyOrderService: IBuyOrderService, itemService: IItemService);
+    private logAction;
     createBuyOrder(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     cancelBuyOrder(req: AuthenticatedRequest, res: Response): Promise<void>;
     getBuyOrdersByUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

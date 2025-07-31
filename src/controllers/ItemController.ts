@@ -62,21 +62,17 @@ export class Items {
     @inject("LogService") private logService: ILogService
   ) { }
 
-  // Helper pour les logs
-  private async logAction(
+  // Helper pour les logs (uniformisé)
+  private async createLog(
     req: Request,
-    tableName?: string,
+    tableName: string,
     statusCode?: number,
+    userId?: string,
     metadata?: object
   ) {
     try {
       const requestBody = { ...req.body };
-      
-      // Ajouter les métadonnées si fournies
-      if (metadata) {
-        requestBody.metadata = metadata;
-      }
-
+      if (metadata) requestBody.metadata = metadata;
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
@@ -84,7 +80,7 @@ export class Items {
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: requestBody,
-        user_id: (req as AuthenticatedRequest).user?.user_id as string,
+        user_id: userId ?? (req as AuthenticatedRequest).user?.user_id as string,
         status_code: statusCode
       });
     } catch (error) {
@@ -113,10 +109,10 @@ export class Items {
   public async getAllItems(req: Request, res: Response) {
     try {
       const items = await this.itemService.getStoreItems();
-      await this.logAction(req, 'items', 200, { items_count: items.length });
+      await this.createLog(req, 'items', 200, undefined, { items_count: items.length });
       res.send(items);
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         error: error instanceof Error ? error.message : String(error)
       });
       handleError(res, error, "Error fetching items");
@@ -145,15 +141,15 @@ export class Items {
   public async getMyItems(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
     if (!userId) {
-      await this.logAction(req, 'items', 401, { reason: 'unauthorized' });
+      await this.createLog(req, 'items', 401);
       return res.status(401).send({ message: "Unauthorized" });
     }
     try {
       const items = await this.itemService.getMyItems(userId);
-      await this.logAction(req, 'items', 200, { owned_items_count: items.length });
+      await this.createLog(req, 'items', 200, undefined, { owned_items_count: items.length });
       res.send(items);
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         error: error instanceof Error ? error.message : String(error)
       });
       handleError(res, error, "Error fetching your items");
@@ -182,18 +178,18 @@ export class Items {
   public async searchItems(req: Request, res: Response) {
     const query = (req.query.q as string)?.trim();
     if (!query) {
-      await this.logAction(req, 'items', 400, { reason: 'missing_search_query' });
+      await this.createLog(req, 'items', 400, undefined, { reason: 'missing_search_query' });
       return res.status(400).send({ message: "Missing search query" });
     }
     try {
       const items = await this.itemService.searchItemsByName(query);
-      await this.logAction(req, 'items', 200, { 
+      await this.createLog(req, 'items', 200, undefined, {
         search_query: query,
         results_count: items.length
       });
       res.send(items);
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         search_query: query,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -220,17 +216,17 @@ export class Items {
   @httpGet("/:itemId")
   public async getItem(req: Request, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId"))) {
-      await this.logAction(req, 'items', 400, { reason: 'invalid_itemId' });
+      await this.createLog(req, 'items', 400);
       return;
     }
     try {
       const { itemId } = req.params;
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'items', 404, { itemId });
+        await this.createLog(req, 'items', 404, undefined, { itemId });
         return res.status(404).send({ message: "Item not found" });
       }
-      await this.logAction(req, 'items', 200, { 
+      await this.createLog(req, 'items', 200, undefined, {
         itemId,
         item_name: item.name,
         item_price: item.price
@@ -245,7 +241,7 @@ export class Items {
         showInStore: item.showInStore,
       });
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         itemId: req.params.itemId,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -273,7 +269,7 @@ export class Items {
   @httpPost("/create", LoggedCheck.middleware)
   public async createItem(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(createItemValidator, req.body, res, "Invalid item data"))) {
-      await this.logAction(req, 'items', 400, { reason: 'validation_failed' });
+      await this.createLog(req, 'items', 400);
       return;
     }
     const itemId = v4();
@@ -289,7 +285,7 @@ export class Items {
         showInStore: showInStore ?? false,
         deleted: false,
       });
-      await this.logAction(req, 'items', 201, { 
+      await this.createLog(req, 'items', 201, undefined, {
         itemId,
         item_name: name,
         item_price: price,
@@ -297,7 +293,7 @@ export class Items {
       });
       res.status(200).send({ message: "Item created" });
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         item_name: name,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -325,11 +321,11 @@ export class Items {
   @httpPut("/update/:itemId", OwnerCheck.middleware)
   public async updateItem(req: AuthenticatedRequestWithOwner, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId"))) {
-      await this.logAction(req, 'items', 400, { reason: 'invalid_itemId' });
+      await this.createLog(req, 'items', 400);
       return;
     }
     if (!(await validateOr400(updateItemValidator, req.body, res, "Invalid update data"))) {
-      await this.logAction(req, 'items', 400, { reason: 'validation_failed' });
+      await this.createLog(req, 'items', 400);
       return;
     }
     const { itemId } = req.params;
@@ -342,7 +338,7 @@ export class Items {
         ...(iconHash !== undefined && { iconHash }),
         ...(showInStore !== undefined && { showInStore }),
       });
-      await this.logAction(req, 'items', 200, { 
+      await this.createLog(req, 'items', 200, undefined, {
         itemId,
         updated_fields: {
           name: name !== undefined,
@@ -354,7 +350,7 @@ export class Items {
       });
       res.status(200).send({ message: "Item updated" });
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         itemId,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -374,16 +370,16 @@ export class Items {
   @httpDelete("/delete/:itemId", OwnerCheck.middleware)
   public async deleteItem(req: AuthenticatedRequestWithOwner, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, "Invalid itemId"))) {
-      await this.logAction(req, 'items', 400, { reason: 'invalid_itemId' });
+      await this.createLog(req, 'items', 400);
       return;
     }
     const { itemId } = req.params;
     try {
       await this.itemService.deleteItem(itemId);
-      await this.logAction(req, 'items', 200, { itemId, action: 'deleted' });
+      await this.createLog(req, 'items', 200, undefined, { itemId, action: 'deleted' });
       res.status(200).send({ message: "Item deleted" });
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, undefined, {
         itemId,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -409,7 +405,7 @@ export class Items {
     const { itemId } = req.params;
     const { amount } = req.body;
     if (!itemId || isNaN(amount)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_input',
         itemId,
         amount
@@ -419,14 +415,14 @@ export class Items {
     try {
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'inventory', 404, { itemId, action: 'buy' });
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, { itemId, action: 'buy' });
         return res.status(404).send({ message: "Item not found" });
       }
 
       const user = req.user;
       const owner = await this.userService.getUser(item.owner);
       if (!user) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'buy',
           reason: 'user_not_found'
@@ -434,7 +430,7 @@ export class Items {
         return res.status(404).send({ message: "User not found" });
       }
       if (!owner) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'buy',
           reason: 'owner_not_found'
@@ -446,7 +442,7 @@ export class Items {
       const isOwner = user.user_id === item.owner;
 
       if (!isOwner && user.balance < totalCost) {
-        await this.logAction(req, 'inventory', 400, { 
+        await this.createLog(req, 'inventory', 400, req.user?.user_id, {
           itemId,
           action: 'buy',
           reason: 'insufficient_balance',
@@ -470,7 +466,7 @@ export class Items {
       // Ajouter l'item SANS métadonnées avec sellable = true car acheté
       await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, true, item.price);
 
-      await this.logAction(req, 'inventory', 200, { 
+      await this.createLog(req, 'inventory', 200, req.user?.user_id, {
         itemId,
         action: 'buy',
         amount,
@@ -481,7 +477,7 @@ export class Items {
       res.status(200).send({ message: "Item bought" });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'buy',
         amount,
@@ -507,7 +503,7 @@ export class Items {
     const { itemId } = req.params;
     const { amount, purchasePrice } = req.body; // Ajouter purchasePrice
     if (!itemId || isNaN(amount)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_input',
         itemId,
         amount
@@ -517,13 +513,13 @@ export class Items {
     try {
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'inventory', 404, { itemId, action: 'sell' });
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, { itemId, action: 'sell' });
         return res.status(404).send({ message: "Item not found" });
       }
 
       const user = req.user;
       if (!user) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'sell',
           reason: 'user_not_found'
@@ -536,15 +532,15 @@ export class Items {
         // Vérifier que l'utilisateur a suffisamment d'items avec ce prix d'achat
         const inventory = await this.inventoryService.getInventory(user.user_id);
         const itemsWithPrice = inventory.inventory.filter(
-          invItem => invItem.item_id === itemId && 
-                    invItem.sellable && 
-                    invItem.purchasePrice === purchasePrice
+          invItem => invItem.item_id === itemId &&
+            invItem.sellable &&
+            invItem.purchasePrice === purchasePrice
         );
-        
+
         const totalAvailable = itemsWithPrice.reduce((sum, item) => sum + item.amount, 0);
-        
+
         if (totalAvailable < amount) {
-          await this.logAction(req, 'inventory', 400, { 
+          await this.createLog(req, 'inventory', 400, req.user?.user_id, {
             itemId,
             action: 'sell',
             reason: 'insufficient_items_with_price',
@@ -559,9 +555,9 @@ export class Items {
 
         // Supprimer les items avec le prix d'achat spécifique
         await this.inventoryService.removeSellableItemWithPrice(
-          user.user_id, 
-          itemId, 
-          amount, 
+          user.user_id,
+          itemId,
+          amount,
           purchasePrice
         );
 
@@ -576,7 +572,7 @@ export class Items {
           );
         }
 
-        await this.logAction(req, 'inventory', 200, { 
+        await this.createLog(req, 'inventory', 200, req.user?.user_id, {
           itemId,
           action: 'sell',
           amount,
@@ -585,8 +581,8 @@ export class Items {
           is_owner: isOwner,
           item_name: item.name
         });
-        
-        res.status(200).send({ 
+
+        res.status(200).send({
           message: "Item sold",
           totalValue: Math.round(sellValue),
           itemsSold: amount
@@ -599,7 +595,7 @@ export class Items {
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'sell',
         amount,
@@ -630,7 +626,7 @@ export class Items {
     const { itemId } = req.params;
     const { amount, metadata, userId } = req.body;
     if (!itemId || isNaN(amount) || !userId) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_input',
         itemId,
         amount,
@@ -641,7 +637,7 @@ export class Items {
     try {
       const targetUser = await this.userService.getUser(userId);
       if (!targetUser) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'give',
           userId,
@@ -653,7 +649,7 @@ export class Items {
       // Vérifier que l'item existe
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'give',
           userId
@@ -664,7 +660,7 @@ export class Items {
       // Donner l'item à l'utilisateur cible avec sellable = false car donné par owner
       await this.inventoryService.addItem(targetUser.user_id, itemId, amount, metadata, false);
 
-      await this.logAction(req, 'inventory', 200, { 
+      await this.createLog(req, 'inventory', 200, req.user?.user_id, {
         itemId,
         action: 'give',
         amount,
@@ -676,7 +672,7 @@ export class Items {
       res.status(200).send({ message: "Item given" });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'give',
         amount,
@@ -708,7 +704,7 @@ export class Items {
     const { amount, uniqueId, userId } = req.body;
 
     if (!itemId || !userId) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'missing_required_fields',
         itemId,
         userId
@@ -718,7 +714,7 @@ export class Items {
 
     // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
     if ((amount && uniqueId) || (!amount && !uniqueId)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_parameters',
         itemId,
         userId,
@@ -731,7 +727,7 @@ export class Items {
     }
 
     if (amount && isNaN(amount)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_amount',
         itemId,
         userId,
@@ -743,7 +739,7 @@ export class Items {
     try {
       const targetUser = await this.userService.getUser(userId);
       if (!targetUser) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'consume',
           userId,
@@ -755,7 +751,7 @@ export class Items {
       // Vérifier que l'item existe
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'consume',
           userId
@@ -766,7 +762,7 @@ export class Items {
       if (uniqueId) {
         // Consommer un item spécifique avec métadonnées
         await this.inventoryService.removeItemByUniqueId(targetUser.user_id, itemId, uniqueId);
-        await this.logAction(req, 'inventory', 200, { 
+        await this.createLog(req, 'inventory', 200, req.user?.user_id, {
           itemId,
           action: 'consume',
           target_user_id: userId,
@@ -784,7 +780,7 @@ export class Items {
         );
 
         if (!hasEnoughItems) {
-          await this.logAction(req, 'inventory', 400, { 
+          await this.createLog(req, 'inventory', 400, req.user?.user_id, {
             itemId,
             action: 'consume',
             userId,
@@ -797,7 +793,7 @@ export class Items {
         }
 
         await this.inventoryService.removeItem(targetUser.user_id, itemId, amount);
-        await this.logAction(req, 'inventory', 200, { 
+        await this.createLog(req, 'inventory', 200, req.user?.user_id, {
           itemId,
           action: 'consume',
           amount,
@@ -809,7 +805,7 @@ export class Items {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'consume',
         amount,
@@ -841,7 +837,7 @@ export class Items {
     const { uniqueId, metadata } = req.body;
 
     if (!itemId || !uniqueId || !metadata || typeof metadata !== 'object') {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_input',
         itemId,
         uniqueId,
@@ -853,7 +849,7 @@ export class Items {
     try {
       const user = req.user;
       if (!user) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'update_metadata',
           reason: 'user_not_found'
@@ -862,7 +858,7 @@ export class Items {
       }
 
       await this.inventoryService.updateItemMetadata(user.user_id, itemId, uniqueId, metadata);
-      await this.logAction(req, 'inventory', 200, { 
+      await this.createLog(req, 'inventory', 200, req.user?.user_id, {
         itemId,
         action: 'update_metadata',
         uniqueId,
@@ -870,7 +866,7 @@ export class Items {
       });
       res.status(200).send({ message: "Item metadata updated" });
     } catch (error) {
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'update_metadata',
         uniqueId,
@@ -885,7 +881,7 @@ export class Items {
     method: "POST",
     description: "Drop item occurrences from your inventory.",
     params: { itemId: "The id of the item" },
-    body: { 
+    body: {
       amount: "The amount of the item to drop (for items without metadata)",
       uniqueId: "The unique ID of the item instance to drop (for items with metadata)"
     },
@@ -897,9 +893,9 @@ export class Items {
   public async dropItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
     const { amount, uniqueId } = req.body;
-    
+
     if (!itemId) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'missing_itemId'
       });
       return res.status(400).send({ message: "Invalid input: itemId is required" });
@@ -907,7 +903,7 @@ export class Items {
 
     // Vérifier qu'on a soit amount soit uniqueId, mais pas les deux
     if ((amount && uniqueId) || (!amount && !uniqueId)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_parameters',
         itemId,
         has_amount: !!amount,
@@ -919,7 +915,7 @@ export class Items {
     }
 
     if (amount && isNaN(amount)) {
-      await this.logAction(req, 'inventory', 400, { 
+      await this.createLog(req, 'inventory', 400, req.user?.user_id, {
         reason: 'invalid_amount',
         itemId,
         amount
@@ -930,7 +926,7 @@ export class Items {
     try {
       const user = req.user;
       if (!user) {
-        await this.logAction(req, 'inventory', 404, { 
+        await this.createLog(req, 'inventory', 404, req.user?.user_id, {
           itemId,
           action: 'drop',
           reason: 'user_not_found'
@@ -941,7 +937,7 @@ export class Items {
       if (uniqueId) {
         // Supprimer un item spécifique avec métadonnées
         await this.inventoryService.removeItemByUniqueId(user.user_id, itemId, uniqueId);
-        await this.logAction(req, 'inventory', 200, { 
+        await this.createLog(req, 'inventory', 200, req.user?.user_id, {
           itemId,
           action: 'drop',
           uniqueId
@@ -956,7 +952,7 @@ export class Items {
         );
 
         if (!hasEnoughItems) {
-          await this.logAction(req, 'inventory', 400, { 
+          await this.createLog(req, 'inventory', 400, req.user?.user_id, {
             itemId,
             action: 'drop',
             amount,
@@ -968,7 +964,7 @@ export class Items {
         }
 
         await this.inventoryService.removeItem(user.user_id, itemId, amount);
-        await this.logAction(req, 'inventory', 200, { 
+        await this.createLog(req, 'inventory', 200, req.user?.user_id, {
           itemId,
           action: 'drop',
           amount
@@ -977,7 +973,7 @@ export class Items {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.logAction(req, 'inventory', 500, { 
+      await this.createLog(req, 'inventory', 500, req.user?.user_id, {
         itemId,
         action: 'drop',
         amount,
@@ -994,7 +990,7 @@ export class Items {
     const { itemId } = req.params;
     const { newOwnerId } = req.body;
     if (!itemId || !newOwnerId) {
-      await this.logAction(req, 'items', 400, { 
+      await this.createLog(req, 'items', 400, req.user?.user_id, {
         reason: 'invalid_input',
         itemId,
         newOwnerId
@@ -1004,7 +1000,7 @@ export class Items {
     try {
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
-        await this.logAction(req, 'items', 404, { 
+        await this.createLog(req, 'items', 404, req.user?.user_id, {
           itemId,
           action: 'transfer_ownership'
         });
@@ -1012,7 +1008,7 @@ export class Items {
       }
       const newOwner = await this.userService.getUser(newOwnerId);
       if (!newOwner) {
-        await this.logAction(req, 'items', 404, { 
+        await this.createLog(req, 'items', 404, req.user?.user_id, {
           itemId,
           action: 'transfer_ownership',
           newOwnerId,
@@ -1021,7 +1017,7 @@ export class Items {
         return res.status(404).send({ message: "New owner not found" });
       }
       await this.itemService.transferOwnership(itemId, newOwnerId);
-      await this.logAction(req, 'items', 200, { 
+      await this.createLog(req, 'items', 200, req.user?.user_id, {
         itemId,
         action: 'transfer_ownership',
         old_owner: item.owner,
@@ -1031,7 +1027,7 @@ export class Items {
       });
       res.status(200).send({ message: "Ownership transferred" });
     } catch (error) {
-      await this.logAction(req, 'items', 500, { 
+      await this.createLog(req, 'items', 500, req.user?.user_id, {
         itemId,
         action: 'transfer_ownership',
         newOwnerId,

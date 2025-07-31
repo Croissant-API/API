@@ -5,11 +5,10 @@ import { IInventoryService } from "../services/InventoryService";
 import { userIdParamSchema } from "../validators/InventoryValidator";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ValidationError, Schema } from "yup";
+import { ILogService } from "../services/LogService";
 
 // --- UTILS ---
-import { ValidationError, Schema } from "yup";
-import { ILogService } from "../services/LogService"; // Ajout import LogService
-
 function handleError(
   res: Response,
   error: unknown,
@@ -44,16 +43,22 @@ async function validateOr400(
 export class Inventories {
   constructor(
     @inject("InventoryService") private inventoryService: IInventoryService,
-    @inject("LogService") private logService: ILogService // Ajout injection LogService
-  ) {}
+    @inject("LogService") private logService: ILogService
+  ) { }
 
-  // Helper pour créer des logs
-  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+  // Helper pour créer des logs (signature uniforme)
+  private async createLog(
+    req: Request,
+    action: string,
+    tableName?: string,
+    statusCode?: number,
+    userId?: string
+  ) {
     try {
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
-        controller: `InventoryController.${controller}`,
+        controller: `InventoryController.${action}`,
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: req.body,
@@ -61,7 +66,6 @@ export class Inventories {
         status_code: statusCode
       });
     } catch (error) {
-      // On ne bloque jamais la route sur une erreur de log
       console.error('Error creating log:', error);
     }
   }
@@ -110,7 +114,7 @@ export class Inventories {
   // --- Inventaire d'un utilisateur spécifique ---
   @describe({
     endpoint: "/inventory/:userId",
-    method: "GET", 
+    method: "GET",
     description: "Get the inventory of a user with all item instances and item details",
     params: { userId: "The id of the user" },
     responseType: {
@@ -118,7 +122,7 @@ export class Inventories {
       inventory: [
         {
           user_id: "string",
-          item_id: "string", 
+          item_id: "string",
           amount: "number",
           metadata: "object (optional, includes _unique_id for unique items)",
           sellable: "boolean",

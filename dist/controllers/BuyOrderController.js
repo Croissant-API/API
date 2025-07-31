@@ -16,28 +16,48 @@ exports.BuyOrderController = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+// --- UTILS ---
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
 let BuyOrderController = class BuyOrderController {
     constructor(buyOrderService, itemService) {
         this.buyOrderService = buyOrderService;
         this.itemService = itemService;
     }
+    // Helper pour les logs (console ici, à remplacer par logService si besoin)
+    async logAction(req, action, statusCode, metadata) {
+        console.log(`[BuyOrderController]`, {
+            user: req.user?.user_id,
+            action,
+            statusCode,
+            path: req.originalUrl,
+            method: req.method,
+            metadata
+        });
+    }
     async createBuyOrder(req, res) {
         const buyerId = req.user.user_id;
         const { itemId, price } = req.body;
         if (!itemId || typeof price !== "number" || price < 1) {
+            await this.logAction(req, "createBuyOrder", 400);
             return res.status(400).send({ message: "itemId and price are required" });
         }
         // S'assurer que l'item existe
         const itemExists = await this.itemService.getItem(itemId);
         if (!itemExists) {
+            await this.logAction(req, "createBuyOrder", 404);
             return res.status(404).send({ message: "Item not found" });
         }
         try {
             const order = await this.buyOrderService.createBuyOrder(buyerId, itemId, price);
+            await this.logAction(req, "createBuyOrder", 201);
             res.status(201).send(order);
         }
         catch (error) {
-            res.status(500).send({ message: "Error while creating buy order", error: String(error) });
+            await this.logAction(req, "createBuyOrder", 500, { error });
+            handleError(res, error, "Error while creating buy order");
         }
     }
     async cancelBuyOrder(req, res) {
@@ -45,33 +65,40 @@ let BuyOrderController = class BuyOrderController {
         const orderId = req.params.id;
         try {
             await this.buyOrderService.cancelBuyOrder(orderId, buyerId);
+            await this.logAction(req, "cancelBuyOrder", 200);
             res.status(200).send({ message: "Buy order cancelled" });
         }
         catch (error) {
-            res.status(500).send({ message: "Error while cancelling buy order", error: String(error) });
+            await this.logAction(req, "cancelBuyOrder", 500, { error });
+            handleError(res, error, "Error while cancelling buy order");
         }
     }
     async getBuyOrdersByUser(req, res) {
         const userId = req.params.userId;
         if (userId !== req.user.user_id) {
+            await this.logAction(req, "getBuyOrdersByUser", 403);
             return res.status(403).send({ message: "Forbidden" });
         }
         try {
             const orders = await this.buyOrderService.getBuyOrdersByUser(userId);
+            await this.logAction(req, "getBuyOrdersByUser", 200);
             res.send(orders);
         }
         catch (error) {
-            res.status(500).send({ message: "Error while fetching buy orders", error: String(error) });
+            await this.logAction(req, "getBuyOrdersByUser", 500, { error });
+            handleError(res, error, "Error while fetching buy orders");
         }
     }
     async getActiveBuyOrdersForItem(req, res) {
         const itemId = req.params.itemId;
         try {
             const orders = await this.buyOrderService.getActiveBuyOrdersForItem(itemId);
+            await this.logAction(req, "getActiveBuyOrdersForItem", 200);
             res.send(orders);
         }
         catch (error) {
-            res.status(500).send({ message: "Error while fetching buy orders", error: String(error) });
+            await this.logAction(req, "getActiveBuyOrdersForItem", 500, { error });
+            handleError(res, error, "Error while fetching buy orders");
         }
     }
 };

@@ -16,6 +16,11 @@ exports.GameGifts = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+// --- UTILS ---
+function handleError(res, error, message, status = 500) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(status).send({ message, error: msg });
+}
 let GameGifts = class GameGifts {
     constructor(giftService, gameService, userService, logService) {
         this.giftService = giftService;
@@ -23,13 +28,13 @@ let GameGifts = class GameGifts {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    // Helper pour créer des logs (signature uniforme)
+    async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `GameGiftController.${controller}`,
+                controller: `GameGiftController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: req.body,
@@ -87,8 +92,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'createGift', 'gifts', 500, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error creating gift", error: msg });
+            handleError(res, error, "Error creating gift");
         }
     }
     async claimGift(req, res) {
@@ -119,8 +123,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'claimGift', 'gifts', 400, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(400).send({ message: msg });
+            handleError(res, error, "Error claiming gift", 400);
         }
     }
     async getSentGifts(req, res) {
@@ -138,8 +141,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'getSentGifts', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching sent gifts", error: msg });
+            handleError(res, error, "Error fetching sent gifts");
         }
     }
     async getReceivedGifts(req, res) {
@@ -159,8 +161,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'getReceivedGifts', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching received gifts", error: msg });
+            handleError(res, error, "Error fetching received gifts");
         }
     }
     async getGiftInfo(req, res) {
@@ -191,8 +192,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'getGiftInfo', 'gifts', 500, req.user.user_id);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(500).send({ message: "Error fetching gift info", error: msg });
+            handleError(res, error, "Error fetching gift info");
         }
     }
     async revokeGift(req, res) {
@@ -226,8 +226,7 @@ let GameGifts = class GameGifts {
         }
         catch (error) {
             await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
-            const msg = error instanceof Error ? error.message : String(error);
-            res.status(400).send({ message: msg });
+            handleError(res, error, "Error revoking gift", 400);
         }
     }
 };

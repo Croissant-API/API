@@ -24,6 +24,7 @@ export declare class Users {
     changePassword(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     forgotPassword(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     resetPassword(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    isValidResetToken(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     steamRedirect(req: Request, res: Response): Promise<void>;
     steamAssociate(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     unlinkSteam(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
@@ -36,5 +37,4 @@ export declare class Users {
     transferCredits(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     changeRole(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    isValidResetToken(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

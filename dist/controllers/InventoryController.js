@@ -18,8 +18,8 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-// --- UTILS ---
 const yup_1 = require("yup");
+// --- UTILS ---
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -41,18 +41,17 @@ async function validateOr400(schema, data, res) {
     }
 }
 let Inventories = class Inventories {
-    constructor(inventoryService, logService // Ajout injection LogService
-    ) {
+    constructor(inventoryService, logService) {
         this.inventoryService = inventoryService;
         this.logService = logService;
     }
-    // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    // Helper pour créer des logs (signature uniforme)
+    async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `InventoryController.${controller}`,
+                controller: `InventoryController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: req.body,
@@ -61,7 +60,6 @@ let Inventories = class Inventories {
             });
         }
         catch (error) {
-            // On ne bloque jamais la route sur une erreur de log
             console.error('Error creating log:', error);
         }
     }

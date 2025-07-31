@@ -22,23 +22,19 @@ export class Trades {
   constructor(
     @inject("TradeService") private tradeService: ITradeService,
     @inject("LogService") private logService: ILogService
-  ) {}
+  ) { }
 
-  // Helper pour les logs
-  private async logAction(
+  // Helper pour les logs (uniformisé)
+  private async createLog(
     req: AuthenticatedRequest,
     tableName?: string,
     statusCode?: number,
-    metadata?: object
+    metadata?: object,
+    userId?: string
   ) {
     try {
       const requestBody = { ...req.body };
-      
-      // Ajouter les métadonnées si fournies
-      if (metadata) {
-        requestBody.metadata = metadata;
-      }
-
+      if (metadata) requestBody.metadata = metadata;
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
@@ -46,7 +42,7 @@ export class Trades {
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: requestBody,
-        user_id: req.user?.user_id as string,
+        user_id: userId ?? req.user?.user_id as string,
         status_code: statusCode
       });
     } catch (error) {
@@ -79,18 +75,18 @@ export class Trades {
   public async startOrGetPendingTrade(req: AuthenticatedRequest, res: Response) {
     const fromUserId = req.user.user_id;
     const toUserId = req.params.userId;
-    
+
     if (fromUserId === toUserId) {
-      await this.logAction(req, 'trades', 400, { 
+      await this.createLog(req, 'trades', 400, {
         reason: 'self_trade_attempt',
         target_user_id: toUserId
       });
       return res.status(400).send({ message: "Cannot trade with yourself" });
     }
-    
+
     try {
       const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId);
-      await this.logAction(req, 'trades', 200, { 
+      await this.createLog(req, 'trades', 200, {
         trade_id: trade.id,
         target_user_id: toUserId,
         trade_status: trade.status,
@@ -98,7 +94,7 @@ export class Trades {
       });
       res.status(200).send(trade);
     } catch (error) {
-      await this.logAction(req, 'trades', 500, { 
+      await this.createLog(req, 'trades', 500, {
         target_user_id: toUserId,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -142,17 +138,17 @@ export class Trades {
   @httpGet("/:id", LoggedCheck.middleware)
   public async getTradeById(req: AuthenticatedRequest, res: Response) {
     const id = req.params.id;
-    
+
     try {
       const trade = await this.tradeService.getFormattedTradeById(id);
-      
+
       if (!trade) {
-        await this.logAction(req, 'trades', 404, { trade_id: id });
+        await this.createLog(req, 'trades', 404, { trade_id: id });
         return res.status(404).send({ message: "Trade not found" });
       }
-      
+
       if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
-        await this.logAction(req, 'trades', 403, { 
+        await this.createLog(req, 'trades', 403, {
           trade_id: id,
           reason: 'not_participant',
           from_user_id: trade.fromUserId,
@@ -160,8 +156,8 @@ export class Trades {
         });
         return res.status(403).send({ message: "Forbidden" });
       }
-      
-      await this.logAction(req, 'trades', 200, { 
+
+      await this.createLog(req, 'trades', 200, {
         trade_id: id,
         trade_status: trade.status,
         from_user_id: trade.fromUserId,
@@ -173,7 +169,7 @@ export class Trades {
       });
       res.send(trade);
     } catch (error) {
-      await this.logAction(req, 'trades', 500, { 
+      await this.createLog(req, 'trades', 500, {
         trade_id: id,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -216,18 +212,18 @@ export class Trades {
   @httpGet("/user/:userId", LoggedCheck.middleware)
   public async getTradesByUser(req: AuthenticatedRequest, res: Response) {
     const userId = req.params.userId;
-    
+
     if (userId !== req.user.user_id) {
-      await this.logAction(req, 'trades', 403, { 
+      await this.createLog(req, 'trades', 403, {
         reason: 'unauthorized_user_access',
         requested_user_id: userId
       });
       return res.status(403).send({ message: "Forbidden" });
     }
-    
+
     try {
       const trades = await this.tradeService.getFormattedTradesByUser(userId);
-      await this.logAction(req, 'trades', 200, { 
+      await this.createLog(req, 'trades', 200, {
         user_id: userId,
         trades_count: trades.length,
         trades_by_status: trades.reduce((acc, trade) => {
@@ -237,7 +233,7 @@ export class Trades {
       });
       res.send(trades);
     } catch (error) {
-      await this.logAction(req, 'trades', 500, { 
+      await this.createLog(req, 'trades', 500, {
         user_id: userId,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -266,9 +262,9 @@ export class Trades {
   public async addItemToTrade(req: AuthenticatedRequest, res: Response) {
     const tradeId = req.params.id;
     const { tradeItem } = req.body as { tradeItem: TradeItem };
-    
+
     if (!tradeItem.itemId || !tradeItem.amount || tradeItem.amount <= 0) {
-      await this.logAction(req, 'trade_items', 400, { 
+      await this.createLog(req, 'trade_items', 400, {
         trade_id: tradeId,
         action: 'add_item',
         reason: 'invalid_trade_item_format',
@@ -276,10 +272,10 @@ export class Trades {
       });
       return res.status(400).send({ message: "Invalid tradeItem format" });
     }
-    
+
     try {
       await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
-      await this.logAction(req, 'trade_items', 200, { 
+      await this.createLog(req, 'trade_items', 200, {
         trade_id: tradeId,
         action: 'add_item',
         item_id: tradeItem.itemId,
@@ -289,7 +285,7 @@ export class Trades {
       });
       res.status(200).send({ message: "Item added to trade" });
     } catch (error) {
-      await this.logAction(req, 'trade_items', 500, { 
+      await this.createLog(req, 'trade_items', 500, {
         trade_id: tradeId,
         action: 'add_item',
         item_id: tradeItem.itemId,
@@ -320,19 +316,19 @@ export class Trades {
   public async removeItemFromTrade(req: AuthenticatedRequest, res: Response) {
     const tradeId = req.params.id;
     const { tradeItem } = req.body as { tradeItem: TradeItem };
-    
+
     if (!tradeItem.itemId) {
-      await this.logAction(req, 'trade_items', 400, { 
+      await this.createLog(req, 'trade_items', 400, {
         trade_id: tradeId,
         action: 'remove_item',
         reason: 'missing_item_id'
       });
       return res.status(400).send({ message: "Invalid tradeItem format" });
     }
-    
+
     // Pour les items avec _unique_id, l'amount peut être omis
     if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
-      await this.logAction(req, 'trade_items', 400, { 
+      await this.createLog(req, 'trade_items', 400, {
         trade_id: tradeId,
         action: 'remove_item',
         reason: 'amount_required_for_non_unique_items',
@@ -340,10 +336,10 @@ export class Trades {
       });
       return res.status(400).send({ message: "Amount is required for items without _unique_id" });
     }
-    
+
     try {
       await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
-      await this.logAction(req, 'trade_items', 200, { 
+      await this.createLog(req, 'trade_items', 200, {
         trade_id: tradeId,
         action: 'remove_item',
         item_id: tradeItem.itemId,
@@ -353,7 +349,7 @@ export class Trades {
       });
       res.status(200).send({ message: "Item removed from trade" });
     } catch (error) {
-      await this.logAction(req, 'trade_items', 500, { 
+      await this.createLog(req, 'trade_items', 500, {
         trade_id: tradeId,
         action: 'remove_item',
         item_id: tradeItem.itemId,
@@ -376,16 +372,16 @@ export class Trades {
   @httpPut("/:id/approve", LoggedCheck.middleware)
   public async approveTrade(req: AuthenticatedRequest, res: Response) {
     const tradeId = req.params.id;
-    
+
     try {
       await this.tradeService.approveTrade(tradeId, req.user.user_id);
-      await this.logAction(req, 'trades', 200, { 
+      await this.createLog(req, 'trades', 200, {
         trade_id: tradeId,
         action: 'approve'
       });
       res.status(200).send({ message: "Trade approved" });
     } catch (error) {
-      await this.logAction(req, 'trades', 500, { 
+      await this.createLog(req, 'trades', 500, {
         trade_id: tradeId,
         action: 'approve',
         error: error instanceof Error ? error.message : String(error)
@@ -406,16 +402,16 @@ export class Trades {
   @httpPut("/:id/cancel", LoggedCheck.middleware)
   public async cancelTrade(req: AuthenticatedRequest, res: Response) {
     const tradeId = req.params.id;
-    
+
     try {
       await this.tradeService.cancelTrade(tradeId, req.user.user_id);
-      await this.logAction(req, 'trades', 200, { 
+      await this.createLog(req, 'trades', 200, {
         trade_id: tradeId,
         action: 'cancel'
       });
       res.status(200).send({ message: "Trade canceled" });
     } catch (error) {
-      await this.logAction(req, 'trades', 500, { 
+      await this.createLog(req, 'trades', 500, {
         trade_id: tradeId,
         action: 'cancel',
         error: error instanceof Error ? error.message : String(error)

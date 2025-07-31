@@ -27,28 +27,29 @@ const GenKey_1 = require("../utils/GenKey");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
 let Users = class Users {
-    constructor(userService, logService, mailService, studioService, steamOAuthService // Assuming you have a SteamOAuthService
-    ) {
+    constructor(userService, logService, mailService, studioService, steamOAuthService) {
         this.userService = userService;
         this.logService = logService;
         this.mailService = mailService;
         this.studioService = studioService;
         this.steamOAuthService = steamOAuthService;
     }
-    // Helper simplifié - garde seulement les essentiels
+    // --- HELPERS ---
     sendError(res, status, message) {
         return res.status(status).send({ message });
     }
-    // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    async createLog(req, action, tableName, statusCode, userId, metadata) {
         try {
+            const requestBody = { ...req.body };
+            if (metadata)
+                requestBody.metadata = metadata;
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `UserController.${controller}`,
+                controller: `UserController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
-                request_body: req.body,
+                request_body: requestBody,
                 user_id: userId,
                 status_code: statusCode
             });
@@ -57,7 +58,6 @@ let Users = class Users {
             console.error('Error creating log:', error);
         }
     }
-    // Ce helper peut être inline dans les méthodes
     requireFields(obj, fields) {
         return fields.every(f => obj[f]);
     }
@@ -95,9 +95,7 @@ let Users = class Users {
         const { email, provider, providerId, username } = req.body;
         if (!email || !provider || !providerId) {
             await this.createLog(req, 'loginOAuth', 'users', 400);
-            return res
-                .status(400)
-                .send({ message: "Missing email, provider or providerId" });
+            return this.sendError(res, 400, "Missing email, provider or providerId");
         }
         const users = await this.userService.getAllUsersWithDisabled();
         const authHeader = req.headers["authorization"] ||
@@ -126,12 +124,12 @@ let Users = class Users {
                     user.google_id &&
                     user.google_id !== providerId)) {
                 await this.createLog(req, 'loginOAuth', 'users', 401, user.user_id);
-                return res.status(401).send({ message: "OAuth providerId mismatch" });
+                return this.sendError(res, 401, "OAuth providerId mismatch");
             }
         }
         if (user.disabled) {
             await this.createLog(req, 'loginOAuth', 'users', 403, user.user_id);
-            return res.status(403).send({ message: "Account is disabled" });
+            return this.sendError(res, 403, "Account is disabled");
         }
         await this.createLog(req, 'loginOAuth', 'users', 200, user.user_id);
         res.status(200).send({
@@ -221,13 +219,13 @@ let Users = class Users {
             });
         }
     }
+    // --- PROFIL UTILISATEUR ---
     async getMe(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
             await this.createLog(req, 'getMe', 'users', 401);
             return this.sendError(res, 401, "Unauthorized");
         }
-        // Get user with all related data in one call
         const userWithData = await this.userService.getUserWithCompleteProfile(userId);
         if (!userWithData) {
             await this.createLog(req, 'getMe', 'users', 404, userId);
@@ -350,6 +348,21 @@ let Users = class Users {
             this.sendError(res, 500, "Error resetting password");
         }
     }
+    async isValidResetToken(req, res) {
+        const { reset_token } = req.query;
+        if (!reset_token) {
+            await this.createLog(req, 'isValidResetToken', 'users', 400);
+            return this.sendError(res, 400, "Missing required fields");
+        }
+        const user = await this.userService.findByResetToken(reset_token);
+        if (!user) {
+            await this.createLog(req, 'isValidResetToken', 'users', 404);
+            return this.sendError(res, 404, "Invalid reset token");
+        }
+        await this.createLog(req, 'isValidResetToken', 'users', 200, user.user_id);
+        res.status(200).send({ message: "Valid reset token", user });
+    }
+    // --- STEAM ---
     async steamRedirect(req, res) {
         const url = this.steamOAuthService.getAuthUrl();
         await this.createLog(req, 'steamRedirect', 'users', 200);
@@ -396,11 +409,11 @@ let Users = class Users {
         }
         catch (error) {
             console.error("Error unlinking Steam account", error);
-            const message = error instanceof Error ? error.message : String(error);
             await this.createLog(req, 'unlinkSteam', 'users', 500, userId);
             this.sendError(res, 500, "Error unlinking Steam account");
         }
     }
+    // --- RECHERCHE UTILISATEUR ---
     async searchUsers(req, res) {
         const query = req.query.q?.trim();
         if (!query) {
@@ -426,7 +439,6 @@ let Users = class Users {
             return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
-        // Get user with all related data in one call
         const userWithData = await this.userService.getUserWithPublicProfile(userId);
         if (!userWithData) {
             await this.createLog(req, 'getUser', 'users', 404);
@@ -440,6 +452,7 @@ let Users = class Users {
             createdGames: userWithData.createdGames || []
         });
     }
+    // --- ADMINISTRATION ---
     async adminSearchUsers(req, res) {
         if (!req.user?.admin) {
             await this.createLog(req, 'adminSearchUsers', 'users', 403, req.user?.user_id);
@@ -511,7 +524,6 @@ let Users = class Users {
             return this.sendError(res, 400, "Invalid userId");
         }
         const { userId } = req.params;
-        // Get user with all related data in one call (admin version includes disabled users)
         const userWithData = await this.userService.adminGetUserWithProfile(userId);
         if (!userWithData) {
             await this.createLog(req, 'adminGetUser', 'users', 404, req.user?.user_id);
@@ -526,6 +538,7 @@ let Users = class Users {
             createdGames: userWithData.createdGames || []
         });
     }
+    // --- CRÉDITS ---
     async transferCredits(req, res) {
         const { targetUserId, amount } = req.body;
         if (!targetUserId || isNaN(amount) || amount <= 0) {
@@ -561,6 +574,7 @@ let Users = class Users {
             this.sendError(res, 500, "Error transferring credits");
         }
     }
+    // --- VÉRIFICATION ---
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey) {
@@ -577,6 +591,7 @@ let Users = class Users {
         await this.createLog(req, 'checkVerificationKey', 'users', isValid ? 200 : 401, userId);
         res.send({ success: isValid });
     }
+    // --- RÔLES ---
     async changeRole(req, res) {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
@@ -608,20 +623,6 @@ let Users = class Users {
             await this.createLog(req, 'changeRole', 'users', 500, userId);
             this.sendError(res, 500, "Error setting role cookie");
         }
-    }
-    async isValidResetToken(req, res) {
-        const { reset_token } = req.query;
-        if (!reset_token) {
-            await this.createLog(req, 'isValidResetToken', 'users', 400);
-            return this.sendError(res, 400, "Missing required fields");
-        }
-        const user = await this.userService.findByResetToken(reset_token);
-        if (!user) {
-            await this.createLog(req, 'isValidResetToken', 'users', 404);
-            return this.sendError(res, 404, "Invalid reset token");
-        }
-        await this.createLog(req, 'isValidResetToken', 'users', 200, user.user_id);
-        res.status(200).send({ message: "Valid reset token", user });
     }
 };
 __decorate([
@@ -690,6 +691,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "resetPassword", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/validate-reset-token"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Users.prototype, "isValidResetToken", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/steam-redirect"),
     __metadata("design:type", Function),
@@ -827,12 +834,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "changeRole", null);
-__decorate([
-    (0, inversify_express_utils_1.httpGet)("/validate-reset-token"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Users.prototype, "isValidResetToken", null);
 Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),

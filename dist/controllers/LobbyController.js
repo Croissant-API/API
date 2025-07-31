@@ -44,12 +44,12 @@ let Lobbies = class Lobbies {
         this.logService = logService;
     }
     // Helper pour créer des logs
-    async createLog(req, controller, tableName, statusCode, userId) {
+    async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: `LobbyController.${controller}`,
+                controller: `LobbyController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: req.body,
@@ -58,7 +58,6 @@ let Lobbies = class Lobbies {
             });
         }
         catch (error) {
-            // On ne bloque jamais la route sur une erreur de log
             console.error('Error creating log:', error);
         }
     }

@@ -8,7 +8,7 @@ import {
 } from "inversify-express-utils";
 import { IGameService } from "../services/GameService";
 import { ILogService } from "../services/LogService";
-import { ValidationError } from "yup";
+import { ValidationError, Schema } from "yup";
 import {
   gameIdParamSchema,
   createGameBodySchema,
@@ -18,7 +18,6 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
-import { Schema } from "yup";
 
 // --- UTILS ---
 const gameResponseFields = {
@@ -68,13 +67,19 @@ export class Games {
     @inject("LogService") private logService: ILogService
   ) { }
 
-  // Helper pour créer des logs
-  private async createLog(req: Request, controller: string, tableName?: string, statusCode?: number, userId?: string) {
+  // Helper pour créer des logs (signature uniforme)
+  private async createLog(
+    req: Request,
+    action: string,
+    tableName?: string,
+    statusCode?: number,
+    userId?: string
+  ) {
     try {
       await this.logService.createLog({
         ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
         table_name: tableName,
-        controller: `GameController.${controller}`,
+        controller: `GameController.${action}`,
         original_path: req.originalUrl,
         http_method: req.method,
         request_body: req.body,
@@ -342,7 +347,7 @@ export class Games {
   // --- PROPRIÉTÉ ---
   @httpPost("/transfer-ownership/:gameId", LoggedCheck.middleware)
   public async transferOwnership(req: AuthenticatedRequest, res: Response) {
-    if(!req.user) {
+    if (!req.user) {
       await this.createLog(req, 'transferOwnership', 'games', 401);
       return res.status(401).send({ message: "Unauthorized" });
     }
@@ -359,7 +364,7 @@ export class Games {
         await this.createLog(req, 'transferOwnership', 'games', 404, userId);
         return res.status(404).send({ message: "Game not found" });
       }
-      if( game.owner_id !== userId) {
+      if (game.owner_id !== userId) {
         await this.createLog(req, 'transferOwnership', 'games', 403, userId);
         return res.status(403).send({ message: "You are not the owner of this game" });
       }
@@ -397,7 +402,7 @@ export class Games {
       await this.createLog(req, 'transferGame', 'games', 400, req.user?.user_id);
       return;
     }
-    
+
     const { gameId } = req.params;
     const { targetUserId } = req.body;
     const fromUserId = req.user.user_id;
@@ -427,8 +432,8 @@ export class Games {
 
       await this.gameService.transferGameCopy(gameId, fromUserId, targetUserId);
       await this.createLog(req, 'transferGame', 'games', 200, fromUserId);
-      res.status(200).send({ 
-        message: `Game successfully transferred to ${targetUser.username}` 
+      res.status(200).send({
+        message: `Game successfully transferred to ${targetUser.username}`
       });
     } catch (error) {
       await this.createLog(req, 'transferGame', 'games', 500, fromUserId);
@@ -452,7 +457,7 @@ export class Games {
       await this.createLog(req, 'canTransferGame', 'games', 400, req.user?.user_id);
       return;
     }
-    
+
     const { gameId } = req.params;
     const { targetUserId } = req.query;
     const fromUserId = req.user.user_id;

@@ -16,7 +16,6 @@ exports.LogController = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const describe_1 = require("../decorators/describe");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -105,160 +104,36 @@ let LogController = class LogController {
     }
 };
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs",
-        method: "GET",
-        description: "Get all logs with pagination",
-        query: {
-            limit: "Number of logs to return (default: 100)",
-            offset: "Number of logs to skip (default: 0)"
-        },
-        responseType: [{
-                id: "number",
-                timestamp: "string",
-                ip_address: "string",
-                table_name: "string",
-                controller: "string",
-                original_path: "string",
-                http_method: "string",
-                request_body: "string",
-                user_id: "string",
-                status_code: "number"
-            }],
-        example: "GET /api/logs?limit=50&offset=0",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getAllLogs", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs/controller/:controller",
-        method: "GET",
-        description: "Get logs for a specific controller",
-        params: { controller: "The name of the controller" },
-        query: { limit: "Number of logs to return (default: 100)" },
-        responseType: [{
-                id: "number",
-                timestamp: "string",
-                ip_address: "string",
-                table_name: "string",
-                controller: "string",
-                original_path: "string",
-                http_method: "string",
-                request_body: "string",
-                user_id: "string",
-                status_code: "number"
-            }],
-        example: "GET /api/logs/controller/users?limit=50",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/controller/:controller", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getLogsByController", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs/user/:userId",
-        method: "GET",
-        description: "Get logs for a specific user",
-        params: { userId: "The ID of the user" },
-        query: { limit: "Number of logs to return (default: 100)" },
-        responseType: [{
-                id: "number",
-                timestamp: "string",
-                ip_address: "string",
-                table_name: "string",
-                controller: "string",
-                original_path: "string",
-                http_method: "string",
-                request_body: "string",
-                user_id: "string",
-                status_code: "number"
-            }],
-        example: "GET /api/logs/user/123?limit=50",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getLogsByUser", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs/table/:tableName",
-        method: "GET",
-        description: "Get logs for a specific table",
-        params: { tableName: "The name of the table" },
-        query: { limit: "Number of logs to return (default: 100)" },
-        responseType: [{
-                id: "number",
-                timestamp: "string",
-                ip_address: "string",
-                table_name: "string",
-                controller: "string",
-                original_path: "string",
-                http_method: "string",
-                request_body: "string",
-                user_id: "string",
-                status_code: "number"
-            }],
-        example: "GET /api/logs/table/users?limit=50",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/table/:tableName", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getLogsByTable", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs/stats",
-        method: "GET",
-        description: "Get logging statistics",
-        responseType: {
-            totalLogs: "number",
-            logsByController: [{
-                    controller: "string",
-                    count: "number"
-                }],
-            logsByTable: [{
-                    table_name: "string",
-                    count: "number"
-                }]
-        },
-        example: "GET /api/logs/stats",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/stats", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getLogStats", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/logs/@me",
-        method: "GET",
-        description: "Get logs for the authenticated user",
-        query: { limit: "Number of logs to return (default: 100)" },
-        responseType: [{
-                id: "number",
-                timestamp: "string",
-                ip_address: "string",
-                table_name: "string",
-                controller: "string",
-                original_path: "string",
-                http_method: "string",
-                request_body: "string",
-                user_id: "string",
-                status_code: "number"
-            }],
-        example: "GET /api/logs/@me?limit=50",
-        requiresAuth: true
-    }),
     (0, inversify_express_utils_1.httpGet)("/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),

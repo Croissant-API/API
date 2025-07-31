@@ -6,7 +6,7 @@ export declare class Trades {
     private tradeService;
     private logService;
     constructor(tradeService: ITradeService, logService: ILogService);
-    private logAction;
+    private createLog;
     startOrGetPendingTrade(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getTradeById(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getTradesByUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

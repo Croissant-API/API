@@ -7,7 +7,7 @@ export declare class StripeController {
     private logService;
     private stripe;
     constructor(userService: IUserService, logService: ILogService);
-    private logAction;
+    private createLog;
     handleWebhook(req: Request, res: Response): Promise<void>;
     checkoutEndpoint(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getTiers(req: Request, res: Response): Promise<void>;

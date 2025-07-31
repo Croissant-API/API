@@ -6,7 +6,7 @@ export declare class OAuth2 {
     private oauth2Service;
     private logService;
     constructor(oauth2Service: IOAuth2Service, logService: ILogService);
-    private logAction;
+    private createLog;
     getAppByClientId(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     createApp(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyApps(req: AuthenticatedRequest, res: Response): Promise<void>;

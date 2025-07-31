@@ -115,14 +115,12 @@ let StripeController = class StripeController {
             apiVersion: "2025-06-30.basil"
         });
     }
-    // Helper pour les logs
-    async logAction(req, tableName, statusCode, metadata) {
+    // Helper pour les logs (uniformisé)
+    async createLog(req, tableName, statusCode, metadata, user_id) {
         try {
             const requestBody = { ...req.body };
-            // Ajouter les métadonnées si fournies
-            if (metadata) {
+            if (metadata)
                 requestBody.metadata = metadata;
-            }
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
@@ -130,8 +128,8 @@ let StripeController = class StripeController {
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: requestBody,
-                user_id: req.user?.user_id,
-                status_code: statusCode
+                status_code: statusCode,
+                user_id: user_id
             });
         }
         catch (error) {
@@ -140,12 +138,12 @@ let StripeController = class StripeController {
     }
     async handleWebhook(req, res) {
         if (!STRIPE_WEBHOOK_SECRET) {
-            await this.logAction(req, 'stripe_webhooks', 500);
+            await this.createLog(req, 'stripe_webhooks', 500);
             return handleError(res, new Error("Webhook secret not configured"), "Stripe webhook secret is not set", 500);
         }
         const sig = req.headers["stripe-signature"];
         if (!sig) {
-            await this.logAction(req, 'stripe_webhooks', 400);
+            await this.createLog(req, 'stripe_webhooks', 400);
             return handleError(res, new Error("Missing signature"), "Missing Stripe signature", 400);
         }
         let event;
@@ -154,19 +152,19 @@ let StripeController = class StripeController {
             sig, STRIPE_WEBHOOK_SECRET);
         }
         catch (err) {
-            await this.logAction(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
+            await this.createLog(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
             return handleError(res, err, "Webhook signature verification failed", 400);
         }
         try {
             await this.processWebhookEvent(event);
-            await this.logAction(req, 'stripe_webhooks', 200, {
+            await this.createLog(req, 'stripe_webhooks', 200, {
                 event_type: event.type,
                 event_id: event.id
             });
             res.status(200).send({ received: true });
         }
         catch (error) {
-            await this.logAction(req, 'stripe_webhooks', 500, {
+            await this.createLog(req, 'stripe_webhooks', 500, {
                 event_type: event.type,
                 event_id: event.id,
                 error: error instanceof Error ? error.message : String(error)
@@ -177,14 +175,14 @@ let StripeController = class StripeController {
     // --- CHECKOUT ---
     async checkoutEndpoint(req, res) {
         if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
-            await this.logAction(req, 'stripe_sessions', 400);
+            await this.createLog(req, 'stripe_sessions', 400);
             return;
         }
         try {
             const { tier } = req.query;
             const selectedTier = CREDIT_TIERS.find(t => t.id === tier);
             if (!selectedTier) {
-                await this.logAction(req, 'stripe_sessions', 400, { tier, reason: 'invalid_tier' });
+                await this.createLog(req, 'stripe_sessions', 400, { tier, reason: 'invalid_tier' }, req.user?.user_id);
                 return res.status(400).send({
                     message: "Invalid tier selected",
                     availableTiers: CREDIT_TIERS.map(t => t.id)
@@ -192,7 +190,7 @@ let StripeController = class StripeController {
             }
             const session = await this.createCheckoutSession(selectedTier, req.user.user_id);
             if (!session.url) {
-                await this.logAction(req, 'stripe_sessions', 500, {
+                await this.createLog(req, 'stripe_sessions', 500, {
                     tier: selectedTier.id,
                     reason: 'no_session_url'
                 });
@@ -201,7 +199,7 @@ let StripeController = class StripeController {
                     error: "Stripe session URL is null"
                 });
             }
-            await this.logAction(req, 'stripe_sessions', 200, {
+            await this.createLog(req, 'stripe_sessions', 200, {
                 tier: selectedTier.id,
                 credits: selectedTier.credits,
                 price: selectedTier.price,
@@ -210,14 +208,14 @@ let StripeController = class StripeController {
             res.send({ url: session.url });
         }
         catch (error) {
-            await this.logAction(req, 'stripe_sessions', 500, {
+            await this.createLog(req, 'stripe_sessions', 500, {
                 error: error instanceof Error ? error.message : String(error)
             });
             handleError(res, error, "Error creating checkout session");
         }
     }
     async getTiers(req, res) {
-        await this.logAction(req, undefined, 200);
+        await this.createLog(req, undefined, 200);
         res.send(CREDIT_TIERS);
     }
     // --- PRIVATE METHODS ---
