@@ -65,13 +65,9 @@ export class SearchController {
             const users: User[] = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
                 if (user.disabled) return null;
-                const { inventory } = await this.inventoryService.getInventory(user.user_id);
-                const formattedInventory = await formatInventory(inventory, this.itemService);
-                const items = await this.itemService.getAllItems();
-                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(mapItem);
-                const games = await this.gameService.listGames();
-                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => filterGame(g, user?.user_id));
-                return { ...mapUserSearch(user), inventory: formattedInventory, ownedItems, createdGames };
+                // Utilisation du profil public complet
+                const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
+                return { id: user.user_id, ...publicProfile };
             }));
 
             const items = await this.itemService.searchItemsByName(query);
