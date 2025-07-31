@@ -96,13 +96,11 @@ let SearchController = class SearchController {
         try {
             const users = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                const { inventory } = await this.inventoryService.getInventory(user.user_id);
-                const formattedInventory = await (0, helpers_1.formatInventory)(inventory, this.itemService);
-                const items = await this.itemService.getAllItems();
-                const ownedItems = items.filter((i) => !i.deleted && i.owner === user?.user_id).map(helpers_1.mapItem);
-                const games = await this.gameService.listGames();
-                const createdGames = games.filter(g => g.owner_id === user?.user_id).map(g => (0, helpers_1.filterGame)(g, user?.user_id));
-                return { ...(0, helpers_1.mapUserSearch)(user), disabled: user.disabled, inventory: formattedInventory, ownedItems, createdGames };
+                if (user.disabled)
+                    return null;
+                // Utilisation du profil public complet
+                const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
+                return { id: user.user_id, disabled: user.disabled, ...publicProfile };
             }));
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
