@@ -179,9 +179,9 @@ let TradeService = class TradeService {
         }
         else {
             // Pour les items sans métadonnées, vérifier avec le prix d'achat si spécifié
-            if (tradeItem.purchasePrice !== undefined) {
-                const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories 
-           WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`, [userId, tradeItem.itemId, tradeItem.purchasePrice]);
+            if (tradeItem.purchasePrice) {
+                const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories
+           WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [userId, tradeItem.itemId, tradeItem.purchasePrice]);
                 const totalAvailable = inventoryItems.reduce((sum, item) => sum + item.amount, 0);
                 if (totalAvailable < tradeItem.amount) {
                     throw new Error("User does not have enough of the item with specified purchase price");
@@ -243,7 +243,7 @@ let TradeService = class TradeService {
                 i.purchasePrice === tradeItem.purchasePrice);
         }
         if (idx === -1)
-            throw new Error("Item not found in trade");
+            return;
         if (tradeItem.metadata?._unique_id) {
             // Pour les items uniques, les supprimer complètement
             items.splice(idx, 1);

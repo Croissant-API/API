@@ -360,14 +360,14 @@ export class TradeService implements ITradeService {
       }
     } else {
       // Pour les items sans métadonnées, vérifier avec le prix d'achat si spécifié
-      if (tradeItem.purchasePrice !== undefined) {
+      if (tradeItem.purchasePrice) {
         const inventoryItems = await this.databaseService.read<Array<{
           user_id: string;
           item_id: string;
           amount: number;
         }>>(
-          `SELECT user_id, item_id, amount FROM inventories 
-           WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
+          `SELECT user_id, item_id, amount FROM inventories
+           WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`,
           [userId, tradeItem.itemId, tradeItem.purchasePrice]
         );
         
@@ -449,7 +449,7 @@ export class TradeService implements ITradeService {
       );
     }
     
-    if (idx === -1) throw new Error("Item not found in trade");
+    if (idx === -1) return;
     
     if (tradeItem.metadata?._unique_id) {
       // Pour les items uniques, les supprimer complètement
