@@ -15,7 +15,7 @@ function getRegistrationOptions(user) {
         userID: user.id,
         userName: user.username,
         attestationType: 'none',
-        authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred' },
+        authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
     });
 }
 exports.getRegistrationOptions = getRegistrationOptions;

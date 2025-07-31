@@ -19,7 +19,7 @@ export function getRegistrationOptions(user: any) {
         userID: user.id, // doit être un Buffer/Uint8Array
         userName: user.username,
         attestationType: 'none',
-        authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred' },
+        authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
     });
 }
 
