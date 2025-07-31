@@ -49,6 +49,8 @@ require("./controllers/StripeController");
 require("./controllers/WebAuthnController");
 require("./controllers/AuthenticatorController");
 require("./controllers/GameGiftController");
+require("./controllers/MarketListingController");
+require("./controllers/BuyOrderController");
 const server = new inversify_express_utils_1.InversifyExpressServer(container_1.default);
 server.setConfig((app) => {
     app.use('/stripe/webhook', express_1.default.raw({ type: 'application/json' }));
