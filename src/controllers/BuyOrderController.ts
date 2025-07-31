@@ -4,6 +4,7 @@ import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils"
 import { IBuyOrderService } from "../services/BuyOrderService";
 import { IItemService } from "../services/ItemService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 
 // --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
@@ -15,24 +16,33 @@ function handleError(res: Response, error: unknown, message: string, status = 50
 export class BuyOrderController {
     constructor(
         @inject("BuyOrderService") private buyOrderService: IBuyOrderService,
-        @inject("ItemService") private itemService: IItemService
+        @inject("ItemService") private itemService: IItemService,
+        @inject("LogService") private logService: ILogService // Ajouté pour logger
     ) { }
 
-    // Helper pour les logs (console ici, à remplacer par logService si besoin)
+    // Helper pour les logs (utilise logService maintenant)
     private async logAction(
         req: AuthenticatedRequest,
         action: string,
         statusCode: number,
         metadata?: object
     ) {
-        console.log(`[BuyOrderController]`, {
-            user: req.user?.user_id,
-            action,
-            statusCode,
-            path: req.originalUrl,
-            method: req.method,
-            metadata
-        });
+        try {
+            const requestBody = { ...req.body };
+            if (metadata) requestBody.metadata = metadata;
+            await this.logService.createLog({
+                ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
+                table_name: "buy_order",
+                controller: `BuyOrderController.${action}`,
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: req.user?.user_id,
+                status_code: statusCode
+            });
+        } catch (error) {
+            console.error('Error creating log:', error);
+        }
     }
 
     @httpPost("/", LoggedCheck.middleware)

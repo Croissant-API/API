@@ -49,22 +49,31 @@ function handleError(res, error, message, status = 500) {
     res.status(status).send({ message, error: msg });
 }
 let Authenticator = class Authenticator {
-    constructor(userService
-    // @inject("LogService") private logService: ILogService // à ajouter si tu veux logger en base
+    constructor(userService, logService // décommenté pour logger
     ) {
         this.userService = userService;
+        this.logService = logService;
     }
-    // Helper pour les logs (console ici, à remplacer par logService si besoin)
+    // Helper pour les logs (utilise logService maintenant)
     async logAction(req, action, statusCode, metadata) {
-        // Remplace ce log par un appel à logService si besoin
-        console.log(`[AuthenticatorController]`, {
-            user: req.user?.user_id,
-            action,
-            statusCode,
-            path: req.originalUrl,
-            method: req.method,
-            metadata
-        });
+        try {
+            const requestBody = { ...req.body };
+            if (metadata)
+                requestBody.metadata = metadata;
+            await this.logService.createLog({
+                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
+                table_name: "authenticator",
+                controller: `AuthenticatorController.${action}`,
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: req.user?.user_id,
+                status_code: statusCode
+            });
+        }
+        catch (error) {
+            console.error('Error creating log:', error);
+        }
     }
     async generateKey(req, res) {
         const user = req.user;
@@ -190,6 +199,7 @@ __decorate([
 Authenticator = __decorate([
     (0, inversify_express_utils_1.controller)("/authenticator"),
     __param(0, (0, inversify_1.inject)("UserService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("LogService")),
+    __metadata("design:paramtypes", [Object, Object])
 ], Authenticator);
 exports.Authenticator = Authenticator;

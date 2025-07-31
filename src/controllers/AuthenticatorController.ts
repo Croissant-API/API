@@ -7,6 +7,7 @@ import * as qrcode from "qrcode";
 import { Totp } from "time2fa";
 import { genKey } from "../utils/GenKey";
 import { IUserService } from "../services/UserService";
+import { ILogService } from "../services/LogService";
 
 // --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
@@ -17,26 +18,33 @@ function handleError(res: Response, error: unknown, message: string, status = 50
 @controller("/authenticator")
 export class Authenticator {
     constructor(
-        @inject("UserService") private userService: IUserService
-        // @inject("LogService") private logService: ILogService // à ajouter si tu veux logger en base
+        @inject("UserService") private userService: IUserService,
+        @inject("LogService") private logService: ILogService // décommenté pour logger
     ) { }
 
-    // Helper pour les logs (console ici, à remplacer par logService si besoin)
+    // Helper pour les logs (utilise logService maintenant)
     private async logAction(
         req: Request,
         action: string,
         statusCode: number,
         metadata?: object
     ) {
-        // Remplace ce log par un appel à logService si besoin
-        console.log(`[AuthenticatorController]`, {
-            user: (req as AuthenticatedRequest).user?.user_id,
-            action,
-            statusCode,
-            path: req.originalUrl,
-            method: req.method,
-            metadata
-        });
+        try {
+            const requestBody = { ...req.body };
+            if (metadata) requestBody.metadata = metadata;
+            await this.logService.createLog({
+                ip_address: req.headers["x-real-ip"] as string || req.socket.remoteAddress as string,
+                table_name: "authenticator",
+                controller: `AuthenticatorController.${action}`,
+                original_path: req.originalUrl,
+                http_method: req.method,
+                request_body: requestBody,
+                user_id: (req as AuthenticatedRequest).user?.user_id,
+                status_code: statusCode
+            });
+        } catch (error) {
+            console.error('Error creating log:', error);
+        }
     }
 
     @httpPost("/generateKey", LoggedCheck.middleware)
