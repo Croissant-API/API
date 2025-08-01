@@ -464,7 +464,7 @@ export class Items {
       }
 
       // Ajouter l'item SANS métadonnées avec sellable = true car acheté
-      await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, true, item.price);
+      await this.inventoryService.addItem(user.user_id, itemId, amount, undefined, req.user.user_id != owner.user_id, item.price);
 
       await this.createLog(req, 'inventory', 200, req.user?.user_id, {
         itemId,
