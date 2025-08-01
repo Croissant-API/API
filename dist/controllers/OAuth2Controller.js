@@ -17,6 +17,7 @@ const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+const GenKey_1 = require("../utils/GenKey");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -204,7 +205,7 @@ let OAuth2 = class OAuth2 {
                 user_id: user.user_id,
                 username: user.username
             });
-            res.send(user);
+            res.send({ ...user, verificationKey: (0, GenKey_1.genVerificationKey)(user.user_id) });
         }
         catch (error) {
             await this.createLog(req, 'oauth2_user_access', 500, undefined, {
@@ -345,7 +346,8 @@ __decorate([
             steam_avatar_url: "string",
             steam_id: "string",
             discord_id: "string",
-            google_id: "string"
+            google_id: "string",
+            verificationKey: "string"
         },
         example: "GET /api/oauth2/user?code=abc123&client_id=456"
     }),

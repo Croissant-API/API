@@ -12,6 +12,7 @@ import { IOAuth2Service } from "../services/OAuth2Service";
 import { ILogService } from "../services/LogService";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { genVerificationKey } from "../utils/GenKey";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -296,7 +297,8 @@ export class OAuth2 {
       steam_avatar_url: "string",
       steam_id: "string",
       discord_id: "string",
-      google_id: "string"
+      google_id: "string",
+      verificationKey: "string"
     },
     example: "GET /api/oauth2/user?code=abc123&client_id=456"
   })
@@ -328,7 +330,7 @@ export class OAuth2 {
         user_id: user.user_id,
         username: user.username
       });
-      res.send(user);
+      res.send({...user, verificationKey: genVerificationKey(user.user_id)});
     } catch (error) {
       await this.createLog(req, 'oauth2_user_access', 500, undefined, {
         client_id,
