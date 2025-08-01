@@ -8,6 +8,15 @@ import path from "path";
 import crypto from "crypto";
 import { genKey } from "../utils/GenKey";
 
+function slugify(input: string): string {
+  return input
+    .normalize("NFKD")                         // Transforme 𝙉 → N
+    .replace(/[\p{Emoji_Presentation}\p{So}\p{Sk}★☆✩｡°⋆•]+/gu, "") // Supprime symboles, emojis, etc.
+    .replace(/[^a-zA-Z0-9]/g, "")             // Garde lettres/chiffres uniquement
+    .toLowerCase();
+}
+
+
 config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -236,11 +245,19 @@ export class UserService implements IUserService {
   }
 
   async searchUsersByUsername(query: string): Promise<User[]> {
+    // Récupère tous les utilisateurs
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE username LIKE ? AND (disabled = 0 OR disabled IS NULL)",
-      [`%${query}%`]
+      "SELECT * FROM users"
     );
-    return users;
+    // Filtre les comptes désactivés
+    const enabledUsers = users.filter((u: { disabled: number; }) => !u.disabled || u.disabled === 0);
+    const querySlug = slugify(query);
+    // Filtre sur le slug du username
+    const matchedUsers = enabledUsers.filter((u: { username: string; }) => {
+      if(slugify(u.username).indexOf(querySlug) !== -1) return true;
+      return false;
+    });
+    return matchedUsers;
   }
 
   /**
@@ -298,10 +315,14 @@ export class UserService implements IUserService {
 
   async adminSearchUsers(query: string): Promise<User[]> {
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users WHERE username LIKE ?",
-      [`%${query}%`]
+      "SELECT * FROM users"
     );
-    return users;
+    const querySlug = slugify(query);
+    const matchedUsers = users.filter((u: { username: string; }) => {
+      if(slugify(u.username).indexOf(querySlug) !== -1) return true;
+      return false;
+    });
+    return matchedUsers;
   }
 
   async getAllUsers(): Promise<User[]> {

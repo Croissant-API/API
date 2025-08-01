@@ -24,6 +24,13 @@ const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
+function slugify(input) {
+    return input
+        .normalize("NFKD") // Transforme 𝙉 → N
+        .replace(/[\p{Emoji_Presentation}\p{So}\p{Sk}★☆✩｡°⋆•]+/gu, "") // Supprime symboles, emojis, etc.
+        .replace(/[^a-zA-Z0-9]/g, "") // Garde lettres/chiffres uniquement
+        .toLowerCase();
+}
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = UserService_1 = class UserService {
@@ -141,8 +148,18 @@ let UserService = UserService_1 = class UserService {
         }
     }
     async searchUsersByUsername(query) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${query}%`]);
-        return users;
+        // Récupère tous les utilisateurs
+        const users = await this.databaseService.read("SELECT * FROM users");
+        // Filtre les comptes désactivés
+        const enabledUsers = users.filter((u) => !u.disabled || u.disabled === 0);
+        const querySlug = slugify(query);
+        // Filtre sur le slug du username
+        const matchedUsers = enabledUsers.filter((u) => {
+            if (slugify(u.username).indexOf(querySlug) !== -1)
+                return true;
+            return false;
+        });
+        return matchedUsers;
     }
     /**
      * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
@@ -181,8 +198,14 @@ let UserService = UserService_1 = class UserService {
         return this.fetchUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE username LIKE ?", [`%${query}%`]);
-        return users;
+        const users = await this.databaseService.read("SELECT * FROM users");
+        const querySlug = slugify(query);
+        const matchedUsers = users.filter((u) => {
+            if (slugify(u.username).indexOf(querySlug) !== -1)
+                return true;
+            return false;
+        });
+        return matchedUsers;
     }
     async getAllUsers() {
         return this.fetchAllUsers(false);
