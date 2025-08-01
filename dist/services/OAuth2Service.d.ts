@@ -57,5 +57,7 @@ export declare class OAuth2Service implements IOAuth2Service {
         steam_username?: string;
         steam_avatar_url?: string;
         steam_id?: string;
+        discord_id?: string;
+        google_id?: string;
     } | null>;
 }

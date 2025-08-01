@@ -294,7 +294,9 @@ export class OAuth2 {
       verified: "boolean",
       steam_username: "string",
       steam_avatar_url: "string",
-      steam_id: "string"
+      steam_id: "string",
+      discord_id: "string",
+      google_id: "string"
     },
     example: "GET /api/oauth2/user?code=abc123&client_id=456"
   })

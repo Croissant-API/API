@@ -128,6 +128,8 @@ export class OAuth2Service implements IOAuth2Service {
         steam_username?: string;
         steam_avatar_url?: string;
         steam_id?: string;
+        discord_id?: string;
+        google_id?: string;
     } | null> {
         const users = await this.db.read<Array<{
             username: string;
@@ -138,9 +140,11 @@ export class OAuth2Service implements IOAuth2Service {
             steam_username?: string;
             steam_avatar_url?: string;
             steam_id?: string;
+            discord_id?: string;
+            google_id?: string;
         }>>(
             `SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
-                    u.steam_username, u.steam_avatar_url, u.steam_id
+                    u.steam_username, u.steam_avatar_url, u.steam_id, u.discord_id, u.google_id
              FROM oauth2_codes c
              INNER JOIN oauth2_apps a ON c.client_id = a.client_id
              INNER JOIN users u ON c.user_id = u.user_id

@@ -71,7 +71,7 @@ let OAuth2Service = class OAuth2Service {
     }
     async getUserByCode(code, client_id) {
         const users = await this.db.read(`SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
-                    u.steam_username, u.steam_avatar_url, u.steam_id
+                    u.steam_username, u.steam_avatar_url, u.steam_id, u.discord_id, u.google_id
              FROM oauth2_codes c
              INNER JOIN oauth2_apps a ON c.client_id = a.client_id
              INNER JOIN users u ON c.user_id = u.user_id
