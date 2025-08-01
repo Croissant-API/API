@@ -605,6 +605,10 @@ export class Users {
       await this.createLog(req, 'disableAccount', 'users', 401);
       return res.status(401).send({ message: "Unauthorized" });
     }
+    if (adminUserId === userId) {
+      await this.createLog(req, 'disableAccount', 'users', 400, adminUserId);
+      return res.status(400).send({ message: "Vous ne pouvez pas désactiver votre propre compte." });
+    }
     try {
       await this.userService.disableAccount(userId, adminUserId);
       await this.createLog(req, 'disableAccount', 'users', 200, adminUserId);
@@ -624,6 +628,10 @@ export class Users {
     if (!adminUserId) {
       await this.createLog(req, 'reenableAccount', 'users', 401);
       return res.status(401).send({ message: "Unauthorized" });
+    }
+    if (adminUserId === userId) {
+      await this.createLog(req, 'reenableAccount', 'users', 400, adminUserId);
+      return res.status(400).send({ message: "Vous ne pouvez pas réactiver votre propre compte." });
     }
     try {
       await this.userService.reenableAccount(userId, adminUserId);
