@@ -8,14 +8,42 @@ import path from "path";
 import crypto from "crypto";
 import { genKey } from "../utils/GenKey";
 
-function slugify(input: string): string {
-  return input
-    .normalize("NFKD")                         // Transforme 𝙉 → N
-    .replace(/[\p{Emoji_Presentation}\p{So}\p{Sk}★☆✩｡°⋆•]+/gu, "") // Supprime symboles, emojis, etc.
-    .replace(/[^a-zA-Z0-9]/g, "")             // Garde lettres/chiffres uniquement
-    .toLowerCase();
-}
+import removeDiacritics from "diacritics";
 
+function slugify(str: string): string {
+  // 1. Normalisation des caractères spéciaux (𝙉 → N)
+  str = str.normalize("NFKD");
+
+  // 2. Remove remaining diacritics (like à → a, 𝛼 → α → a)
+  str = removeDiacritics.remove(str);
+
+  // 3. Remplacer certains caractères Unicode manuellement (ex: α → a, etc.)
+  const substitutions: Record<string, string> = {
+    "α": "a",
+    "β": "b",
+    "γ": "g",
+    "δ": "d",
+    "ε": "e",
+    "θ": "o",
+    "λ": "l",
+    "μ": "m",
+    "ν": "v",
+    "π": "p",
+    "ρ": "r",
+    "σ": "s",
+    "τ": "t",
+    "φ": "f",
+    "χ": "x",
+    "ψ": "ps",
+    "ω": "w",
+    "ℓ": "l",
+    "𝓁": "l",
+    "𝔩": "l"
+  };
+  str = str.split("").map(c => substitutions[c] ?? c).join("");
+  str = str.replace(/[^a-zA-Z0-9]/g, "");
+  return str.toLowerCase();
+}
 
 config({ path: path.join(__dirname, "..", "..", ".env") });
 

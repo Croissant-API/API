@@ -24,12 +24,38 @@ const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
-function slugify(input) {
-    return input
-        .normalize("NFKD") // Transforme 𝙉 → N
-        .replace(/[\p{Emoji_Presentation}\p{So}\p{Sk}★☆✩｡°⋆•]+/gu, "") // Supprime symboles, emojis, etc.
-        .replace(/[^a-zA-Z0-9]/g, "") // Garde lettres/chiffres uniquement
-        .toLowerCase();
+const diacritics_1 = __importDefault(require("diacritics"));
+function slugify(str) {
+    // 1. Normalisation des caractères spéciaux (𝙉 → N)
+    str = str.normalize("NFKD");
+    // 2. Remove remaining diacritics (like à → a, 𝛼 → α → a)
+    str = diacritics_1.default.remove(str);
+    // 3. Remplacer certains caractères Unicode manuellement (ex: α → a, etc.)
+    const substitutions = {
+        "α": "a",
+        "β": "b",
+        "γ": "g",
+        "δ": "d",
+        "ε": "e",
+        "θ": "o",
+        "λ": "l",
+        "μ": "m",
+        "ν": "v",
+        "π": "p",
+        "ρ": "r",
+        "σ": "s",
+        "τ": "t",
+        "φ": "f",
+        "χ": "x",
+        "ψ": "ps",
+        "ω": "w",
+        "ℓ": "l",
+        "𝓁": "l",
+        "𝔩": "l"
+    };
+    str = str.split("").map(c => substitutions[c] ?? c).join("");
+    str = str.replace(/[^a-zA-Z0-9]/g, "");
+    return str.toLowerCase();
 }
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
 const BOT_TOKEN = process.env.BOT_TOKEN;
