@@ -72,7 +72,7 @@ let SearchController = class SearchController {
                     games: filteredGames.length
                 }
             });
-            res.send({ users: detailledUsers, items, games: filteredGames });
+            res.send({ users: detailledUsers.filter(u => u !== null), items, games: filteredGames.filter(g => g !== null) });
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
