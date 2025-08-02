@@ -276,8 +276,7 @@ export class UserService implements IUserService {
     // Récupère tous les utilisateurs
     // Ne pas sélectionner les champs sensibles (password, authenticator_secret, forgot_password_token, webauthn_challenge, webauthn_credentials, email, free_balance)
     const users = await this.databaseService.read<User[]>(
-      `SELECT user_id, username, balance, isStudio, disabled, admin, verified
-       FROM users`
+      `SELECT user_id, username, balance, isStudio, disabled, admin, verified FROM users`
     );
     // Filtre les comptes désactivés
     const enabledUsers = users.filter((u: { disabled: number; }) => !u.disabled || u.disabled === 0);
@@ -578,95 +577,95 @@ export class UserService implements IUserService {
   /**
    * Get user with public profile data using SQL joins
    */
-  async getUserWithPublicProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
-    const query = `
-      SELECT 
-        u.*,
-        -- Inventory data with metadata and sellable
-        json_group_array(
-          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            json_object(
-              'user_id', inv.user_id,
-              'item_id', inv.item_id,
-              'itemId', i.itemId,
-              'name', i.name,
-              'description', i.description,
-              'amount', inv.amount,
-              'iconHash', i.iconHash,
-              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
-              'purchasePrice', inv.purchasePrice,
-              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
-            )
-          END
-        ) as inventory,
-        -- Owned items
-        (SELECT json_group_array(
+async getUserWithPublicProfile(user_id: string): Promise<(User & { inventory?: any[], ownedItems?: any[], createdGames?: any[] }) | null> {
+  const query = `
+    SELECT 
+      u.user_id, u.username, u.balance, u.isStudio, u.disabled, u.admin, u.verified,
+      -- Inventory data with metadata and sellable
+      json_group_array(
+        CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
           json_object(
-            'itemId', oi.itemId,
-            'name', oi.name,
-            'description', oi.description,
-            'owner', oi.owner,
-            'price', oi.price,
-            'iconHash', oi.iconHash,
-            'showInStore', oi.showInStore
+            'user_id', inv.user_id,
+            'item_id', inv.item_id,
+            'itemId', i.itemId,
+            'name', i.name,
+            'description', i.description,
+            'amount', inv.amount,
+            'iconHash', i.iconHash,
+            'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+            'purchasePrice', inv.purchasePrice,
+            'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        -- Created games (without download_link for public view)
-        (SELECT json_group_array(
-          json_object(
-            'gameId', g.gameId,
-            'name', g.name,
-            'description', g.description,
-            'price', g.price,
-            'owner_id', g.owner_id,
-            'showInStore', g.showInStore,
-            'iconHash', g.iconHash,
-            'splashHash', g.splashHash,
-            'bannerHash', g.bannerHash,
-            'genre', g.genre,
-            'release_date', g.release_date,
-            'developer', g.developer,
-            'publisher', g.publisher,
-            'platforms', g.platforms,
-            'rating', g.rating,
-            'website', g.website,
-            'trailer_link', g.trailer_link,
-            'multiplayer', g.multiplayer
-          )
-        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
-      FROM users u
-      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
-      GROUP BY u.user_id
-    `;
+        END
+      ) as inventory,
+      -- Owned items
+      (SELECT json_group_array(
+        json_object(
+          'itemId', oi.itemId,
+          'name', oi.name,
+          'description', oi.description,
+          'owner', oi.owner,
+          'price', oi.price,
+          'iconHash', oi.iconHash,
+          'showInStore', oi.showInStore
+        )
+      ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
+      -- Created games (without download_link for public view)
+      (SELECT json_group_array(
+        json_object(
+          'gameId', g.gameId,
+          'name', g.name,
+          'description', g.description,
+          'price', g.price,
+          'owner_id', g.owner_id,
+          'showInStore', g.showInStore,
+          'iconHash', g.iconHash,
+          'splashHash', g.splashHash,
+          'bannerHash', g.bannerHash,
+          'genre', g.genre,
+          'release_date', g.release_date,
+          'developer', g.developer,
+          'publisher', g.publisher,
+          'platforms', g.platforms,
+          'rating', g.rating,
+          'website', g.website,
+          'trailer_link', g.trailer_link,
+          'multiplayer', g.multiplayer
+        )
+      ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+    FROM users u
+    LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
+    LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
+    WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
+    GROUP BY u.user_id
+  `;
 
-    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
-    if (results.length === 0) return null;
+  const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+  if (results.length === 0) return null;
 
-    const user = results[0];
-    // Parse JSON arrays and filter out null values
-    if (user.inventory) {
-      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
-      // Trier l'inventaire par nom d'item, puis par métadonnées
-      user.inventory.sort((a: any, b: any) => {
-        const nameCompare = a.name.localeCompare(b.name);
-        if (nameCompare !== 0) return nameCompare;
-        // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
-        if (!a.metadata && b.metadata) return -1;
-        if (a.metadata && !b.metadata) return 1;
-        return 0;
-      });
-    }
-    if (user.ownedItems) {
-      user.ownedItems = JSON.parse(user.ownedItems);
-    }
-    if (user.createdGames) {
-      user.createdGames = JSON.parse(user.createdGames);
-    }
-
-    return user;
+  const user = results[0];
+  // Parse JSON arrays and filter out null values
+  if (user.inventory) {
+    user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
+    // Trier l'inventaire par nom d'item, puis par métadonnées
+    user.inventory.sort((a: any, b: any) => {
+      const nameCompare = a.name.localeCompare(b.name);
+      if (nameCompare !== 0) return nameCompare;
+      // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
+      if (!a.metadata && b.metadata) return -1;
+      if (a.metadata && !b.metadata) return 1;
+      return 0;
+    });
   }
+  if (user.ownedItems) {
+    user.ownedItems = JSON.parse(user.ownedItems);
+  }
+  if (user.createdGames) {
+    user.createdGames = JSON.parse(user.createdGames);
+  }
+
+  return user;
+}
 
   /**
    * Admin version that includes disabled users
@@ -737,7 +736,17 @@ export class UserService implements IUserService {
     const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
 
-    const user = results[0];
+
+    const user = results[0].map((u: any) => ({
+      user_id: u.user_id,
+      username: u.username,
+      email: u.email,
+      balance: u.balance,
+      isStudio: u.isStudio,
+      disabled: u.disabled,
+      admin: u.admin,
+      verified: u.verified
+    }));
     // Parse JSON arrays and filter out null values
     if (user.inventory) {
       user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
