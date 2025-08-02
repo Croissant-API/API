@@ -274,8 +274,10 @@ export class UserService implements IUserService {
 
   async searchUsersByUsername(query: string): Promise<User[]> {
     // Récupère tous les utilisateurs
+    // Ne pas sélectionner les champs sensibles (password, authenticator_secret, forgot_password_token, webauthn_challenge, webauthn_credentials, email, free_balance)
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users"
+      `SELECT user_id, username, balance, isStudio, disabled, admin, verified
+       FROM users`
     );
     // Filtre les comptes désactivés
     const enabledUsers = users.filter((u: { disabled: number; }) => !u.disabled || u.disabled === 0);
@@ -343,7 +345,8 @@ export class UserService implements IUserService {
 
   async adminSearchUsers(query: string): Promise<User[]> {
     const users = await this.databaseService.read<User[]>(
-      "SELECT * FROM users"
+      `SELECT user_id, username, balance, isStudio, disabled, admin, verified
+       FROM users`
     );
     const querySlug = slugify(query);
     const matchedUsers = users.filter((u: { username: string; }) => {

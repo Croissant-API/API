@@ -175,7 +175,9 @@ let UserService = UserService_1 = class UserService {
     }
     async searchUsersByUsername(query) {
         // Récupère tous les utilisateurs
-        const users = await this.databaseService.read("SELECT * FROM users");
+        // Ne pas sélectionner les champs sensibles (password, authenticator_secret, forgot_password_token, webauthn_challenge, webauthn_credentials, email, free_balance)
+        const users = await this.databaseService.read(`SELECT user_id, username, balance, isStudio, disabled, admin, verified
+       FROM users`);
         // Filtre les comptes désactivés
         const enabledUsers = users.filter((u) => !u.disabled || u.disabled === 0);
         const querySlug = slugify(query);
@@ -224,7 +226,8 @@ let UserService = UserService_1 = class UserService {
         return this.fetchUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
-        const users = await this.databaseService.read("SELECT * FROM users");
+        const users = await this.databaseService.read(`SELECT user_id, username, balance, isStudio, disabled, admin, verified
+       FROM users`);
         const querySlug = slugify(query);
         const matchedUsers = users.filter((u) => {
             if (slugify(u.username).indexOf(querySlug) !== -1)
