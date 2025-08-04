@@ -17,13 +17,13 @@ let DescribeController = class DescribeController {
         res.json((0, describe_1.getAllDescriptions)());
     }
 };
+exports.DescribeController = DescribeController;
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], DescribeController.prototype, "getDescriptions", null);
-DescribeController = __decorate([
+exports.DescribeController = DescribeController = __decorate([
     (0, inversify_express_utils_1.controller)("/describe")
 ], DescribeController);
-exports.DescribeController = DescribeController;

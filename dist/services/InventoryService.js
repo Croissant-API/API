@@ -13,7 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const uuid_1 = require("uuid");
 let InventoryService = class InventoryService {
@@ -62,7 +61,7 @@ let InventoryService = class InventoryService {
        INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
        WHERE inv.user_id = ? AND inv.amount > 0`, [correctedUserId]);
         items.sort((a, b) => {
-            const nameCompare = a.name.localeCompare(b.name);
+            const nameCompare = a.name?.localeCompare(b.name || '') || 0;
             if (nameCompare !== 0)
                 return nameCompare;
             // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
@@ -76,17 +75,14 @@ let InventoryService = class InventoryService {
             user_id: item.user_id,
             item_id: item.item_id,
             amount: item.amount,
-            metadata: this.parseMetadata(item.metadata ?? null),
+            metadata: item.metadata,
             sellable: !!item.sellable,
             purchasePrice: item.purchasePrice,
             // Données de l'item
-            itemId: item.itemId,
             name: item.name,
             description: item.description,
             iconHash: item.iconHash,
-            price: item.price,
-            owner: item.owner,
-            showInStore: item.showInStore
+            price: item.purchasePrice
         }));
         return { user_id: userId, inventory: processedItems };
     }
@@ -228,10 +224,10 @@ let InventoryService = class InventoryService {
         await this.databaseService.update(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [correctedToUserId, correctedFromUserId, itemId, uniqueId]);
     }
 };
-InventoryService = __decorate([
+exports.InventoryService = InventoryService;
+exports.InventoryService = InventoryService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], InventoryService);
-exports.InventoryService = InventoryService;

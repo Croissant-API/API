@@ -17,81 +17,45 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var UserService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
-const UserCache_1 = require("../utils/UserCache");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
 const diacritics_1 = __importDefault(require("diacritics"));
 function slugify(str) {
-    // 1. Normalisation des caractères spéciaux (𝙉 → N)
     str = str.normalize("NFKD");
-    // 2. Remove remaining diacritics (like à → a, 𝛼 → α → a)
     str = diacritics_1.default.remove(str);
-    // 3. Remplacer certains caractères Unicode manuellement (ex: α → a, etc.)
     const substitutions = {
-        "α": "a",
-        "β": "b",
-        "γ": "g",
-        "δ": "d",
-        "ε": "e",
-        "θ": "o",
-        "λ": "l",
-        "μ": "m",
-        "ν": "v",
-        "π": "p",
-        "ρ": "r",
-        "σ": "s",
-        "τ": "t",
-        "φ": "f",
-        "χ": "x",
-        "ψ": "ps",
-        "ω": "w",
-        "ℓ": "l",
-        "𝓁": "l",
-        "𝔩": "l"
+        "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l",
+        "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f",
+        "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l"
     };
     str = str.split("").map(c => substitutions[c] ?? c).join("");
     str = str.replace(/[^a-zA-Z0-9]/g, "");
     return str.toLowerCase();
 }
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
-const BOT_TOKEN = process.env.BOT_TOKEN;
 let UserService = UserService_1 = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
-    // --- Helpers privés ---
-    /**
-     * Helper pour générer la clause WHERE pour les IDs (user_id, discord_id, google_id, steam_id)
-     */
     static getIdWhereClause(includeDisabled = false) {
         const base = "(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)";
         if (includeDisabled)
             return base;
         return base + " AND (disabled = 0 OR disabled IS NULL)";
     }
-    /**
-     * Helper pour récupérer un utilisateur par n'importe quel ID
-     */
     async fetchUserByAnyId(user_id, includeDisabled = false) {
         const users = await this.databaseService.read(`SELECT * FROM users WHERE ${UserService_1.getIdWhereClause(includeDisabled)}`, [user_id, user_id, user_id, user_id]);
         return users.length > 0 ? users[0] : null;
     }
-    /**
-     * Helper pour faire un SELECT * FROM users avec option disabled
-     */
     async fetchAllUsers(includeDisabled = false) {
         if (includeDisabled) {
             return await this.databaseService.read("SELECT * FROM users");
         }
         return await this.databaseService.read("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
     }
-    /**
-     * Helper pour faire un UPDATE users sur un ou plusieurs champs
-     */
     async updateUserFields(user_id, fields) {
         const updates = [];
         const params = [];
@@ -112,28 +76,18 @@ let UserService = UserService_1 = class UserService {
         params.push(user_id);
         await this.databaseService.update(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
     }
-    /**
-     * Met à jour les champs Steam de l'utilisateur
-     */
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
         await this.databaseService.update("UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?", [steam_id, steam_username, steam_avatar_url, user_id]);
     }
-    /**
-     * Trouve un utilisateur par email (email unique)
-     */
     async findByEmail(email) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE email = ?", [email]);
         return users.length > 0 ? users[0] : null;
     }
-    /**
-     * Associe un identifiant OAuth (discord ou google) à un utilisateur existant
-     */
     async associateOAuth(user_id, provider, providerId) {
         const column = provider === "discord" ? "discord_id" : "google_id";
         await this.databaseService.update(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
     }
     async disableAccount(targetUserId, adminUserId) {
-        // Check if adminUserId is admin
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
@@ -141,68 +95,34 @@ let UserService = UserService_1 = class UserService {
         await this.databaseService.update("UPDATE users SET disabled = 1 WHERE user_id = ?", [targetUserId]);
     }
     async reenableAccount(targetUserId, adminUserId) {
-        // Check if adminUserId is admin
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
         }
         await this.databaseService.update("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
     }
-    async getDiscordUser(userId) {
-        try {
-            const cached = (0, UserCache_1.getCachedUser)(userId);
-            if (cached) {
-                return cached;
-            }
-            const headers = {};
-            if (BOT_TOKEN) {
-                headers["Authorization"] = "Bot " + BOT_TOKEN;
-            }
-            const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-                headers,
-            });
-            if (!response.ok) {
-                return null;
-            }
-            const user = await response.json();
-            (0, UserCache_1.setCachedUser)(userId, user);
-            return user;
-        }
-        catch (error) {
-            console.error("Error fetching Discord user:", error);
-            return null;
-        }
-    }
     async searchUsersByUsername(query) {
-        // Récupère tous les utilisateurs
-        // Ne pas sélectionner les champs sensibles (password, authenticator_secret, forgot_password_token, webauthn_challenge, webauthn_credentials, email, free_balance)
-        const users = await this.databaseService.read(`SELECT user_id, username, balance, isStudio, disabled, admin, verified FROM users`);
-        // Filtre les comptes désactivés
-        const enabledUsers = users.filter((u) => !u.disabled || u.disabled === 0);
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin FROM users WHERE (disabled = 0 OR disabled IS NULL)`);
         const querySlug = slugify(query);
-        // Filtre sur le slug du username
-        const matchedUsers = enabledUsers.filter((u) => {
-            if (slugify(u.username).indexOf(querySlug) !== -1)
-                return true;
-            return false;
+        const matchedUsers = users.filter((u) => {
+            return slugify(u.username).indexOf(querySlug) !== -1;
         });
-        return matchedUsers;
+        return matchedUsers.map((u) => ({
+            user_id: u.user_id,
+            username: u.username,
+            verified: !!u.verified,
+            isStudio: !!u.isStudio,
+            admin: !!u.admin
+        }));
     }
-    /**
-     * Crée un utilisateur, ou associe un compte OAuth si l'email existe déjà
-     * Si providerId et provider sont fournis, associe l'OAuth à l'utilisateur existant
-     */
     async createUser(user_id, username, email, password, provider, providerId) {
-        // Vérifie si l'utilisateur existe déjà par email
         const existing = await this.findByEmail(email);
         if (existing) {
-            // Si provider info, associe l'OAuth
             if (provider && providerId) {
                 await this.associateOAuth(existing.user_id, provider, providerId);
             }
             return existing;
         }
-        // Création du nouvel utilisateur
         await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
             user_id,
             username,
@@ -214,7 +134,6 @@ let UserService = UserService_1 = class UserService {
         return (await this.getUser(user_id));
     }
     async createBrandUser(user_id, username) {
-        // Crée un utilisateur de marque sans email ni mot de passe
         await this.databaseService.create("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
         return (await this.getUser(user_id));
     }
@@ -225,15 +144,18 @@ let UserService = UserService_1 = class UserService {
         return this.fetchUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
-        const users = await this.databaseService.read(`SELECT user_id, username, balance, isStudio, disabled, admin, verified
-       FROM users`);
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin FROM users`);
         const querySlug = slugify(query);
         const matchedUsers = users.filter((u) => {
-            if (slugify(u.username).indexOf(querySlug) !== -1)
-                return true;
-            return false;
+            return slugify(u.username).indexOf(querySlug) !== -1;
         });
-        return matchedUsers;
+        return matchedUsers.map((u) => ({
+            user_id: u.user_id,
+            username: u.username,
+            verified: !!u.verified,
+            isStudio: !!u.isStudio,
+            admin: !!u.admin
+        }));
     }
     async getAllUsers() {
         return this.fetchAllUsers(false);
@@ -250,9 +172,6 @@ let UserService = UserService_1 = class UserService {
     async updateUserPassword(user_id, hashedPassword) {
         await this.updateUserFields(user_id, { password: hashedPassword });
     }
-    /**
-     * Récupère un utilisateur par son Steam ID
-     */
     async getUserBySteamId(steamId) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)", [steamId]);
         return users.length > 0 ? users[0] : null;
@@ -306,14 +225,10 @@ let UserService = UserService_1 = class UserService {
         const user = await this.getUser(userId);
         return user ? user.authenticator_secret || null : null;
     }
-    /**
-     * Get user with complete profile data using SQL joins to avoid N+1 queries
-     */
     async getUserWithCompleteProfile(user_id) {
         const query = `
       SELECT 
         u.*,
-        -- Inventory data with metadata and sellable (only existing items)
         json_group_array(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             json_object(
@@ -330,7 +245,6 @@ let UserService = UserService_1 = class UserService {
             )
           END
         ) as inventory,
-        -- Owned items
         (SELECT json_group_array(
           json_object(
             'itemId', oi.itemId,
@@ -342,7 +256,6 @@ let UserService = UserService_1 = class UserService {
             'showInStore', oi.showInStore
           )
         ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        -- Created games
         (SELECT json_group_array(
           json_object(
             'gameId', g.gameId,
@@ -372,7 +285,6 @@ let UserService = UserService_1 = class UserService {
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
     `;
-        // Nettoyer d'abord les items inexistants
         await this.databaseService.update(`DELETE FROM inventories 
        WHERE user_id = (
          SELECT user_id FROM users 
@@ -385,15 +297,12 @@ let UserService = UserService_1 = class UserService {
         if (results.length === 0)
             return null;
         const user = results[0];
-        // Parse JSON arrays and filter out null values
         if (user.inventory) {
-            user.inventory = JSON.parse(user.inventory).filter((item) => item !== null);
-            // Trier l'inventaire par nom d'item, puis par métadonnées
+            user.inventory = user.inventory.filter((item) => item !== null);
             user.inventory.sort((a, b) => {
-                const nameCompare = a.name.localeCompare(b.name);
+                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
-                // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
                 if (!a.metadata && b.metadata)
                     return -1;
                 if (a.metadata && !b.metadata)
@@ -401,115 +310,12 @@ let UserService = UserService_1 = class UserService {
                 return 0;
             });
         }
-        if (user.ownedItems) {
-            user.ownedItems = JSON.parse(user.ownedItems);
-        }
-        if (user.createdGames) {
-            user.createdGames = JSON.parse(user.createdGames);
-        }
         return user;
     }
-    /**
-     * Get user with public profile data using SQL joins
-     */
     async getUserWithPublicProfile(user_id) {
         const query = `
-    SELECT 
-      u.user_id, u.username, u.balance, u.isStudio, u.disabled, u.admin, u.verified,
-      -- Inventory data with metadata and sellable
-      json_group_array(
-        CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-          json_object(
-            'user_id', inv.user_id,
-            'item_id', inv.item_id,
-            'itemId', i.itemId,
-            'name', i.name,
-            'description', i.description,
-            'amount', inv.amount,
-            'iconHash', i.iconHash,
-            'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
-            'purchasePrice', inv.purchasePrice,
-            'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
-          )
-        END
-      ) as inventory,
-      -- Owned items
-      (SELECT json_group_array(
-        json_object(
-          'itemId', oi.itemId,
-          'name', oi.name,
-          'description', oi.description,
-          'owner', oi.owner,
-          'price', oi.price,
-          'iconHash', oi.iconHash,
-          'showInStore', oi.showInStore
-        )
-      ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-      -- Created games (without download_link for public view)
-      (SELECT json_group_array(
-        json_object(
-          'gameId', g.gameId,
-          'name', g.name,
-          'description', g.description,
-          'price', g.price,
-          'owner_id', g.owner_id,
-          'showInStore', g.showInStore,
-          'iconHash', g.iconHash,
-          'splashHash', g.splashHash,
-          'bannerHash', g.bannerHash,
-          'genre', g.genre,
-          'release_date', g.release_date,
-          'developer', g.developer,
-          'publisher', g.publisher,
-          'platforms', g.platforms,
-          'rating', g.rating,
-          'website', g.website,
-          'trailer_link', g.trailer_link,
-          'multiplayer', g.multiplayer
-        )
-      ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
-    FROM users u
-    LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-    LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-    WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
-    GROUP BY u.user_id
-  `;
-        const results = await this.databaseService.read(query, [user_id, user_id, user_id, user_id]);
-        if (results.length === 0)
-            return null;
-        const user = results[0];
-        // Parse JSON arrays and filter out null values
-        if (user.inventory) {
-            user.inventory = JSON.parse(user.inventory).filter((item) => item !== null);
-            // Trier l'inventaire par nom d'item, puis par métadonnées
-            user.inventory.sort((a, b) => {
-                const nameCompare = a.name.localeCompare(b.name);
-                if (nameCompare !== 0)
-                    return nameCompare;
-                // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
-                if (!a.metadata && b.metadata)
-                    return -1;
-                if (a.metadata && !b.metadata)
-                    return 1;
-                return 0;
-            });
-        }
-        if (user.ownedItems) {
-            user.ownedItems = JSON.parse(user.ownedItems);
-        }
-        if (user.createdGames) {
-            user.createdGames = JSON.parse(user.createdGames);
-        }
-        return user;
-    }
-    /**
-     * Admin version that includes disabled users
-     */
-    async adminGetUserWithProfile(user_id) {
-        const query = `
       SELECT 
-        u.*,
-        -- Inventory data with metadata and sellable
+        u.user_id, u.username, u.verified, u.isStudio, u.admin,
         json_group_array(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             json_object(
@@ -526,7 +332,6 @@ let UserService = UserService_1 = class UserService {
             )
           END
         ) as inventory,
-        -- Owned items
         (SELECT json_group_array(
           json_object(
             'itemId', oi.itemId,
@@ -538,7 +343,93 @@ let UserService = UserService_1 = class UserService {
             'showInStore', oi.showInStore
           )
         ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        -- Created games
+        (SELECT json_group_array(
+          json_object(
+            'gameId', g.gameId,
+            'name', g.name,
+            'description', g.description,
+            'price', g.price,
+            'owner_id', g.owner_id,
+            'showInStore', g.showInStore,
+            'iconHash', g.iconHash,
+            'splashHash', g.splashHash,
+            'bannerHash', g.bannerHash,
+            'genre', g.genre,
+            'release_date', g.release_date,
+            'developer', g.developer,
+            'publisher', g.publisher,
+            'platforms', g.platforms,
+            'rating', g.rating,
+            'website', g.website,
+            'trailer_link', g.trailer_link,
+            'multiplayer', g.multiplayer
+          )
+        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+      FROM users u
+      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
+      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
+      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
+      GROUP BY u.user_id
+    `;
+        const results = await this.databaseService.read(query, [user_id, user_id, user_id, user_id]);
+        if (results.length === 0)
+            return null;
+        const user = results[0];
+        if (user.inventory) {
+            user.inventory = user.inventory.filter((item) => item !== null);
+            user.inventory.sort((a, b) => {
+                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+                if (nameCompare !== 0)
+                    return nameCompare;
+                if (!a.metadata && b.metadata)
+                    return -1;
+                if (a.metadata && !b.metadata)
+                    return 1;
+                return 0;
+            });
+        }
+        return {
+            user_id: user.user_id,
+            username: user.username,
+            verified: !!user.verified,
+            isStudio: !!user.isStudio,
+            admin: !!user.admin,
+            inventory: user.inventory || [],
+            ownedItems: user.ownedItems || [],
+            createdGames: user.createdGames || []
+        };
+    }
+    async adminGetUserWithProfile(user_id) {
+        const query = `
+      SELECT 
+        u.*,
+        json_group_array(
+          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
+            json_object(
+              'user_id', inv.user_id,
+              'item_id', inv.item_id,
+              'itemId', i.itemId,
+              'name', i.name,
+              'description', i.description,
+              'amount', inv.amount,
+              'iconHash', i.iconHash,
+              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'purchasePrice', inv.purchasePrice,
+              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
+            )
+          END
+        ) as inventory,
+        (SELECT json_group_array(
+          json_object(
+            'itemId', oi.itemId,
+            'name', oi.name,
+            'description', oi.description,
+            'owner', oi.owner,
+            'price', oi.price,
+            'iconHash', oi.iconHash,
+            'showInStore', oi.showInStore
+          )
+        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
         (SELECT json_group_array(
           json_object(
             'gameId', g.gameId,
@@ -570,25 +461,13 @@ let UserService = UserService_1 = class UserService {
         const results = await this.databaseService.read(query, [user_id, user_id, user_id, user_id]);
         if (results.length === 0)
             return null;
-        const user = results[0].map((u) => ({
-            user_id: u.user_id,
-            username: u.username,
-            email: u.email,
-            balance: u.balance,
-            isStudio: u.isStudio,
-            disabled: u.disabled,
-            admin: u.admin,
-            verified: u.verified
-        }));
-        // Parse JSON arrays and filter out null values
+        const user = results[0];
         if (user.inventory) {
-            user.inventory = JSON.parse(user.inventory).filter((item) => item !== null);
-            // Trier l'inventaire par nom d'item, puis par métadonnées
+            user.inventory = user.inventory.filter((item) => item !== null);
             user.inventory.sort((a, b) => {
-                const nameCompare = a.name.localeCompare(b.name);
+                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
-                // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
                 if (!a.metadata && b.metadata)
                     return -1;
                 if (a.metadata && !b.metadata)
@@ -596,31 +475,20 @@ let UserService = UserService_1 = class UserService {
                 return 0;
             });
         }
-        if (user.ownedItems) {
-            user.ownedItems = JSON.parse(user.ownedItems);
-        }
-        if (user.createdGames) {
-            user.createdGames = JSON.parse(user.createdGames);
-        }
         return user;
     }
-    /**
-     * Find user by reset token
-     */
     async findByResetToken(reset_token) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE forgot_password_token = ?", [reset_token]);
         return users.length > 0 ? users[0] : null;
     }
-    // Intégrer les fonctionnalités Steam directement
     getSteamAuthUrl() {
-        // Logique du SteamOAuthService
         const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
         return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
     }
 };
-UserService = UserService_1 = __decorate([
+exports.UserService = UserService;
+exports.UserService = UserService = UserService_1 = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], UserService);
-exports.UserService = UserService;

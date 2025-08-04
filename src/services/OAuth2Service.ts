@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { OAuth2App } from "../interfaces/OAuth2App";
 import { v4 as uuidv4 } from "uuid";
+import { Oauth2User } from "../interfaces/User";
 
 export interface IOAuth2Service {
     createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App>;
@@ -11,7 +11,7 @@ export interface IOAuth2Service {
     generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string>;
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void>;
-    getUserByCode(code: string, client_id: string): Promise<any | null>;
+    getUserByCode(code: string, client_id: string): Promise<Oauth2User | null>;
     getFormattedAppsByOwner(owner_id: string): Promise<Array<{
         client_id: string;
         client_secret: string;
@@ -41,7 +41,7 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async getAppsByOwner(owner_id: string): Promise<OAuth2App[]> {
-        return await this.db.read<OAuth2App[]>(
+        return await this.db.read<OAuth2App>(
             "SELECT * FROM oauth2_apps WHERE owner_id = ?",
             [owner_id]
         );
@@ -53,11 +53,12 @@ export class OAuth2Service implements IOAuth2Service {
         name: string;
         redirect_urls: string[];
     }>> {
-        const apps = await this.db.read<OAuth2App[]>(
+        const apps = await this.db.read<OAuth2App>(
             "SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?",
             [owner_id]
         );
-        return apps.map((app: { client_id: any; client_secret: any; name: any; redirect_urls: string; }) => ({
+        return apps.map((app) => ({
+            owner_id: owner_id,
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
@@ -66,7 +67,7 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async getAppByClientId(client_id: string): Promise<OAuth2App | null> {
-        const rows = await this.db.read<OAuth2App[]>(
+        const rows = await this.db.read<OAuth2App>(
             "SELECT * FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
@@ -79,11 +80,11 @@ export class OAuth2Service implements IOAuth2Service {
         name: string;
         redirect_urls: string[];
     } | null> {
-        const rows = await this.db.read<OAuth2App[]>(
+        const rows = await this.db.read<OAuth2App>(
             "SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?",
             [client_id]
         );
-        if (!rows.length) return null;
+        if (!rows) return null;
         const app = rows[0];
         return {
             client_id: app.client_id,
@@ -119,30 +120,8 @@ export class OAuth2Service implements IOAuth2Service {
         );
     }
 
-    async getUserByCode(code: string, client_id: string): Promise<{
-        username: string;
-        user_id: string;
-        email: string;
-        balance: number;
-        verified: boolean;
-        steam_username?: string;
-        steam_avatar_url?: string;
-        steam_id?: string;
-        discord_id?: string;
-        google_id?: string;
-    } | null> {
-        const users = await this.db.read<Array<{
-            username: string;
-            user_id: string;
-            email: string;
-            balance: number;
-            verified: boolean;
-            steam_username?: string;
-            steam_avatar_url?: string;
-            steam_id?: string;
-            discord_id?: string;
-            google_id?: string;
-        }>>(
+    async getUserByCode(code: string, client_id: string): Promise<Oauth2User | null> {
+        const users = await this.db.read<Oauth2User>(
             `SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
                     u.steam_username, u.steam_avatar_url, u.steam_id, u.discord_id, u.google_id
              FROM oauth2_codes c

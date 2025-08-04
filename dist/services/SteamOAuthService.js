@@ -10,8 +10,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SteamOAuthService = void 0;
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// filepath: src/services/SteamOAuthService.ts
 const inversify_1 = require("inversify");
 const axios_1 = __importDefault(require("axios"));
 const querystring_1 = __importDefault(require("querystring"));
@@ -55,6 +53,7 @@ let SteamOAuthService = class SteamOAuthService {
             }
         }
         catch (e) {
+            console.error("Error verifying Steam OpenID", e);
             // Optionally log error
         }
         return null;
@@ -77,12 +76,12 @@ let SteamOAuthService = class SteamOAuthService {
             };
         }
         catch (e) {
-            // Optionally log error
+            console.error("Error fetching Steam profile", e);
             return null;
         }
     }
 };
-SteamOAuthService = __decorate([
+exports.SteamOAuthService = SteamOAuthService;
+exports.SteamOAuthService = SteamOAuthService = __decorate([
     (0, inversify_1.injectable)()
 ], SteamOAuthService);
-exports.SteamOAuthService = SteamOAuthService;

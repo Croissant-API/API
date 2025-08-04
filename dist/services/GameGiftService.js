@@ -16,7 +16,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GameGiftService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const uuid_1 = require("uuid");
 const crypto_1 = __importDefault(require("crypto"));
@@ -106,7 +105,7 @@ let GameGiftService = class GameGiftService {
     }
     async revokeGift(giftId, userId) {
         const gift = await this.databaseService.read(`SELECT * FROM game_gifts WHERE id = ?`, [giftId]);
-        if (gift.length === 0)
+        if (!gift)
             throw new Error("Gift not found");
         if (gift[0].fromUserId !== userId)
             throw new Error("You can only revoke your own gifts");
@@ -119,9 +118,9 @@ let GameGiftService = class GameGiftService {
         return crypto_1.default.randomBytes(8).toString('hex').toUpperCase();
     }
 };
-GameGiftService = __decorate([
+exports.GameGiftService = GameGiftService;
+exports.GameGiftService = GameGiftService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], GameGiftService);
-exports.GameGiftService = GameGiftService;

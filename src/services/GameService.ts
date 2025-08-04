@@ -34,7 +34,7 @@ export class GameService implements IGameService {
   ) { }
 
   async getGame(gameId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game[]>(
+    const rows = await this.databaseService.read<Game>(
       "SELECT * FROM games WHERE gameId = ?",
       [gameId]
     );
@@ -46,7 +46,7 @@ export class GameService implements IGameService {
    * Get game with public fields only (no download_link)
    */
   async getGameForPublic(gameId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game[]>(
+    const rows = await this.databaseService.read<Game>(
       `SELECT gameId, name, description, price, owner_id, showInStore, 
               iconHash, splashHash, bannerHash, genre, release_date, 
               developer, publisher, platforms, rating, website, 
@@ -62,7 +62,7 @@ export class GameService implements IGameService {
    * Get game with download_link if user owns it or is the creator
    */
   async getGameForOwner(gameId: string, userId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game[]>(
+    const rows = await this.databaseService.read<Game>(
       `SELECT g.*,
               CASE 
                 WHEN g.owner_id = ? OR go.ownerId IS NOT NULL 
@@ -78,7 +78,7 @@ export class GameService implements IGameService {
   }
 
   async getUserGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       `SELECT g.*, 
               CASE WHEN go.ownerId IS NOT NULL THEN g.download_link ELSE NULL END as download_link
        FROM games g 
@@ -90,14 +90,14 @@ export class GameService implements IGameService {
   }
 
   async listGames(): Promise<Game[]> {
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       "SELECT * FROM games"
     );
     return games;
   }
 
   async getStoreGames(): Promise<Game[]> {
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       `SELECT gameId, name, description, price, owner_id, showInStore, 
               iconHash, splashHash, bannerHash, genre, release_date, 
               developer, publisher, platforms, rating, website, 
@@ -109,7 +109,7 @@ export class GameService implements IGameService {
   }
 
   async getMyCreatedGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       `SELECT g.*, g.download_link
        FROM games g 
        WHERE g.owner_id = ?`,
@@ -119,7 +119,7 @@ export class GameService implements IGameService {
   }
 
   async getUserOwnedGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       `SELECT g.*, g.download_link
        FROM games g 
        INNER JOIN game_owners go ON g.gameId = go.gameId 
@@ -131,7 +131,7 @@ export class GameService implements IGameService {
 
   async searchGames(query: string): Promise<Game[]> {
     const searchTerm = `%${query.toLowerCase()}%`;
-    const games = await this.databaseService.read<Game[]>(
+    const games = await this.databaseService.read<Game>(
       `SELECT gameId, name, description, price, owner_id, showInStore, 
               iconHash, splashHash, bannerHash, genre, release_date, 
               developer, publisher, platforms, rating, website, 

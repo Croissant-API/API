@@ -2,6 +2,9 @@ export interface InventoryItem {
     user_id: string;
     item_id: string;
     amount: number;
+    name?: string;
+    iconHash?: string;
+    description?: string;
     metadata?: {
         [key: string]: unknown;
     };

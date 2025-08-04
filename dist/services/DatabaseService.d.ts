@@ -1,6 +1,6 @@
 export interface IDatabaseService {
     create(query: string, params?: unknown[]): Promise<void>;
-    read<T>(query: string, params?: unknown[]): Promise<T[] | any[] | any>;
+    read<T>(query: string, params?: unknown[]): Promise<T[]>;
     update(query: string, params?: unknown[]): Promise<void>;
     delete(query: string, params?: unknown[]): Promise<void>;
 }

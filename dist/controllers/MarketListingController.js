@@ -169,6 +169,7 @@ let MarketListingController = class MarketListingController {
         }
     }
 };
+exports.MarketListingController = MarketListingController;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -217,10 +218,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MarketListingController.prototype, "buyMarketListing", null);
-MarketListingController = __decorate([
+exports.MarketListingController = MarketListingController = __decorate([
     (0, inversify_express_utils_1.controller)("/market-listings"),
     __param(0, (0, inversify_1.inject)("MarketListingService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], MarketListingController);
-exports.MarketListingController = MarketListingController;

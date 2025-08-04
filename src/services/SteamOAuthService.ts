@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// filepath: src/services/SteamOAuthService.ts
 import { injectable } from "inversify";
 import axios from "axios";
 import querystring from "querystring";
@@ -67,7 +65,8 @@ export class SteamOAuthService implements ISteamOAuthService {
           : (query["openid.claimed_id"] || [])[0];
         return this.extractSteamId(claimedId);
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      console.error("Error verifying Steam OpenID", e);
       // Optionally log error
     }
     return null;
@@ -93,8 +92,8 @@ export class SteamOAuthService implements ISteamOAuthService {
         avatarfull: player.avatarfull,
         profileurl: player.profileurl,
       };
-    } catch (e) {
-      // Optionally log error
+    } catch (e: unknown) {
+      console.error("Error fetching Steam profile", e);
       return null;
     }
   }

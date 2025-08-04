@@ -387,6 +387,7 @@ let Games = class Games {
         }
     }
 };
+exports.Games = Games;
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/games",
@@ -518,11 +519,10 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "canTransferGame", null);
-Games = __decorate([
+exports.Games = Games = __decorate([
     (0, inversify_express_utils_1.controller)("/games"),
     __param(0, (0, inversify_1.inject)("GameService")),
     __param(1, (0, inversify_1.inject)("UserService")),
     __param(2, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object])
 ], Games);
-exports.Games = Games;

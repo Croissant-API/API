@@ -17,10 +17,7 @@ export interface ILobbyService {
     } | null>;
     joinLobby(lobbyId: string, userId: string): Promise<void>;
     leaveLobby(lobbyId: string, userId: string): Promise<void>;
-    getUserLobby(userId: string): Promise<{
-        lobbyId: string;
-        users: LobbyUser[];
-    } | null>;
+    getUserLobby(userId: string): Promise<Lobby | null>;
     getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;
@@ -41,10 +38,7 @@ export declare class LobbyService implements ILobbyService {
     } | null>;
     joinLobby(lobbyId: string, userId: string): Promise<void>;
     leaveLobby(lobbyId: string, userId: string): Promise<void>;
-    getUserLobby(userId: string): Promise<{
-        lobbyId: string;
-        users: LobbyUser[];
-    } | null>;
+    getUserLobby(userId: string): Promise<Lobby | null>;
     getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
     createLobby(lobbyId: string, users?: string[]): Promise<void>;
     deleteLobby(lobbyId: string): Promise<void>;

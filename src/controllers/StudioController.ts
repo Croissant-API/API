@@ -98,7 +98,7 @@ export class Studios {
   async getStudio(req: Request, res: Response) {
     const { studioId } = req.params;
     try {
-      const studio = await this.studioService.getFormattedStudio(studioId);
+      const studio = await this.studioService.getStudio(studioId);
       if (!studio) {
         await this.createLog(req, 'studios', 404);
         return res.status(404).send({ message: "Studio not found" });
@@ -140,7 +140,7 @@ export class Studios {
   @httpGet("/user/@me", LoggedCheck.middleware)
   async getMyStudios(req: AuthenticatedRequest, res: Response) {
     try {
-      const studios = await this.studioService.getFormattedUserStudios(
+      const studios = await this.studioService.getUserStudios(
         req.user.user_id
       );
       await this.createLog(req, 'studios', 200);

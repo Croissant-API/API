@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v4 as uuidv4 } from 'uuid';
 import { InventoryItem } from '../interfaces/Inventory';
 import { MarketListing, MarketListingStatus, EnrichedMarketListing } from '../interfaces/MarketListing';
@@ -7,8 +6,8 @@ import { inject, injectable } from 'inversify';
 import { IBuyOrderService } from "./BuyOrderService";
 
 export interface IMarketListingService {
-    createMarketListing(...args: any[]): Promise<any>;
-    cancelMarketListing(...args: any[]): Promise<any>;
+    createMarketListing(...args: unknown[]): Promise<unknown>;
+    cancelMarketListing(...args: unknown[]): Promise<unknown>;
     buyMarketListing(listingId: string, buyerId: string): Promise<MarketListing>;
     getMarketListingsByUser(userId: string): Promise<MarketListing[]>;
     getActiveListingsForItem(itemId: string): Promise<MarketListing[]>;
@@ -298,7 +297,7 @@ export class MarketListingService implements IMarketListingService {
      * Récupère tous les ordres de vente actifs pour un item spécifique
      */
     async getActiveListingsForItem(itemId: string): Promise<MarketListing[]> {
-        const listings = await this.databaseService.read(
+        const listings = await this.databaseService.read<MarketListing>(
             `SELECT * FROM market_listings WHERE item_id = ? AND status = 'active' ORDER BY price ASC, created_at ASC`,
             [itemId]
         );
@@ -309,7 +308,7 @@ export class MarketListingService implements IMarketListingService {
      * Récupère un ordre de vente par son ID
      */
     async getMarketListingById(listingId: string): Promise<MarketListing | null> {
-        const listings = await this.databaseService.read(
+        const listings = await this.databaseService.read<MarketListing>(
             `SELECT * FROM market_listings WHERE id = ?`,
             [listingId]
         );
@@ -374,14 +373,14 @@ export class MarketListingService implements IMarketListingService {
     /**
      * Désérialise une ligne de la base de données en MarketListing
      */
-    private deserializeMarketListing = (row: any): MarketListing => {
+    private deserializeMarketListing = (row: MarketListing): MarketListing => {
         const listing: MarketListing = {
             id: row.id,
             seller_id: row.seller_id,
             item_id: row.item_id,
             price: row.price,
             status: row.status,
-            metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+            metadata: row.metadata,
             created_at: row.created_at,
             updated_at: row.updated_at,
             sold_at: row.sold_at || undefined,

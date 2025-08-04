@@ -12,7 +12,7 @@ class MailService {
         this.transporter = nodemailer_1.default.createTransport({
             host: process.env.SMTP_HOST || "ssl0.ovh.net",
             port: Number(process.env.SMTP_PORT) || 465,
-            secure: true,
+            secure: true, // true for 465, false for other ports
             auth: {
                 user: process.env.SMTP_USER || "contact@croissant-api.fr",
                 pass: process.env.SMTP_PASS,

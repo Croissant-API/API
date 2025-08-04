@@ -4,6 +4,7 @@ import { User } from "../interfaces/User";
 import { IUserService } from "../services/UserService";
 import { inject } from "inversify";
 import { IStudioService } from "../services/StudioService";
+import { Studio } from "../interfaces/Studio";
 
 export interface AuthenticatedRequest extends Request {
   user: User;
@@ -44,7 +45,7 @@ export class LoggedCheck {
 
     const studioService = container.get("StudioService") as IStudioService;
     const studios = await studioService.getUserStudios(user.user_id);
-    const roles = [user.user_id, ...studios.map((s) => s.user_id)];
+    const roles = [user.user_id, ...studios.map((s: Studio) => s.user_id)];
 
     let roleUser = null;
     if (roleCookie && roles.includes(roleCookie)) {

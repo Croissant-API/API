@@ -1,4 +1,6 @@
-export interface TradeItem {
+import { InventoryItem } from "./Inventory";
+
+export interface TradeItem extends InventoryItem{
   itemId: string;
   amount: number;
   metadata?: { [key: string]: unknown; _unique_id?: string }; // Métadonnées complètes incluant _unique_id

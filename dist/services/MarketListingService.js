@@ -13,7 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarketListingService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const uuid_1 = require("uuid");
 const DatabaseService_1 = require("./DatabaseService");
 const inversify_1 = require("inversify");
@@ -31,7 +30,7 @@ let MarketListingService = class MarketListingService {
                 item_id: row.item_id,
                 price: row.price,
                 status: row.status,
-                metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+                metadata: row.metadata,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
                 sold_at: row.sold_at || undefined,
@@ -319,10 +318,10 @@ let MarketListingService = class MarketListingService {
         }
     }
 };
-MarketListingService = __decorate([
+exports.MarketListingService = MarketListingService;
+exports.MarketListingService = MarketListingService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)('DatabaseService')),
     __param(1, (0, inversify_1.inject)('BuyOrderService')),
     __metadata("design:paramtypes", [DatabaseService_1.DatabaseService, Object])
 ], MarketListingService);
-exports.MarketListingService = MarketListingService;
