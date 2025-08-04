@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
@@ -34,7 +35,7 @@ export class LobbyService implements ILobbyService {
     if (lobby.length === 0) return null;
 
     const userIds = lobby[0].users;
-    const users = await this.getUsersByIds(userIds);
+    const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
 
     return { lobbyId: lobby[0].lobbyId, users };
   }
@@ -43,7 +44,7 @@ export class LobbyService implements ILobbyService {
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
-    const users = [...new Set([...lobby.users, userId])];
+    const users = [...new Set([...lobby.users.map((u) => u.user_id), userId])];
     await this.databaseService.update(
       "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
       [JSON.stringify(users), lobbyId]
@@ -55,11 +56,11 @@ export class LobbyService implements ILobbyService {
     if (!lobby) throw new Error("Lobby not found");
     const newUsers = lobby.users.filter((u) => u.user_id !== userId);
     if (newUsers.length === 0) {
-      await this.deleteLobby(lobbyId);
+      // await this.deleteLobby(lobbyId);
     } else {
       await this.databaseService.update(
         "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
-        [JSON.stringify(newUsers), lobbyId]
+        [JSON.stringify(newUsers.map((u) => u.user_id)), lobbyId]
       );
     }
   }
@@ -77,7 +78,7 @@ export class LobbyService implements ILobbyService {
 
     const lobby = lobbies[0];
     const userIds = lobby.users;
-    const users = await this.getUsersByIds(userIds);
+    const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
     return { lobbyId: lobby.lobbyId, users };
   }
 
@@ -106,7 +107,7 @@ export class LobbyService implements ILobbyService {
     return Promise.all(
       lobbies.map(async (lobby) => {
         const userIds = lobby.users;
-        const users = await this.getUsersByIds(userIds);
+        const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
         return { lobbyId: lobby.lobbyId, users };
       })
     );

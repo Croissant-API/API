@@ -15,6 +15,7 @@ import { ILogService, LogService } from "./services/LogService";
 import { IGameGiftService, GameGiftService } from "./services/GameGiftService";
 import { IMarketListingService, MarketListingService } from "./services/MarketListingService";
 import { IBuyOrderService, BuyOrderService } from "./services/BuyOrderService";
+import { LobbySocket } from "./sockets/LobbySocket";
 
 const container = new Container();
 
@@ -33,5 +34,8 @@ container.bind<ILogService>("LogService").to(LogService).inSingletonScope();
 container.bind<IGameGiftService>("GameGiftService").to(GameGiftService).inSingletonScope();
 container.bind<IMarketListingService>("MarketListingService").to(MarketListingService).inSingletonScope();
 container.bind<IBuyOrderService>("BuyOrderService").to(BuyOrderService).inSingletonScope();
+
+// Socket services
+container.bind<LobbySocket>("LobbySocket").to(LobbySocket).inSingletonScope();
 
 export default container;
