@@ -2,7 +2,6 @@
 import { Server, Socket } from 'socket.io';
 import { TradeService, ITradeService } from '../services/TradeService';
 import { injectable, inject } from 'inversify';
-import container from '../container';
 import { TradeItem } from '../interfaces/Trade';
 
 @injectable()
@@ -10,10 +9,13 @@ export class TradeSocket {
     private io: Server;
     private tradeService: ITradeService;
 
-    constructor(@inject('server') server: Server) {
+    constructor(
+        @inject('server') server: Server,
+        @inject('TradeService') tradeService: TradeService
+    ) {
         this.io = server;
         // Utilise l'injection de dépendance pour TradeService
-        this.tradeService = container.get<ITradeService>('TradeService');
+        this.tradeService = tradeService;
         this.initialize();
     }
 
