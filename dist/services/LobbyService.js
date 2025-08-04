@@ -20,15 +20,12 @@ let LobbyService = class LobbyService {
         this.userService = userService;
     }
     async getLobby(lobbyId) {
-        const rows = await this.databaseService.read("SELECT users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
-        return rows[0] || null;
-    }
-    async getFormattedLobby(lobbyId) {
-        const lobby = await this.getLobby(lobbyId);
-        if (!lobby)
+        const lobby = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE lobbyId = ?", [lobbyId]);
+        if (lobby.length === 0)
             return null;
-        const users = lobby.users;
-        return { lobbyId, users };
+        const userIds = lobby[0].users;
+        const users = await this.getUsersByIds(userIds);
+        return { lobbyId: lobby[0].lobbyId, users };
     }
     async joinLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
@@ -50,21 +47,13 @@ let LobbyService = class LobbyService {
         }
     }
     async getUserLobby(userId) {
-        const rows = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
-        if (rows.length === 0)
+        const lobbies = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
+        if (lobbies.length === 0)
             return null;
-        const row = rows[0];
-        const users = row.users;
-        return { lobbyId: row.lobbyId, users };
-    }
-    async getFormattedLobbyUsers(userIds) {
-        if (userIds.length === 0)
-            return [];
-        const placeholders = userIds.map(() => '?').join(',');
-        const users = await this.databaseService.read(`SELECT user_id, username, verified, steam_username, steam_avatar_url, steam_id 
-       FROM users 
-       WHERE user_id IN (${placeholders})`, userIds);
-        return users.map(mapLobbyUser);
+        const lobby = lobbies[0];
+        const userIds = lobby.users;
+        const users = await this.getUsersByIds(userIds);
+        return { lobbyId: lobby.lobbyId, users };
     }
     async createLobby(lobbyId, users = []) {
         await this.databaseService.update("INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)", [lobbyId, JSON.stringify(users)]);
@@ -75,13 +64,25 @@ let LobbyService = class LobbyService {
         ]);
     }
     async getUserLobbies(userId) {
-        return await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
+        const lobbies = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
+        return Promise.all(lobbies.map(async (lobby) => {
+            const userIds = lobby.users;
+            const users = await this.getUsersByIds(userIds);
+            return { lobbyId: lobby.lobbyId, users };
+        }));
     }
     async leaveAllLobbies(userId) {
         const lobbies = await this.getUserLobbies(userId);
         for (const lobby of lobbies) {
             await this.leaveLobby(lobby.lobbyId, userId);
         }
+    }
+    async getUsersByIds(userIds) {
+        if (userIds.length === 0)
+            return [];
+        return await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds
+            .map(() => "?")
+            .join(",")})`, userIds);
     }
 };
 exports.LobbyService = LobbyService;
@@ -91,13 +92,3 @@ exports.LobbyService = LobbyService = __decorate([
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], LobbyService);
-function mapLobbyUser(user) {
-    return {
-        username: user.username,
-        user_id: user.user_id,
-        verified: user.verified,
-        steam_username: user.steam_username,
-        steam_avatar_url: user.steam_avatar_url,
-        steam_id: user.steam_id,
-    };
-}

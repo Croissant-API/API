@@ -84,7 +84,7 @@ let Lobbies = class Lobbies {
         }
         try {
             const lobbyId = req.params.lobbyId;
-            const lobby = await this.lobbyService.getFormattedLobby(lobbyId);
+            const lobby = await this.lobbyService.getLobby(lobbyId);
             if (!lobby) {
                 await this.createLog(req, 'getLobby', 'lobbies', 404);
                 return res.status(404).send({ message: "Lobby not found" });
