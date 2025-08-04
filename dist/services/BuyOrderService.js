@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuyOrderService = void 0;
 const uuid_1 = require("uuid");
 const inversify_1 = require("inversify");
-const DatabaseService_1 = require("./DatabaseService");
 let BuyOrderService = class BuyOrderService {
     constructor(databaseService) {
         this.databaseService = databaseService;
@@ -36,17 +35,25 @@ let BuyOrderService = class BuyOrderService {
         return order;
     }
     async cancelBuyOrder(orderId, buyerId) {
-        await this.databaseService.update(`UPDATE buy_orders SET status = 'cancelled', updated_at = ? WHERE id = ? AND buyer_id = ? AND status = 'active'`, [new Date().toISOString(), orderId, buyerId]);
+        await this.databaseService.update(`UPDATE buy_orders 
+             SET status = 'cancelled', updated_at = ? 
+             WHERE id = ? AND buyer_id = ? AND status = 'active'`, [new Date().toISOString(), orderId, buyerId]);
     }
     async getBuyOrdersByUser(userId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders WHERE buyer_id = ? ORDER BY created_at DESC`, [userId]);
+        return await this.databaseService.read(`SELECT * FROM buy_orders 
+             WHERE buyer_id = ? 
+             ORDER BY created_at DESC`, [userId]);
     }
     async getActiveBuyOrdersForItem(itemId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders WHERE item_id = ? AND status = 'active' ORDER BY price DESC, created_at ASC`, [itemId]);
+        return await this.databaseService.read(`SELECT * FROM buy_orders 
+             WHERE item_id = ? AND status = 'active' 
+             ORDER BY price DESC, created_at ASC`, [itemId]);
     }
-    // Logique de matching: trouve le meilleur ordre d'achat pour un item à un prix donné
     async matchSellOrder(itemId, sellPrice) {
-        const orders = await this.databaseService.read(`SELECT * FROM buy_orders WHERE item_id = ? AND status = 'active' AND price >= ? ORDER BY price DESC, created_at ASC LIMIT 1`, [itemId, sellPrice]);
+        const orders = await this.databaseService.read(`SELECT * FROM buy_orders 
+             WHERE item_id = ? AND status = 'active' AND price >= ? 
+             ORDER BY price DESC, created_at ASC 
+             LIMIT 1`, [itemId, sellPrice]);
         return orders.length > 0 ? orders[0] : null;
     }
 };
@@ -54,5 +61,5 @@ exports.BuyOrderService = BuyOrderService;
 exports.BuyOrderService = BuyOrderService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __metadata("design:paramtypes", [DatabaseService_1.DatabaseService])
+    __metadata("design:paramtypes", [Object])
 ], BuyOrderService);

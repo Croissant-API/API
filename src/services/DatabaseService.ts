@@ -56,7 +56,6 @@ export class DatabaseService implements IDatabaseService {
               try {
                 const parsed = JSON.parse(row[key]);
                 row[key] = parsed;
-              
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
               } catch (e: unknown) {
                 // Not a JSON string, leave as is

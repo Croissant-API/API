@@ -1,5 +1,5 @@
 import { BuyOrder } from "../interfaces/BuyOrder";
-import { DatabaseService } from "./DatabaseService";
+import { IDatabaseService } from "./DatabaseService";
 export interface IBuyOrderService {
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
     cancelBuyOrder(orderId: string, buyerId: string): Promise<void>;
@@ -9,7 +9,7 @@ export interface IBuyOrderService {
 }
 export declare class BuyOrderService implements IBuyOrderService {
     private databaseService;
-    constructor(databaseService: DatabaseService);
+    constructor(databaseService: IDatabaseService);
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
     cancelBuyOrder(orderId: string, buyerId: string): Promise<void>;
     getBuyOrdersByUser(userId: string): Promise<BuyOrder[]>;

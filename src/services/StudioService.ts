@@ -3,7 +3,6 @@ import { IDatabaseService } from "./DatabaseService";
 import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
 import { User } from "../interfaces/User";
 import { IUserService } from "./UserService";
-
 import crypto from "crypto";
 import { genKey } from "../utils/GenKey";
 
@@ -14,7 +13,7 @@ export interface IStudioService {
     admin_id: string,
     users: User[]
   ): Promise<void>;
-  getUserStudios(user_id: string): Promise<Studio[]>;
+  getUserStudios(user_id: string): Promise<StudioWithApiKey[]>;
   createStudio(studioName: string, admin_id: string): Promise<void>;
   addUserToStudio(studioId: string, user: User): Promise<void>;
   removeUserFromStudio(studioId: string, userId: string): Promise<void>;
@@ -32,15 +31,13 @@ export class StudioService implements IStudioService {
     const studiosResponse = await this.databaseService.read<
       Omit<StudioWithApiKey, "apiKey"> & { users: string }
     >("SELECT * FROM studios WHERE user_id = ?", [user_id]);
+
     if (studiosResponse.length === 0) return null;
+
     const studioResponse = studiosResponse[0];
+    const userIds = JSON.parse(studioResponse.users) as string[];
 
-    const userIds = studioResponse.users;
-    const users = await this.databaseService.read<User>(
-      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
-      userIds
-    );
-
+    const users = await this.getUsersByIds(userIds);
     const me = (await this.userService.getUserWithPublicProfile(
       studioResponse.user_id
     )) as StudioUser;
@@ -53,7 +50,6 @@ export class StudioService implements IStudioService {
     admin_id: string,
     users: User[]
   ): Promise<void> {
-    // Met à jour l'admin_id et la liste des users (stockée en JSON)
     const userIds = users.map((u) => u.user_id);
     await this.databaseService.update(
       "UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?",
@@ -65,7 +61,7 @@ export class StudioService implements IStudioService {
     const studiosResponse = await this.databaseService.read<{
       user_id: string;
       admin_id: string;
-      users: string[];
+      users: string;
     }>(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
       user_id,
       `%"${user_id}"%`,
@@ -73,13 +69,11 @@ export class StudioService implements IStudioService {
 
     const studios = await Promise.all(
       studiosResponse.map(async (studioResponse) => {
-        // users est un tableau d'id users, on va donc concaténer les utilisateurs
-        const userIds = [...studioResponse.users, user_id];
-        const users = await this.databaseService.read<User>(
-          `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
-          userIds
-        );
-
+        const userIds = [
+          ...JSON.parse(studioResponse.users),
+          studioResponse.admin_id,
+        ];
+        const users = await this.getUsersByIds(userIds);
         const me = (await this.userService.getUser(
           studioResponse.user_id
         )) as StudioUser;
@@ -87,10 +81,10 @@ export class StudioService implements IStudioService {
         return {
           user_id: studioResponse.user_id,
           admin_id: studioResponse.admin_id,
-          users: users,
-          me: me,
+          users,
+          me,
           apiKey:
-            studioResponse.admin_id == user_id
+            studioResponse.admin_id === user_id
               ? genKey(studioResponse.user_id)
               : undefined,
         };
@@ -101,24 +95,19 @@ export class StudioService implements IStudioService {
   }
 
   async createStudio(studioName: string, admin_id: string): Promise<void> {
-    // Crée l'utilisateur admin si besoin (ou récupère l'existant)
     const user_id = crypto.randomUUID();
+
     await this.userService.createBrandUser(user_id, studioName);
-    // Crée le studio
     await this.databaseService.create(
       "INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)",
       [user_id, admin_id, JSON.stringify([])]
     );
   }
 
-  /**
-   * Ajoute un utilisateur à un studio
-   * @param studioId L'identifiant du studio (user_id du studio)
-   * @param user L'utilisateur à ajouter
-   */
   async addUserToStudio(studioId: string, user: User): Promise<void> {
     const studio = await this.getStudio(studioId);
     if (!studio) throw new Error("Studio not found");
+
     const userIds = studio.users.map((u) => u.user_id);
     if (!userIds.includes(user.user_id)) {
       await this.setStudioProperties(studioId, studio.admin_id, [
@@ -128,14 +117,10 @@ export class StudioService implements IStudioService {
     }
   }
 
-  /**
-   * Retire un utilisateur d'un studio
-   * @param studioId L'identifiant du studio (user_id du studio)
-   * @param userId L'identifiant de l'utilisateur à retirer
-   */
   async removeUserFromStudio(studioId: string, userId: string): Promise<void> {
     const studio = await this.getStudio(studioId);
     if (!studio) throw new Error("Studio not found");
+
     await this.setStudioProperties(
       studioId,
       studio.admin_id,
@@ -145,5 +130,16 @@ export class StudioService implements IStudioService {
 
   async getUser(user_id: string): Promise<User | null> {
     return await this.userService.getUser(user_id);
+  }
+
+  private async getUsersByIds(userIds: string[]): Promise<User[]> {
+    if (userIds.length === 0) return [];
+
+    return await this.databaseService.read<User>(
+      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(
+        ","
+      )})`,
+      userIds
+    );
   }
 }
