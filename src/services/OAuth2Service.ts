@@ -37,7 +37,7 @@ export class OAuth2Service implements IOAuth2Service {
             "INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)",
             [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]
         );
-        return { owner_id, client_id, client_secret, name, redirect_urls: JSON.stringify(redirect_urls) };
+        return { owner_id, client_id, client_secret, name, redirect_urls };
     }
 
     async getAppsByOwner(owner_id: string): Promise<OAuth2App[]> {
@@ -62,7 +62,7 @@ export class OAuth2Service implements IOAuth2Service {
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
-            redirect_urls: JSON.parse(app.redirect_urls)
+            redirect_urls: app.redirect_urls
         }));
     }
 
@@ -90,7 +90,7 @@ export class OAuth2Service implements IOAuth2Service {
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
-            redirect_urls: JSON.parse(app.redirect_urls)
+            redirect_urls: app.redirect_urls
         };
     }
 

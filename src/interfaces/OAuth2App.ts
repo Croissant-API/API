@@ -3,5 +3,5 @@ export interface OAuth2App {
   client_id: string;
   client_secret: string;
   name: string;
-  redirect_urls: string;
+  redirect_urls: string[];
 }

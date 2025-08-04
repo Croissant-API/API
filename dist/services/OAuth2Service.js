@@ -23,7 +23,7 @@ let OAuth2Service = class OAuth2Service {
         const client_id = (0, uuid_1.v4)();
         const client_secret = (0, uuid_1.v4)();
         await this.db.create("INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)", [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
-        return { owner_id, client_id, client_secret, name, redirect_urls: JSON.stringify(redirect_urls) };
+        return { owner_id, client_id, client_secret, name, redirect_urls };
     }
     async getAppsByOwner(owner_id) {
         return await this.db.read("SELECT * FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
@@ -35,7 +35,7 @@ let OAuth2Service = class OAuth2Service {
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
-            redirect_urls: JSON.parse(app.redirect_urls)
+            redirect_urls: app.redirect_urls
         }));
     }
     async getAppByClientId(client_id) {
@@ -51,7 +51,7 @@ let OAuth2Service = class OAuth2Service {
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
-            redirect_urls: JSON.parse(app.redirect_urls)
+            redirect_urls: app.redirect_urls
         };
     }
     async generateAuthCode(client_id, redirect_uri, user_id) {
