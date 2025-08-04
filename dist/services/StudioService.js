@@ -45,7 +45,7 @@ let StudioService = class StudioService {
         ]);
         const studios = await Promise.all(studiosResponse.map(async (studioResponse) => {
             const userIds = [
-                ...JSON.parse(studioResponse.users),
+                ...studioResponse.users,
                 studioResponse.admin_id,
             ];
             const users = await this.getUsersByIds(userIds);
