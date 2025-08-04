@@ -28,16 +28,13 @@ export class StudioService implements IStudioService {
   ) {}
 
   async getStudio(user_id: string): Promise<Studio | null> {
-    const studiosResponse = await this.databaseService.read<
-      Omit<StudioWithApiKey, "apiKey"> & { users: string }
-    >("SELECT * FROM studios WHERE user_id = ?", [user_id]);
+    const studiosResponse = await this.databaseService.read<{user_id: string, admin_id: string, users: string[]}>("SELECT * FROM studios WHERE user_id = ?", [user_id]);
 
     if (studiosResponse.length === 0) return null;
 
     const studioResponse = studiosResponse[0];
-    const userIds = JSON.parse(studioResponse.users) as string[];
 
-    const users = await this.getUsersByIds(userIds);
+    const users = await this.getUsersByIds(studioResponse.users);
     const me = (await this.userService.getUserWithPublicProfile(
       studioResponse.user_id
     )) as StudioUser;

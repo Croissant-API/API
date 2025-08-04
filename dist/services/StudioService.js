@@ -29,8 +29,7 @@ let StudioService = class StudioService {
         if (studiosResponse.length === 0)
             return null;
         const studioResponse = studiosResponse[0];
-        const userIds = JSON.parse(studioResponse.users);
-        const users = await this.getUsersByIds(userIds);
+        const users = await this.getUsersByIds(studioResponse.users);
         const me = (await this.userService.getUserWithPublicProfile(studioResponse.user_id));
         return { ...studioResponse, users, me };
     }
