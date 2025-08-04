@@ -1,16 +1,11 @@
 import { app } from "./app";
-import { setupSocketIO } from "./socketServer";
+
 import fs from "fs";
 import path from "path";
 
-const port = process.env.PORT || 3456;
-
-// Configurer Socket.IO avec l'app Express
-const { server } = setupSocketIO(app);
-
-// Démarrer le serveur avec Socket.IO intégré
-server.listen(port, () => {
-  console.log(`API Server with Socket.IO started on port ${port}`);
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
 });
 
 function getTimestamp() {
