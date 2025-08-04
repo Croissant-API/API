@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { GameGift } from "../interfaces/GameGift";
@@ -64,7 +63,7 @@ export class GameGiftService implements IGameGiftService {
   }
 
   async getGift(giftCode: string): Promise<GameGift | null> {
-    const rows = await this.databaseService.read<any[]>(
+    const rows = await this.databaseService.read<GameGift>(
       `SELECT * FROM game_gifts WHERE giftCode = ?`,
       [giftCode]
     );
@@ -86,12 +85,12 @@ export class GameGiftService implements IGameGiftService {
   }
 
   async getUserSentGifts(userId: string): Promise<GameGift[]> {
-    const rows = await this.databaseService.read<any[]>(
+    const rows = await this.databaseService.read<GameGift>(
       `SELECT * FROM game_gifts WHERE fromUserId = ? ORDER BY createdAt DESC`,
       [userId]
     );
 
-    return rows.map((row: { id: any; gameId: any; fromUserId: any; toUserId: any; giftCode: any; createdAt: string | number | Date; claimedAt: string | number | Date; isActive: any; message: any; }) => ({
+    return rows.map((row) => ({
       id: row.id,
       gameId: row.gameId,
       fromUserId: row.fromUserId,
@@ -105,12 +104,12 @@ export class GameGiftService implements IGameGiftService {
   }
 
   async getUserReceivedGifts(userId: string): Promise<GameGift[]> {
-    const rows = await this.databaseService.read<any[]>(
+    const rows = await this.databaseService.read<GameGift>(
       `SELECT * FROM game_gifts WHERE toUserId = ? ORDER BY claimedAt DESC`,
       [userId]
     );
 
-    return rows.map((row: { id: any; gameId: any; fromUserId: any; toUserId: any; giftCode: any; createdAt: string | number | Date; claimedAt: string | number | Date; isActive: any; message: any; }) => ({
+    return rows.map((row) => ({
       id: row.id,
       gameId: row.gameId,
       fromUserId: row.fromUserId,
@@ -123,13 +122,14 @@ export class GameGiftService implements IGameGiftService {
     }));
   }
 
+
   async revokeGift(giftId: string, userId: string): Promise<void> {
-    const gift = await this.databaseService.read<any[]>(
+    const gift = await this.databaseService.read<GameGift>(
       `SELECT * FROM game_gifts WHERE id = ?`,
       [giftId]
     );
 
-    if (gift.length === 0) throw new Error("Gift not found");
+    if (!gift) throw new Error("Gift not found");
     if (gift[0].fromUserId !== userId) throw new Error("You can only revoke your own gifts");
     if (!gift[0].isActive) throw new Error("Gift is no longer active");
 

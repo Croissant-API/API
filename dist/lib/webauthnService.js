@@ -12,7 +12,7 @@ function getRegistrationOptions(user) {
     return (0, server_1.generateRegistrationOptions)({
         rpName: 'Croissant',
         rpID: 'croissant-api.fr',
-        userID: user.id,
+        userID: user.id, // doit être un Buffer/Uint8Array
         userName: user.username,
         attestationType: 'none',
         authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
@@ -23,7 +23,7 @@ async function verifyRegistration(body, expectedChallenge) {
     return (0, server_1.verifyRegistrationResponse)({
         response: body.credential,
         expectedChallenge,
-        expectedOrigin: 'https://croissant-api.fr',
+        expectedOrigin: 'https://croissant-api.fr', // change to your domain in prod
         expectedRPID: 'croissant-api.fr',
     });
 }

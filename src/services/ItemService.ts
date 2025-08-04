@@ -25,7 +25,7 @@ export class ItemService implements IItemService {
 
   async createItem(item: Omit<Item, "id">): Promise<void> {
     // Check if itemId already exists (even if deleted)
-    const existingItems = await this.databaseService.read<Item[]>(
+    const existingItems = await this.databaseService.read<Item>(
       "SELECT * FROM items WHERE itemId = ?",
       [item.itemId]
     );
@@ -49,7 +49,7 @@ export class ItemService implements IItemService {
   }
 
   async getItem(itemId: string): Promise<Item | null> {
-    const items = await this.databaseService.read<Item[]>(
+    const items = await this.databaseService.read<Item>(
       "SELECT * FROM items WHERE itemId = ?",
       [itemId]
     );
@@ -57,11 +57,11 @@ export class ItemService implements IItemService {
   }
 
   async getAllItems(): Promise<Item[]> {
-    return this.databaseService.read<Item[]>("SELECT * FROM items");
+    return this.databaseService.read<Item>("SELECT * FROM items");
   }
 
   async getStoreItems(): Promise<Item[]> {
-    return this.databaseService.read<Item[]>(
+    return this.databaseService.read<Item>(
       `SELECT itemId, name, description, owner, price, iconHash, showInStore
        FROM items 
        WHERE deleted = 0 AND showInStore = 1
@@ -70,7 +70,7 @@ export class ItemService implements IItemService {
   }
 
   async getMyItems(userId: string): Promise<Item[]> {
-    return this.databaseService.read<Item[]>(
+    return this.databaseService.read<Item>(
       `SELECT itemId, name, description, owner, price, iconHash, showInStore
        FROM items 
        WHERE deleted = 0 AND owner = ?
@@ -101,7 +101,7 @@ export class ItemService implements IItemService {
    */
   async searchItemsByName(query: string): Promise<Item[]> {
     const searchTerm = `%${query.toLowerCase()}%`;
-    return this.databaseService.read<Item[]>(
+    return this.databaseService.read<Item>(
       `SELECT itemId, name, description, owner, price, iconHash, showInStore
        FROM items 
        WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0

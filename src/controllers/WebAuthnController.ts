@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { controller, httpPost } from "inversify-express-utils";
 import { inject } from "inversify";
 import { Request, Response } from "express";
@@ -7,6 +5,7 @@ import { IUserService } from "../services/UserService";
 import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } from "../lib/webauthnService";
 import { genKey } from "../utils/GenKey";
 import { ILogService } from "../services/LogService"; // Ajout import LogService
+import { WebAuthnCredential } from "@simplewebauthn/server/script/types";
 
 @controller("/webauthn")
 export class WebAuthn {
@@ -59,8 +58,8 @@ export class WebAuthn {
       options.user.id = Buffer.from(options.user.id).toString('base64');
       await this.createLog(req, 'getRegistrationOptions', 'users', 200, userId);
       res.status(200).json(options);
-    } catch (error) {
-      await this.createLog(req, 'getRegistrationOptions', 'users', 500, userId);
+    } catch (e: unknown) {
+      await this.createLog(req, 'getRegistrationOptions', 'users', 500, undefined, { error: (e as Error).message });
       res.status(500).json({ message: "Error generating registration options" });
     }
   }
@@ -100,8 +99,8 @@ export class WebAuthn {
         await this.createLog(req, 'verifyRegistration', 'users', 400, userId);
         return res.status(400).json({ message: "Registration verification failed" });
       }
-    } catch (error) {
-      await this.createLog(req, 'verifyRegistration', 'users', 500, userId);
+    } catch (error: unknown) {
+      await this.createLog(req, 'verifyRegistration', 'users', 500, userId, { error: (error as Error).message });
       res.status(500).json({ message: "Error verifying registration" });
     }
   }
@@ -109,7 +108,7 @@ export class WebAuthn {
   @httpPost("/authenticate/options")
   async getAuthenticationOptionsHandler(req: Request, res: Response) {
     const userId = req.body.userId as string;
-    let credentials: any[] = [];
+    let credentials: WebAuthnCredential[] = [];
     try {
       if (userId) {
         const user = await this.userService.getUser(userId);
@@ -124,8 +123,8 @@ export class WebAuthn {
       options.challenge = challengeBase64;
       await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 200, userId);
       res.status(200).json(options);
-    } catch (error) {
-      await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 500, userId);
+    } catch (error: unknown) {
+      await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 500, userId, { error: (error as Error).message });
       res.status(500).json({ message: "Error generating authentication options" });
     }
   }
@@ -156,8 +155,8 @@ export class WebAuthn {
 
       await this.createLog(req, 'verifyAuthenticationHandler', 'users', 200, user.user_id);
       res.status(200).json({ message: "Authentication successful", token });
-    } catch (error) {
-      await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId);
+    } catch (error: unknown) {
+      await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId, { error: (error as Error).message });
       res.status(500).json({ message: "Error verifying authentication" });
     }
   }

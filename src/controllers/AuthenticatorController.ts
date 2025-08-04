@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { controller, httpPost } from "inversify-express-utils";
 import { inject } from "inversify";
 import { Request, Response } from "express";
@@ -56,7 +55,7 @@ export class Authenticator {
         }
         try {
             const key = Totp.generateKey({ issuer: "Croissant API", user: user.email });
-            qrcode.toDataURL(key.url, async (err: any, url: any) => {
+            qrcode.toDataURL(key.url, async (err: unknown, url: string) => {
                 if (err) {
                     await this.logAction(req, "generateKey", 500, { error: err });
                     return res.status(500).send({ message: "Error generating QR code" });

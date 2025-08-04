@@ -108,9 +108,9 @@ let LogService = class LogService {
         };
     }
 };
-LogService = __decorate([
+exports.LogService = LogService;
+exports.LogService = LogService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], LogService);
-exports.LogService = LogService;

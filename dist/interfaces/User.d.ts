@@ -1,6 +1,14 @@
-export interface User {
+import { Game } from "./Game";
+import { InventoryItem } from "./Inventory";
+import { Item } from "./Item";
+export interface PublicUser {
     user_id: string;
     username: string;
+    verified: boolean;
+    isStudio: boolean;
+    admin?: boolean;
+}
+export interface User extends PublicUser {
     email: string;
     password?: string;
     discord_id?: string;
@@ -12,10 +20,27 @@ export interface User {
     balance: number;
     free_balance: number;
     disabled?: boolean;
-    admin?: boolean;
-    verified: boolean;
-    isStudio: boolean;
     webauthn_challenge: string;
     webauthn_credentials?: string;
     authenticator_secret?: string;
+}
+export interface PublicUserAsAdmin extends PublicUser {
+    disabled?: boolean;
+}
+export interface UserExtensions {
+    inventory?: InventoryItem[];
+    ownedItems?: Item[];
+    createdGames?: Game[];
+}
+export interface Oauth2User {
+    username: string;
+    user_id: string;
+    email: string;
+    balance: number;
+    verified: boolean;
+    steam_username?: string;
+    steam_avatar_url?: string;
+    steam_id?: string;
+    discord_id?: string;
+    google_id?: string;
 }

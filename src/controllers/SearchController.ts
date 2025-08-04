@@ -10,7 +10,7 @@ import {
     sendError,
     filterGame,
 } from "../utils/helpers";
-import { User } from "../interfaces/User";
+import { PublicUser, PublicUserAsAdmin } from "../interfaces/User";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 
 @controller("/search")
@@ -59,10 +59,8 @@ export class SearchController {
         }
 
         try {
-            const users: User[] = await this.userService.searchUsersByUsername(query);
+            const users: PublicUser[] = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                if (user.disabled) return null;
-                // Utilisation du profil public complet
                 const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
                 return { id: user.user_id, ...publicProfile };
             }));
@@ -109,10 +107,8 @@ export class SearchController {
         }
 
         try {
-            const users: User[] = await this.userService.adminSearchUsers(query);
+            const users: PublicUserAsAdmin[] = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                if (user.disabled) return null;
-                // Utilisation du profil public complet
                 const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
                 return { id: user.user_id, disabled: user.disabled, ...publicProfile };
             }));

@@ -23,6 +23,7 @@ let LoggedCheck = class LoggedCheck {
         this.studioService = studioService;
     }
 };
+exports.LoggedCheck = LoggedCheck;
 LoggedCheck.middleware = async (req, res, next) => {
     const authHeader = req.headers["authorization"] ||
         "Bearer " +
@@ -57,8 +58,7 @@ LoggedCheck.middleware = async (req, res, next) => {
     req.originalUser = user;
     next();
 };
-LoggedCheck = __decorate([
+exports.LoggedCheck = LoggedCheck = __decorate([
     __param(0, (0, inversify_1.inject)("StudioService")),
     __metadata("design:paramtypes", [Object])
 ], LoggedCheck);
-exports.LoggedCheck = LoggedCheck;

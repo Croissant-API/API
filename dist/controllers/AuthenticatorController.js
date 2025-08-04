@@ -36,7 +36,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Authenticator = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
@@ -172,6 +171,7 @@ let Authenticator = class Authenticator {
         }
     }
 };
+exports.Authenticator = Authenticator;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/generateKey", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -196,10 +196,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Authenticator.prototype, "deleteKey", null);
-Authenticator = __decorate([
+exports.Authenticator = Authenticator = __decorate([
     (0, inversify_express_utils_1.controller)("/authenticator"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Authenticator);
-exports.Authenticator = Authenticator;

@@ -16,7 +16,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudioService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
@@ -25,56 +24,15 @@ let StudioService = class StudioService {
         this.databaseService = databaseService;
         this.userService = userService;
     }
-    parseUserIds(users) {
-        try {
-            return JSON.parse(users);
-        }
-        catch {
-            return [];
-        }
-    }
-    async getStudioUsers(userIds) {
-        if (!userIds.length)
-            return [];
-        return this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
-    }
     async getStudio(user_id) {
-        const studios = await this.databaseService.read("SELECT * FROM studios WHERE user_id = ?", [user_id]);
-        if (studios.length === 0)
+        const studiosResponse = await this.databaseService.read("SELECT * FROM studios WHERE user_id = ?", [user_id]);
+        if (studiosResponse.length === 0)
             return null;
-        const studio = studios[0];
-        const userIds = this.parseUserIds(studio.users);
-        const users = await this.getStudioUsers(userIds);
-        return { ...studio, users };
-    }
-    async getFormattedStudio(user_id) {
-        const studioInfo = await this.databaseService.read(`SELECT s.user_id as studio_user_id, u.username, u.verified, s.admin_id, s.users
-       FROM studios s
-       INNER JOIN users u ON s.user_id = u.user_id
-       WHERE s.user_id = ?`, [user_id]);
-        if (!studioInfo.length)
-            return null;
-        const studio = studioInfo[0];
-        const userIds = this.parseUserIds(studio.users);
-        if (!userIds.length) {
-            return {
-                user_id: studio.studio_user_id,
-                username: studio.username,
-                verified: studio.verified,
-                admin_id: studio.admin_id,
-                users: []
-            };
-        }
-        const users = await this.databaseService.read(`SELECT user_id, username, verified, admin 
-       FROM users 
-       WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
-        return {
-            user_id: studio.studio_user_id,
-            username: studio.username,
-            verified: studio.verified,
-            admin_id: studio.admin_id,
-            users
-        };
+        const studioResponse = studiosResponse[0];
+        const userIds = studioResponse.users;
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
+        const me = (await this.userService.getUserWithPublicProfile(studioResponse.user_id));
+        return { ...studioResponse, users, me };
     }
     async setStudioProperties(user_id, admin_id, users) {
         // Met à jour l'admin_id et la liste des users (stockée en JSON)
@@ -82,50 +40,26 @@ let StudioService = class StudioService {
         await this.databaseService.update("UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?", [admin_id, JSON.stringify(userIds), user_id]);
     }
     async getUserStudios(user_id) {
-        const studios = await this.databaseService.read(`SELECT * FROM studios`, []);
-        const result = [];
-        for (const studio of studios) {
-            const userIds = this.parseUserIds(studio.users);
-            userIds.push(studio.admin_id);
-            const studioUser = await this.userService.getUser(studio.user_id);
-            if (userIds.includes(user_id)) {
-                const users = await this.getStudioUsers(userIds);
-                result.push({
-                    ...studio,
-                    username: studioUser?.username,
-                    verified: studioUser?.verified,
-                    users,
-                    isAdmin: studio.admin_id === user_id,
-                    apiKey: studio.admin_id == user_id ? (0, GenKey_1.genKey)(studio.user_id) : null,
-                });
-            }
-        }
-        return result;
-    }
-    async getFormattedUserStudios(user_id) {
-        // Récupère tous les studios où l'utilisateur est membre ou admin
-        const studiosInfo = await this.databaseService.read(`SELECT s.user_id as studio_user_id, u.username, u.verified, s.admin_id, s.users
-       FROM studios s
-       INNER JOIN users u ON s.user_id = u.user_id
-       WHERE s.admin_id = ? OR JSON_EXTRACT(s.users, '$') LIKE ?`, [user_id, `%"${user_id}"%`]);
-        const result = [];
-        for (const studio of studiosInfo) {
-            const userIds = this.parseUserIds(studio.users);
-            const isAdmin = studio.admin_id === user_id;
-            const users = userIds.length > 0 ? await this.databaseService.read(`SELECT user_id, username, verified, admin 
-         FROM users 
-         WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds) : [];
-            result.push({
-                user_id: studio.studio_user_id,
-                username: studio.username,
-                verified: studio.verified,
-                admin_id: studio.admin_id,
-                isAdmin,
-                apiKey: isAdmin ? (0, GenKey_1.genKey)(studio.studio_user_id) : undefined,
-                users
-            });
-        }
-        return result;
+        const studiosResponse = await this.databaseService.read(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
+            user_id,
+            `%"${user_id}"%`,
+        ]);
+        const studios = await Promise.all(studiosResponse.map(async (studioResponse) => {
+            // users est un tableau d'id users, on va donc concaténer les utilisateurs
+            const userIds = [...studioResponse.users, user_id];
+            const users = await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
+            const me = (await this.userService.getUser(studioResponse.user_id));
+            return {
+                user_id: studioResponse.user_id,
+                admin_id: studioResponse.admin_id,
+                users: users,
+                me: me,
+                apiKey: studioResponse.admin_id == user_id
+                    ? (0, GenKey_1.genKey)(studioResponse.user_id)
+                    : undefined,
+            };
+        }));
+        return studios;
     }
     async createStudio(studioName, admin_id) {
         // Crée l'utilisateur admin si besoin (ou récupère l'existant)
@@ -145,7 +79,10 @@ let StudioService = class StudioService {
             throw new Error("Studio not found");
         const userIds = studio.users.map((u) => u.user_id);
         if (!userIds.includes(user.user_id)) {
-            await this.setStudioProperties(studioId, studio.admin_id, [...studio.users, user]);
+            await this.setStudioProperties(studioId, studio.admin_id, [
+                ...studio.users,
+                user,
+            ]);
         }
     }
     /**
@@ -163,10 +100,10 @@ let StudioService = class StudioService {
         return await this.userService.getUser(user_id);
     }
 };
-StudioService = __decorate([
+exports.StudioService = StudioService;
+exports.StudioService = StudioService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], StudioService);
-exports.StudioService = StudioService;

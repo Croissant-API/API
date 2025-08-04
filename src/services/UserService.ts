@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
-import { User, PublicUser, UserExtensions } from "../interfaces/User";
-import { getCachedUser, setCachedUser } from "../utils/UserCache";
+import { User, PublicUser, UserExtensions, PublicUserAsAdmin } from "../interfaces/User";
 import { config } from "dotenv";
 import path from "path";
 import crypto from "crypto";
 import { genKey } from "../utils/GenKey";
 import removeDiacritics from "diacritics";
+import { InventoryItem } from "interfaces/Inventory";
 
 function slugify(str: string): string {
   str = str.normalize("NFKD");
@@ -24,8 +23,6 @@ function slugify(str: string): string {
 
 config({ path: path.join(__dirname, "..", "..", ".env") });
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-
 export interface IUserService {
   updateSteamFields(
     user_id: string,
@@ -33,7 +30,6 @@ export interface IUserService {
     steam_username: string | null,
     steam_avatar_url: string | null
   ): Promise<void>;
-  getDiscordUser(user_id: string): any;
   searchUsersByUsername(query: string): Promise<PublicUser[]>;
   updateUserBalance(user_id: string, balance: number): Promise<void>;
   createUser(
@@ -70,7 +66,7 @@ export interface IUserService {
   getAuthenticatorSecret(userId: string): Promise<string | null>;
   getUserWithCompleteProfile(user_id: string): Promise<(User & UserExtensions) | null>;
   getUserWithPublicProfile(user_id: string): Promise<(PublicUser & UserExtensions) | null>;
-  adminGetUserWithProfile(user_id: string): Promise<(User & UserExtensions) | null>;
+  adminGetUserWithProfile(user_id: string): Promise<(PublicUserAsAdmin & UserExtensions) | null>;
   findByResetToken(reset_token: string): Promise<User | null>;
   getSteamAuthUrl(): string;
 }
@@ -88,7 +84,7 @@ export class UserService implements IUserService {
   }
 
   private async fetchUserByAnyId(user_id: string, includeDisabled = false): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       `SELECT * FROM users WHERE ${UserService.getIdWhereClause(includeDisabled)}`,
       [user_id, user_id, user_id, user_id]
     );
@@ -97,9 +93,9 @@ export class UserService implements IUserService {
 
   private async fetchAllUsers(includeDisabled = false): Promise<User[]> {
     if (includeDisabled) {
-      return await this.databaseService.read<User[]>("SELECT * FROM users");
+      return await this.databaseService.read<User>("SELECT * FROM users");
     }
-    return await this.databaseService.read<User[]>(
+    return await this.databaseService.read<User>(
       "SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)"
     );
   }
@@ -140,7 +136,7 @@ export class UserService implements IUserService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
@@ -181,34 +177,8 @@ export class UserService implements IUserService {
     );
   }
 
-  async getDiscordUser(userId: string): Promise<any> {
-    try {
-      const cached = getCachedUser(userId);
-      if (cached) {
-        return cached;
-      }
-      const headers: Record<string, string> = {};
-      if (BOT_TOKEN) {
-        headers["Authorization"] = "Bot " + BOT_TOKEN;
-      }
-      const response = await fetch(
-        `https://discord.com/api/v10/users/${userId}`,
-        { headers }
-      );
-      if (!response.ok) {
-        return null;
-      }
-      const user = await response.json();
-      setCachedUser(userId, user);
-      return user;
-    } catch (error) {
-      console.error("Error fetching Discord user:", error);
-      return null;
-    }
-  }
-
   async searchUsersByUsername(query: string): Promise<PublicUser[]> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       `SELECT user_id, username, verified, isStudio, admin FROM users WHERE (disabled = 0 OR disabled IS NULL)`
     );
     const querySlug = slugify(query);
@@ -270,7 +240,7 @@ export class UserService implements IUserService {
   }
 
   async adminSearchUsers(query: string): Promise<PublicUser[]> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       `SELECT user_id, username, verified, isStudio, admin FROM users`
     );
     const querySlug = slugify(query);
@@ -307,7 +277,7 @@ export class UserService implements IUserService {
   }
 
   async getUserBySteamId(steamId: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       "SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)",
       [steamId]
     );
@@ -370,7 +340,7 @@ export class UserService implements IUserService {
   }
 
   async getUserByCredentialId(credentialId: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       "SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)",
       [`%${credentialId}%`]
     );
@@ -462,25 +432,19 @@ export class UserService implements IUserService {
       [user_id, user_id, user_id, user_id]
     );
 
-    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    const results = await this.databaseService.read<User & UserExtensions>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
 
     const user = results[0];
     if (user.inventory) {
-      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
-      user.inventory.sort((a: any, b: any) => {
-        const nameCompare = a.name.localeCompare(b.name);
+      user.inventory = user.inventory.filter((item: InventoryItem) => item !== null);
+      user.inventory.sort((a: InventoryItem, b: InventoryItem) => {
+        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
         if (nameCompare !== 0) return nameCompare;
         if (!a.metadata && b.metadata) return -1;
         if (a.metadata && !b.metadata) return 1;
         return 0;
       });
-    }
-    if (user.ownedItems) {
-      user.ownedItems = JSON.parse(user.ownedItems);
-    }
-    if (user.createdGames) {
-      user.createdGames = JSON.parse(user.createdGames);
     }
 
     return user;
@@ -546,25 +510,19 @@ export class UserService implements IUserService {
       GROUP BY u.user_id
     `;
 
-    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    const results = await this.databaseService.read<PublicUser & UserExtensions>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
 
     const user = results[0];
     if (user.inventory) {
-      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
-      user.inventory.sort((a: any, b: any) => {
-        const nameCompare = a.name.localeCompare(b.name);
+      user.inventory = user.inventory.filter((item: InventoryItem) => item !== null);
+      user.inventory.sort((a: InventoryItem, b: InventoryItem) => {
+        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
         if (nameCompare !== 0) return nameCompare;
         if (!a.metadata && b.metadata) return -1;
         if (a.metadata && !b.metadata) return 1;
         return 0;
       });
-    }
-    if (user.ownedItems) {
-      user.ownedItems = JSON.parse(user.ownedItems);
-    }
-    if (user.createdGames) {
-      user.createdGames = JSON.parse(user.createdGames);
     }
 
     return {
@@ -579,7 +537,7 @@ export class UserService implements IUserService {
     };
   }
 
-  async adminGetUserWithProfile(user_id: string): Promise<(User & UserExtensions) | null> {
+  async adminGetUserWithProfile(user_id: string): Promise<(PublicUserAsAdmin & UserExtensions) | null> {
     const query = `
       SELECT 
         u.*,
@@ -639,32 +597,26 @@ export class UserService implements IUserService {
       GROUP BY u.user_id
     `;
 
-    const results = await this.databaseService.read<any[]>(query, [user_id, user_id, user_id, user_id]);
+    const results = await this.databaseService.read<PublicUser & UserExtensions>(query, [user_id, user_id, user_id, user_id]);
     if (results.length === 0) return null;
 
     const user = results[0];
     if (user.inventory) {
-      user.inventory = JSON.parse(user.inventory).filter((item: any) => item !== null);
-      user.inventory.sort((a: any, b: any) => {
-        const nameCompare = a.name.localeCompare(b.name);
+      user.inventory = user.inventory.filter((item: InventoryItem) => item !== null);
+      user.inventory.sort((a: InventoryItem, b: InventoryItem) => {
+        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
         if (nameCompare !== 0) return nameCompare;
         if (!a.metadata && b.metadata) return -1;
         if (a.metadata && !b.metadata) return 1;
         return 0;
       });
     }
-    if (user.ownedItems) {
-      user.ownedItems = JSON.parse(user.ownedItems);
-    }
-    if (user.createdGames) {
-      user.createdGames = JSON.parse(user.createdGames);
-    }
 
     return user;
   }
 
   async findByResetToken(reset_token: string): Promise<User | null> {
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       "SELECT * FROM users WHERE forgot_password_token = ?",
       [reset_token]
     );

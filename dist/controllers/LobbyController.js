@@ -167,6 +167,7 @@ let Lobbies = class Lobbies {
         }
     }
 };
+exports.Lobbies = Lobbies;
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/lobbies",
@@ -263,10 +264,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Lobbies.prototype, "leaveLobby", null);
-Lobbies = __decorate([
+exports.Lobbies = Lobbies = __decorate([
     (0, inversify_express_utils_1.controller)("/lobbies"),
     __param(0, (0, inversify_1.inject)("LobbyService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Lobbies);
-exports.Lobbies = Lobbies;

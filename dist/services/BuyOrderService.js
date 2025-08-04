@@ -50,9 +50,9 @@ let BuyOrderService = class BuyOrderService {
         return orders.length > 0 ? orders[0] : null;
     }
 };
-BuyOrderService = __decorate([
+exports.BuyOrderService = BuyOrderService;
+exports.BuyOrderService = BuyOrderService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [DatabaseService_1.DatabaseService])
 ], BuyOrderService);
-exports.BuyOrderService = BuyOrderService;

@@ -20,7 +20,7 @@ export interface ILobbyService {
   leaveLobby(lobbyId: string, userId: string): Promise<void>;
   getUserLobby(
     userId: string
-  ): Promise<{ lobbyId: string; users: LobbyUser[] } | null>;
+  ): Promise<Lobby | null>;
   getFormattedLobbyUsers(userIds: string[]): Promise<LobbyUser[]>;
   createLobby(lobbyId: string, users?: string[]): Promise<void>;
   deleteLobby(lobbyId: string): Promise<void>;
@@ -36,7 +36,7 @@ export class LobbyService implements ILobbyService {
   ) {}
 
   async getLobby(lobbyId: string): Promise<Lobby | null> {
-    const rows = await this.databaseService.read<Lobby[]>(
+    const rows = await this.databaseService.read<Lobby>(
       "SELECT users FROM lobbies WHERE lobbyId = ?",
       [lobbyId]
     );
@@ -46,16 +46,15 @@ export class LobbyService implements ILobbyService {
   async getFormattedLobby(lobbyId: string): Promise<{ lobbyId: string; users: LobbyUser[] } | null> {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) return null;
-    
-    const userIds = parseUsers(lobby.users);
-    const users = await this.getFormattedLobbyUsers(userIds);
+
+    const users = lobby.users;
     return { lobbyId, users };
   }
 
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
-    const users = [...new Set([...parseUsers(lobby.users), userId])];
+    const users = [...new Set([...lobby.users, userId])];
     await this.databaseService.update(
       "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
       [JSON.stringify(users), lobbyId]
@@ -65,7 +64,7 @@ export class LobbyService implements ILobbyService {
   async leaveLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
-    const newUsers = parseUsers(lobby.users).filter((u) => u !== userId);
+    const newUsers = lobby.users.filter((u) => u.user_id !== userId);
     if (newUsers.length === 0) {
       await this.deleteLobby(lobbyId);
     } else {
@@ -78,17 +77,14 @@ export class LobbyService implements ILobbyService {
 
   async getUserLobby(
     userId: string
-  ): Promise<{ lobbyId: string; users: LobbyUser[] } | null> {
-    const rows = await this.databaseService.read<
-      { lobbyId: string; users: string }[]
-    >("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", 
+  ): Promise<Lobby | null> {
+    const rows = await this.databaseService.read<Lobby>("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", 
     [`%"${userId}"%`]);
     
     if (rows.length === 0) return null;
     
     const row = rows[0];
-    const userIds = parseUsers(row.users);
-    const users = await this.getFormattedLobbyUsers(userIds);
+    const users = row.users
     return { lobbyId: row.lobbyId, users };
   }
 
@@ -96,7 +92,7 @@ export class LobbyService implements ILobbyService {
     if (userIds.length === 0) return [];
     
     const placeholders = userIds.map(() => '?').join(',');
-    const users = await this.databaseService.read<User[]>(
+    const users = await this.databaseService.read<User>(
       `SELECT user_id, username, verified, steam_username, steam_avatar_url, steam_id 
        FROM users 
        WHERE user_id IN (${placeholders})`,
@@ -120,7 +116,7 @@ export class LobbyService implements ILobbyService {
   }
 
   async getUserLobbies(userId: string): Promise<{ lobbyId: string; users: string }[]> {
-    return await this.databaseService.read<{ lobbyId: string; users: string }[]>(
+    return await this.databaseService.read<{ lobbyId: string; users: string }>(
       "SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?",
       [`%"${userId}"%`]
     );
@@ -143,12 +139,4 @@ function mapLobbyUser(user: User): LobbyUser {
     steam_avatar_url: user.steam_avatar_url,
     steam_id: user.steam_id,
   };
-}
-
-function parseUsers(users: string): string[] {
-  try {
-    return JSON.parse(users);
-  } catch {
-    return [];
-  }
 }

@@ -103,6 +103,7 @@ let LogController = class LogController {
         }
     }
 };
+exports.LogController = LogController;
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -139,9 +140,8 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], LogController.prototype, "getMyLogs", null);
-LogController = __decorate([
+exports.LogController = LogController = __decorate([
     (0, inversify_express_utils_1.controller)("/logs"),
     __param(0, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object])
 ], LogController);
-exports.LogController = LogController;

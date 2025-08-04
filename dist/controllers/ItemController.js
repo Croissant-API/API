@@ -756,6 +756,7 @@ let Items = class Items {
         }
     }
 };
+exports.Items = Items;
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/items",
@@ -1024,7 +1025,7 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Items.prototype, "transferOwnership", null);
-Items = __decorate([
+exports.Items = Items = __decorate([
     (0, inversify_express_utils_1.controller)("/items"),
     __param(0, (0, inversify_1.inject)("ItemService")),
     __param(1, (0, inversify_1.inject)("InventoryService")),
@@ -1032,4 +1033,3 @@ Items = __decorate([
     __param(3, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], Items);
-exports.Items = Items;

@@ -13,8 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebAuthn = void 0;
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
 const webauthnService_1 = require("../lib/webauthnService");
@@ -63,8 +61,8 @@ let WebAuthn = class WebAuthn {
             await this.createLog(req, 'getRegistrationOptions', 'users', 200, userId);
             res.status(200).json(options);
         }
-        catch (error) {
-            await this.createLog(req, 'getRegistrationOptions', 'users', 500, userId);
+        catch (e) {
+            await this.createLog(req, 'getRegistrationOptions', 'users', 500, undefined, { error: e.message });
             res.status(500).json({ message: "Error generating registration options" });
         }
     }
@@ -103,7 +101,7 @@ let WebAuthn = class WebAuthn {
             }
         }
         catch (error) {
-            await this.createLog(req, 'verifyRegistration', 'users', 500, userId);
+            await this.createLog(req, 'verifyRegistration', 'users', 500, userId, { error: error.message });
             res.status(500).json({ message: "Error verifying registration" });
         }
     }
@@ -127,7 +125,7 @@ let WebAuthn = class WebAuthn {
             res.status(200).json(options);
         }
         catch (error) {
-            await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 500, userId);
+            await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 500, userId, { error: error.message });
             res.status(500).json({ message: "Error generating authentication options" });
         }
     }
@@ -156,11 +154,12 @@ let WebAuthn = class WebAuthn {
             res.status(200).json({ message: "Authentication successful", token });
         }
         catch (error) {
-            await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId);
+            await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId, { error: error.message });
             res.status(500).json({ message: "Error verifying authentication" });
         }
     }
 };
+exports.WebAuthn = WebAuthn;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/register/options"),
     __metadata("design:type", Function),
@@ -185,10 +184,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WebAuthn.prototype, "verifyAuthenticationHandler", null);
-WebAuthn = __decorate([
+exports.WebAuthn = WebAuthn = __decorate([
     (0, inversify_express_utils_1.controller)("/webauthn"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], WebAuthn);
-exports.WebAuthn = WebAuthn;

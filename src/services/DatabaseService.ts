@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import sqlite3 from "sqlite3";
 import { Database, open } from "sqlite";
 import { injectable } from "inversify";
 
 export interface IDatabaseService {
   create(query: string, params?: unknown[]): Promise<void>;
-  read<T>(query: string, params?: unknown[]): Promise<T[] | any[] | any>;
+  read<T>(query: string, params?: unknown[]): Promise<T[]>;
   update(query: string, params?: unknown[]): Promise<void>;
   delete(query: string, params?: unknown[]): Promise<void>;
 }
@@ -48,7 +47,28 @@ export class DatabaseService implements IDatabaseService {
   public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
     try {
       const rows = await this.ensureDb().all(query, params);
-      return (rows as T[]) || [];
+      if (!rows) return [];
+
+      return rows.map((row: { [key: string]: string }) => {
+        for (const key in row) {
+          if (typeof row[key] === "string") {
+            try {
+              try {
+                const parsed = JSON.parse(row[key]);
+                row[key] = parsed;
+              
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              } catch (e: unknown) {
+                // Not a JSON string, leave as is
+              }
+            } catch (e: unknown) {
+              console.warn(`Failed to parse JSON for key ${key}:`, e);
+              // Not a JSON string, leave as is
+            }
+          }
+        }
+        return row as T;
+      });
     } catch (err) {
       console.error("Error reading data", err);
       throw err;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { Inventory, InventoryItem } from "../interfaces/Inventory";
@@ -56,7 +55,7 @@ export class InventoryService implements IInventoryService {
     );
 
     // Récupérer les items avec toutes leurs données en une seule requête
-    const items = await this.databaseService.read<any[]>(
+    const items = await this.databaseService.read<InventoryItem>(
       `SELECT 
          inv.user_id, 
          inv.item_id, 
@@ -77,8 +76,8 @@ export class InventoryService implements IInventoryService {
       [correctedUserId]
     );
 
-    items.sort((a: any, b: any) => {
-      const nameCompare = a.name.localeCompare(b.name);
+    items.sort((a: InventoryItem, b: InventoryItem) => {
+      const nameCompare = a.name?.localeCompare(b.name || '') || 0;
       if (nameCompare !== 0) return nameCompare;
       // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
       if (!a.metadata && b.metadata) return -1;
@@ -86,21 +85,18 @@ export class InventoryService implements IInventoryService {
       return 0;
     });
 
-    const processedItems: any[] = items.map((item: any) => ({
+    const processedItems: InventoryItem[] = items.map((item) => ({
       user_id: item.user_id,
       item_id: item.item_id,
       amount: item.amount,
-      metadata: this.parseMetadata(item.metadata ?? null),
+      metadata: item.metadata,
       sellable: !!item.sellable,
       purchasePrice: item.purchasePrice,
       // Données de l'item
-      itemId: item.itemId,
       name: item.name,
       description: item.description,
       iconHash: item.iconHash,
-      price: item.price,
-      owner: item.owner,
-      showInStore: item.showInStore
+      price: item.purchasePrice
     }));
 
     return { user_id: userId, inventory: processedItems };
@@ -108,7 +104,7 @@ export class InventoryService implements IInventoryService {
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<InventoryItem[]>(
+    const items = await this.databaseService.read<InventoryItem>(
       "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ?",
       [correctedUserId, itemId]
     );
@@ -195,7 +191,7 @@ export class InventoryService implements IInventoryService {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
     // Ne supprimer que les items SANS métadonnées
-    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null; sellable: boolean })[]>(
+    const items = await this.databaseService.read<InventoryItem>(
       `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL ORDER BY amount DESC`,
       [correctedUserId, itemId]
     );
@@ -240,7 +236,7 @@ export class InventoryService implements IInventoryService {
 
   async hasItemWithoutMetadata(userId: string, itemId: string, amount = 1): Promise<boolean> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<{ total: number | null }[]>(
+    const items = await this.databaseService.read<{ total: number | null }>(
       "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL",
       [correctedUserId, itemId]
     );
@@ -251,7 +247,7 @@ export class InventoryService implements IInventoryService {
   // Nouvelle méthode pour vérifier les items sellable
   async hasItemWithoutMetadataSellable(userId: string, itemId: string, amount = 1): Promise<boolean> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<{ total: number | null }[]>(
+    const items = await this.databaseService.read<{ total: number | null }>(
       "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1",
       [correctedUserId, itemId]
     );
@@ -263,7 +259,7 @@ export class InventoryService implements IInventoryService {
   async removeSellableItem(userId: string, itemId: string, amount: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
-    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null; sellable: boolean })[]>(
+    const items = await this.databaseService.read<InventoryItem>(
       `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 ORDER BY amount DESC`,
       [correctedUserId, itemId]
     );
@@ -295,7 +291,7 @@ export class InventoryService implements IInventoryService {
   async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
-    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null; sellable: boolean; purchasePrice: number })[]>(
+    const items = await this.databaseService.read<InventoryItem>(
       `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ? ORDER BY amount DESC`,
       [correctedUserId, itemId, purchasePrice]
     );

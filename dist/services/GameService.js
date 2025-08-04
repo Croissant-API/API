@@ -200,12 +200,12 @@ let GameService = class GameService {
         return { canTransfer: true };
     }
 };
-GameService = __decorate([
+exports.GameService = GameService;
+exports.GameService = GameService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], GameService);
-exports.GameService = GameService;
 function toDbBool(val) {
     return val ? 1 : 0;
 }

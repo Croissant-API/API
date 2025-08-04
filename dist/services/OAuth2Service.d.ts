@@ -1,5 +1,6 @@
 import { IDatabaseService } from "./DatabaseService";
 import { OAuth2App } from "../interfaces/OAuth2App";
+import { Oauth2User } from "../interfaces/User";
 export interface IOAuth2Service {
     createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App>;
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;
@@ -10,7 +11,7 @@ export interface IOAuth2Service {
         name?: string;
         redirect_urls?: string[];
     }): Promise<void>;
-    getUserByCode(code: string, client_id: string): Promise<any | null>;
+    getUserByCode(code: string, client_id: string): Promise<Oauth2User | null>;
     getFormattedAppsByOwner(owner_id: string): Promise<Array<{
         client_id: string;
         client_secret: string;
@@ -48,16 +49,5 @@ export declare class OAuth2Service implements IOAuth2Service {
         name?: string;
         redirect_urls?: string[];
     }): Promise<void>;
-    getUserByCode(code: string, client_id: string): Promise<{
-        username: string;
-        user_id: string;
-        email: string;
-        balance: number;
-        verified: boolean;
-        steam_username?: string;
-        steam_avatar_url?: string;
-        steam_id?: string;
-        discord_id?: string;
-        google_id?: string;
-    } | null>;
+    getUserByCode(code: string, client_id: string): Promise<Oauth2User | null>;
 }

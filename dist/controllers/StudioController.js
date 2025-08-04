@@ -70,7 +70,7 @@ let Studios = class Studios {
     async getStudio(req, res) {
         const { studioId } = req.params;
         try {
-            const studio = await this.studioService.getFormattedStudio(studioId);
+            const studio = await this.studioService.getStudio(studioId);
             if (!studio) {
                 await this.createLog(req, 'studios', 404);
                 return res.status(404).send({ message: "Studio not found" });
@@ -86,7 +86,7 @@ let Studios = class Studios {
     // --- Récupération des studios de l'utilisateur ---
     async getMyStudios(req, res) {
         try {
-            const studios = await this.studioService.getFormattedUserStudios(req.user.user_id);
+            const studios = await this.studioService.getUserStudios(req.user.user_id);
             await this.createLog(req, 'studios', 200);
             res.send(studios);
         }
@@ -163,6 +163,7 @@ let Studios = class Studios {
         }
     }
 };
+exports.Studios = Studios;
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/studios",
@@ -268,13 +269,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Studios.prototype, "removeUserFromStudio", null);
-Studios = __decorate([
+exports.Studios = Studios = __decorate([
     (0, inversify_express_utils_1.controller)("/studios"),
     __param(0, (0, inversify_1.inject)("StudioService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Studios);
-exports.Studios = Studios;
 // --- UTILS ---
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);

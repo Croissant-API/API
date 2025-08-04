@@ -1,4 +1,5 @@
-export interface TradeItem {
+import { InventoryItem } from "./Inventory";
+export interface TradeItem extends InventoryItem {
     itemId: string;
     amount: number;
     metadata?: {

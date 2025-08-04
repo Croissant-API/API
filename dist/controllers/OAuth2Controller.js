@@ -216,6 +216,7 @@ let OAuth2 = class OAuth2 {
         }
     }
 };
+exports.OAuth2 = OAuth2;
 __decorate([
     (0, describe_1.describe)({
         endpoint: "/oauth2/app/:client_id",
@@ -356,10 +357,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], OAuth2.prototype, "getUserByCode", null);
-OAuth2 = __decorate([
+exports.OAuth2 = OAuth2 = __decorate([
     (0, inversify_express_utils_1.controller)("/oauth2"),
     __param(0, (0, inversify_1.inject)("OAuth2Service")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], OAuth2);
-exports.OAuth2 = OAuth2;

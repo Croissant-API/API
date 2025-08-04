@@ -52,28 +52,28 @@ const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 const CREDIT_TIERS = [
     {
         id: "tier1",
-        price: 99,
+        price: 99, // 0.99€ in cents
         credits: 200,
         name: "200 credits",
         image: "https://croissant-api.fr/assets/credits/tier1.png"
     },
     {
         id: "tier2",
-        price: 199,
+        price: 199, // 1.99€ in cents
         credits: 400,
         name: "400 credits",
         image: "https://croissant-api.fr/assets/credits/tier2.png"
     },
     {
         id: "tier3",
-        price: 499,
+        price: 499, // 4.99€ in cents
         credits: 1000,
         name: "1000 credits",
         image: "https://croissant-api.fr/assets/credits/tier3.png"
     },
     {
         id: "tier4",
-        price: 999,
+        price: 999, // 9.99€ in cents
         credits: 2000,
         name: "2000 credits",
         image: "https://croissant-api.fr/assets/credits/tier4.png"
@@ -290,6 +290,7 @@ let StripeController = class StripeController {
         });
     }
 };
+exports.StripeController = StripeController;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/webhook"),
     __metadata("design:type", Function),
@@ -308,10 +309,9 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], StripeController.prototype, "getTiers", null);
-StripeController = __decorate([
+exports.StripeController = StripeController = __decorate([
     (0, inversify_express_utils_1.controller)("/stripe"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], StripeController);
-exports.StripeController = StripeController;

@@ -83,9 +83,6 @@ let Users = class Users {
             userId: user.user_id,
             username: user.username,
             verified: user.verified,
-            steam_id: user.steam_id,
-            steam_username: user.steam_username,
-            steam_avatar_url: user.steam_avatar_url,
             isStudio: user.isStudio,
             admin: !!user.admin,
         };
@@ -633,6 +630,7 @@ let Users = class Users {
         }
     }
 };
+exports.Users = Users;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/login-oauth"),
     __metadata("design:type", Function),
@@ -842,7 +840,7 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Users.prototype, "changeRole", null);
-Users = __decorate([
+exports.Users = Users = __decorate([
     (0, inversify_express_utils_1.controller)("/users"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("LogService")),
@@ -852,4 +850,3 @@ Users = __decorate([
     __metadata("design:paramtypes", [Object, Object, MailService_1.MailService,
         StudioService_1.StudioService, Object])
 ], Users);
-exports.Users = Users;

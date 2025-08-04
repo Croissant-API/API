@@ -13,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const sqlite3_1 = __importDefault(require("sqlite3"));
 const sqlite_1 = require("sqlite");
 const inversify_1 = require("inversify");
@@ -51,7 +50,29 @@ let DatabaseService = class DatabaseService {
     async read(query, params = []) {
         try {
             const rows = await this.ensureDb().all(query, params);
-            return rows || [];
+            if (!rows)
+                return [];
+            return rows.map((row) => {
+                for (const key in row) {
+                    if (typeof row[key] === "string") {
+                        try {
+                            try {
+                                const parsed = JSON.parse(row[key]);
+                                row[key] = parsed;
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                            }
+                            catch (e) {
+                                // Not a JSON string, leave as is
+                            }
+                        }
+                        catch (e) {
+                            console.warn(`Failed to parse JSON for key ${key}:`, e);
+                            // Not a JSON string, leave as is
+                        }
+                    }
+                }
+                return row;
+            });
         }
         catch (err) {
             console.error("Error reading data", err);
@@ -77,9 +98,9 @@ let DatabaseService = class DatabaseService {
         }
     }
 };
-DatabaseService = __decorate([
+exports.DatabaseService = DatabaseService;
+exports.DatabaseService = DatabaseService = __decorate([
     (0, inversify_1.injectable)(),
     __metadata("design:paramtypes", [])
 ], DatabaseService);
-exports.DatabaseService = DatabaseService;
 exports.default = DatabaseService;

@@ -55,9 +55,6 @@ let SearchController = class SearchController {
         try {
             const users = await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                if (user.disabled)
-                    return null;
-                // Utilisation du profil public complet
                 const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
                 return { id: user.user_id, ...publicProfile };
             }));
@@ -96,9 +93,6 @@ let SearchController = class SearchController {
         try {
             const users = await this.userService.adminSearchUsers(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                if (user.disabled)
-                    return null;
-                // Utilisation du profil public complet
                 const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
                 return { id: user.user_id, disabled: user.disabled, ...publicProfile };
             }));
@@ -127,6 +121,7 @@ let SearchController = class SearchController {
         }
     }
 };
+exports.SearchController = SearchController;
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
@@ -139,7 +134,7 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SearchController.prototype, "adminSearch", null);
-SearchController = __decorate([
+exports.SearchController = SearchController = __decorate([
     (0, inversify_express_utils_1.controller)("/search"),
     __param(0, (0, inversify_1.inject)("UserService")),
     __param(1, (0, inversify_1.inject)("ItemService")),
@@ -148,4 +143,3 @@ SearchController = __decorate([
     __param(4, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object, Object])
 ], SearchController);
-exports.SearchController = SearchController;

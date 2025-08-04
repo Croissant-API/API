@@ -4,75 +4,9 @@ import { IInventoryService } from "./InventoryService";
 export interface ITradeService {
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
     getTradeById(id: string): Promise<Trade | null>;
-    getFormattedTradeById(id: string): Promise<{
-        id: string;
-        fromUserId: string;
-        toUserId: string;
-        fromUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        toUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        approvedFromUser: boolean;
-        approvedToUser: boolean;
-        status: string;
-        createdAt: string;
-        updatedAt: string;
-    } | null>;
+    getFormattedTradeById(id: string): Promise<Trade | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
-    getFormattedTradesByUser(userId: string): Promise<Array<{
-        id: string;
-        fromUserId: string;
-        toUserId: string;
-        fromUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        toUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        approvedFromUser: boolean;
-        approvedToUser: boolean;
-        status: string;
-        createdAt: string;
-        updatedAt: string;
-    }>>;
+    getFormattedTradesByUser(userId: string): Promise<Trade[]>;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     approveTrade(tradeId: string, userId: string): Promise<void>;
@@ -83,77 +17,10 @@ export declare class TradeService implements ITradeService {
     private inventoryService;
     constructor(databaseService: IDatabaseService, inventoryService: IInventoryService);
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
-    private enrichTradeItemsWithSQL;
     getTradeById(id: string): Promise<Trade | null>;
-    getFormattedTradeById(id: string): Promise<{
-        id: string;
-        fromUserId: string;
-        toUserId: string;
-        fromUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        toUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        approvedFromUser: boolean;
-        approvedToUser: boolean;
-        status: string;
-        createdAt: string;
-        updatedAt: string;
-    } | null>;
+    getFormattedTradeById(id: string): Promise<Trade | null>;
     getTradesByUser(userId: string): Promise<Trade[]>;
-    getFormattedTradesByUser(userId: string): Promise<Array<{
-        id: string;
-        fromUserId: string;
-        toUserId: string;
-        fromUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        toUserItems: Array<{
-            itemId: string;
-            name: string;
-            description: string;
-            iconHash?: string;
-            amount: number;
-            uniqueId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            purchasePrice?: number;
-        }>;
-        approvedFromUser: boolean;
-        approvedToUser: boolean;
-        status: string;
-        createdAt: string;
-        updatedAt: string;
-    }>>;
+    getFormattedTradesByUser(userId: string): Promise<Trade[]>;
     private getUserKey;
     private assertPending;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
@@ -161,5 +28,4 @@ export declare class TradeService implements ITradeService {
     approveTrade(tradeId: string, userId: string): Promise<void>;
     cancelTrade(tradeId: string, userId: string): Promise<void>;
     private exchangeTradeItems;
-    private deserializeTrade;
 }

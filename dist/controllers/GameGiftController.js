@@ -230,6 +230,7 @@ let GameGifts = class GameGifts {
         }
     }
 };
+exports.GameGifts = GameGifts;
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -266,7 +267,7 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], GameGifts.prototype, "revokeGift", null);
-GameGifts = __decorate([
+exports.GameGifts = GameGifts = __decorate([
     (0, inversify_express_utils_1.controller)("/gifts"),
     __param(0, (0, inversify_1.inject)("GameGiftService")),
     __param(1, (0, inversify_1.inject)("GameService")),
@@ -274,4 +275,3 @@ GameGifts = __decorate([
     __param(3, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], GameGifts);
-exports.GameGifts = GameGifts;

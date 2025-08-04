@@ -13,7 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OAuth2Service = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const uuid_1 = require("uuid");
 let OAuth2Service = class OAuth2Service {
@@ -32,6 +31,7 @@ let OAuth2Service = class OAuth2Service {
     async getFormattedAppsByOwner(owner_id) {
         const apps = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
         return apps.map((app) => ({
+            owner_id: owner_id,
             client_id: app.client_id,
             client_secret: app.client_secret,
             name: app.name,
@@ -44,7 +44,7 @@ let OAuth2Service = class OAuth2Service {
     }
     async getFormattedAppByClientId(client_id) {
         const rows = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?", [client_id]);
-        if (!rows.length)
+        if (!rows)
             return null;
         const app = rows[0];
         return {
@@ -79,12 +79,12 @@ let OAuth2Service = class OAuth2Service {
         return users[0] || null;
     }
 };
-OAuth2Service = __decorate([
+exports.OAuth2Service = OAuth2Service;
+exports.OAuth2Service = OAuth2Service = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], OAuth2Service);
-exports.OAuth2Service = OAuth2Service;
 // Helper pour factoriser la génération des champs d'update
 function buildUpdateFields(obj, mapping = {}) {
     const fields = [];

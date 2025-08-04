@@ -27,22 +27,21 @@ let LobbyService = class LobbyService {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             return null;
-        const userIds = parseUsers(lobby.users);
-        const users = await this.getFormattedLobbyUsers(userIds);
+        const users = lobby.users;
         return { lobbyId, users };
     }
     async joinLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const users = [...new Set([...parseUsers(lobby.users), userId])];
+        const users = [...new Set([...lobby.users, userId])];
         await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(users), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const newUsers = parseUsers(lobby.users).filter((u) => u !== userId);
+        const newUsers = lobby.users.filter((u) => u.user_id !== userId);
         if (newUsers.length === 0) {
             await this.deleteLobby(lobbyId);
         }
@@ -55,8 +54,7 @@ let LobbyService = class LobbyService {
         if (rows.length === 0)
             return null;
         const row = rows[0];
-        const userIds = parseUsers(row.users);
-        const users = await this.getFormattedLobbyUsers(userIds);
+        const users = row.users;
         return { lobbyId: row.lobbyId, users };
     }
     async getFormattedLobbyUsers(userIds) {
@@ -86,13 +84,13 @@ let LobbyService = class LobbyService {
         }
     }
 };
-LobbyService = __decorate([
+exports.LobbyService = LobbyService;
+exports.LobbyService = LobbyService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], LobbyService);
-exports.LobbyService = LobbyService;
 function mapLobbyUser(user) {
     return {
         username: user.username,
@@ -102,12 +100,4 @@ function mapLobbyUser(user) {
         steam_avatar_url: user.steam_avatar_url,
         steam_id: user.steam_id,
     };
-}
-function parseUsers(users) {
-    try {
-        return JSON.parse(users);
-    }
-    catch {
-        return [];
-    }
 }
