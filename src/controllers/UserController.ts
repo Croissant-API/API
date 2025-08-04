@@ -11,7 +11,7 @@ import { userIdParamValidator } from "../validators/UserValidator";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { genKey, genVerificationKey } from "../utils/GenKey";
-import { User } from "../interfaces/User";
+import { PublicUser, User } from "../interfaces/User";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
 
@@ -78,15 +78,12 @@ export class Users {
     };
   }
 
-  private mapUserSearch(user: User) {
+  private mapUserSearch(user: PublicUser) {
     return {
       id: user.user_id,
       userId: user.user_id,
       username: user.username,
       verified: user.verified,
-      steam_id: user.steam_id,
-      steam_username: user.steam_username,
-      steam_avatar_url: user.steam_avatar_url,
       isStudio: user.isStudio,
       admin: !!user.admin,
     };
@@ -521,7 +518,7 @@ export class Users {
       return this.sendError(res, 400, "Missing search query");
     }
     try {
-      const users: User[] = await this.userService.searchUsersByUsername(query);
+      const users: PublicUser[] = await this.userService.searchUsersByUsername(query);
       await this.createLog(req, 'searchUsers', 'users', 200);
       res.send(users.map(user => this.mapUserSearch(user)));
     } catch (error) {
@@ -588,7 +585,7 @@ export class Users {
       return this.sendError(res, 400, "Missing search query");
     }
     try {
-      const users: User[] = await this.userService.adminSearchUsers(query);
+      const users: PublicUser[] = await this.userService.adminSearchUsers(query);
       await this.createLog(req, 'adminSearchUsers', 'users', 200, req.user.user_id);
       res.send(users.map(user => this.mapUserSearch(user)));
     } catch (error) {

@@ -1,32 +1,30 @@
-export interface User {
-    // Required string fields
-    user_id: string; // UUID principal
+export interface PublicUser {
+    user_id: string;
     username: string;
-    email: string; // Email unique, utilisé comme identifiant principal
+    verified: boolean;
+    isStudio: boolean;
+    admin?: boolean;
+}
 
-    // Optional string fields
+export interface User extends PublicUser {
+    email: string;
     password?: string;
-    discord_id?: string; // ID Snowflake Discord associé
-    google_id?: string; // ID Google associé
-    steam_id?: string; // ID Steam associé
-    steam_username?: string; // Nom d'utilisateur Steam
-    steam_avatar_url?: string; // URL de l'avatar Steam
-    forgot_password_token?: string; // Token pour réinitialisation de mot de passe
-
-    // Required number fields
+    discord_id?: string;
+    google_id?: string;
+    steam_id?: string;
+    steam_username?: string;
+    steam_avatar_url?: string;
+    forgot_password_token?: string;
     balance: number;
     free_balance: number;
-
-    // Optional boolean fields
     disabled?: boolean;
-    admin?: boolean;
-
-    // Required boolean fields
-    verified: boolean; // Indique si l'email est vérifié
-    isStudio: boolean;
-
     webauthn_challenge: string;
     webauthn_credentials?: string;
+    authenticator_secret?: string;
+}
 
-    authenticator_secret?: string; // Secret pour TOTP
+export interface UserExtensions {
+    inventory?: any[];
+    ownedItems?: any[];
+    createdGames?: any[];
 }
