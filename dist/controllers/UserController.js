@@ -26,6 +26,8 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const MailService_1 = require("../services/MailService");
 const StudioService_1 = require("../services/StudioService");
+const SteamOAuthService_1 = require("../services/SteamOAuthService");
+const helpers_1 = require("../utils/helpers");
 let Users = class Users {
     constructor(userService, logService, mailService, studioService, steamOAuthService) {
         this.userService = userService;
@@ -57,9 +59,6 @@ let Users = class Users {
         catch (error) {
             console.error('Error creating log:', error);
         }
-    }
-    requireFields(obj, fields) {
-        return fields.every(f => obj[f]);
     }
     mapUser(user) {
         return {
@@ -140,7 +139,7 @@ let Users = class Users {
         });
     }
     async register(req, res) {
-        const missing = this.requireFields(req.body, ["username", "email"]);
+        const missing = (0, helpers_1.requireFields)(req.body, ["username", "email"]);
         if (missing || (!req.body.password && !req.body.provider)) {
             await this.createLog(req, 'register', 'users', 400);
             return this.sendError(res, 400, "Missing required fields");
@@ -848,5 +847,6 @@ exports.Users = Users = __decorate([
     __param(3, (0, inversify_1.inject)("StudioService")),
     __param(4, (0, inversify_1.inject)("SteamOAuthService")),
     __metadata("design:paramtypes", [Object, Object, MailService_1.MailService,
-        StudioService_1.StudioService, Object])
+        StudioService_1.StudioService,
+        SteamOAuthService_1.SteamOAuthService])
 ], Users);

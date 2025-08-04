@@ -62,5 +62,3 @@ export async function verifyAuthentication(body: any, expectedChallenge: string,
         },
     });
 }
-
-// Add DB logic for storing/retrieving credentials as needed

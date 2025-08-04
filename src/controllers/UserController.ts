@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { inject } from "inversify";
@@ -14,6 +13,8 @@ import { genKey, genVerificationKey } from "../utils/GenKey";
 import { PublicUser, User } from "../interfaces/User";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
+import { SteamOAuthService } from "../services/SteamOAuthService";
+import { requireFields } from "../utils/helpers";
 
 @controller("/users")
 export class Users {
@@ -22,7 +23,7 @@ export class Users {
     @inject("LogService") private logService: ILogService,
     @inject("MailService") private mailService: MailService,
     @inject("StudioService") private studioService: StudioService,
-    @inject("SteamOAuthService") private steamOAuthService: any
+    @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService
   ) { }
 
   // --- HELPERS ---
@@ -55,10 +56,6 @@ export class Users {
     } catch (error) {
       console.error('Error creating log:', error);
     }
-  }
-
-  private requireFields(obj: any, fields: string[]): boolean {
-    return fields.every(f => obj[f]);
   }
 
   private mapUser(user: User) {
@@ -164,7 +161,7 @@ export class Users {
 
   @httpPost("/register")
   public async register(req: Request, res: Response) {
-    const missing = this.requireFields(req.body, ["username", "email"]);
+    const missing = requireFields(req.body, ["username", "email"]);
     if (missing || (!req.body.password && !req.body.provider)) {
       await this.createLog(req, 'register', 'users', 400);
       return this.sendError(res, 400, "Missing required fields");

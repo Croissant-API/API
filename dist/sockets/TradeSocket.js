@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TradeSocket = void 0;
 const socket_io_1 = require("socket.io");
@@ -116,5 +117,5 @@ exports.TradeSocket = TradeSocket;
 exports.TradeSocket = TradeSocket = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)('server')),
-    __metadata("design:paramtypes", [socket_io_1.Server])
+    __metadata("design:paramtypes", [typeof (_a = typeof socket_io_1.Server !== "undefined" && socket_io_1.Server) === "function" ? _a : Object])
 ], TradeSocket);

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import { inject } from "inversify";
 import {
@@ -240,7 +239,7 @@ export class OAuth2 {
   })
   @httpGet("/authorize", LoggedCheck.middleware)
   async authorize(req: AuthenticatedRequest, res: Response) {
-    const { client_id, redirect_uri } = req.query as any;
+    const { client_id, redirect_uri } = req.query as { client_id: string; redirect_uri: string };
     const userId = req.user?.user_id;
 
     if (!userId) {
@@ -304,7 +303,7 @@ export class OAuth2 {
   })
   @httpGet("/user")
   async getUserByCode(req: Request, res: Response) {
-    const { code, client_id } = req.query as any;
+    const { code, client_id } = req.query as { code: string; client_id: string };
 
     if (!code || !client_id) {
       await this.createLog(req, 'oauth2_user_access', 400, undefined, {

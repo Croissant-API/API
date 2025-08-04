@@ -4,16 +4,16 @@ import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
+import { SteamOAuthService } from "../services/SteamOAuthService";
 export declare class Users {
     private userService;
     private logService;
     private mailService;
     private studioService;
     private steamOAuthService;
-    constructor(userService: IUserService, logService: ILogService, mailService: MailService, studioService: StudioService, steamOAuthService: any);
+    constructor(userService: IUserService, logService: ILogService, mailService: MailService, studioService: StudioService, steamOAuthService: SteamOAuthService);
     private sendError;
     private createLog;
-    private requireFields;
     private mapUser;
     private mapUserSearch;
     loginOAuth(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

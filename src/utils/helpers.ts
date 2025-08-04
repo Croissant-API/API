@@ -1,6 +1,3 @@
-// src/utils/searchHelpers.ts
-// Regroupe les helpers utilisés par SearchController
-
 import { Response } from "express";
 import { IItemService } from "../services/ItemService";
 import { User } from "../interfaces/User";
@@ -22,9 +19,8 @@ export function findUserByResetToken(
     return users.find((u) => u.forgot_password_token === reset_token);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function requireFields(obj: any, fields: string[]): string | null {
-    for (const f of fields) if (!obj[f]) return f;
+export function requireFields(obj: object, fields: string[]): string | null {
+    for (const f of fields) if (!(f in obj)) return f;
     return null;
 }
 

@@ -1,6 +1,4 @@
 "use strict";
-// src/utils/searchHelpers.ts
-// Regroupe les helpers utilisés par SearchController
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.formatInventory = exports.filterGame = exports.mapItem = exports.mapUserSearch = exports.mapUser = exports.requireFields = exports.findUserByResetToken = exports.sendError = void 0;
 function sendError(res, status, message, error) {
@@ -11,10 +9,9 @@ function findUserByResetToken(users, reset_token) {
     return users.find((u) => u.forgot_password_token === reset_token);
 }
 exports.findUserByResetToken = findUserByResetToken;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function requireFields(obj, fields) {
     for (const f of fields)
-        if (!obj[f])
+        if (!(f in obj))
             return f;
     return null;
 }
