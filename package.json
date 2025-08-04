@@ -38,6 +38,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.34.1",
+    "socket.io": "^4.8.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "stripe": "^18.3.0",
