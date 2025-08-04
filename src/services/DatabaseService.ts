@@ -1,5 +1,4 @@
-import sqlite3 from "sqlite3";
-import { Database, open } from "sqlite";
+import { Knex, knex } from "knex";
 import { injectable } from "inversify";
 
 export interface IDatabaseService {
@@ -7,37 +6,30 @@ export interface IDatabaseService {
   read<T>(query: string, params?: unknown[]): Promise<T[]>;
   update(query: string, params?: unknown[]): Promise<void>;
   delete(query: string, params?: unknown[]): Promise<void>;
+  getKnex(): Knex;
 }
 
 @injectable()
 export class DatabaseService implements IDatabaseService {
-  private db: Database | undefined;
+  private db: Knex;
 
   constructor() {
-    this.init().then((db) => (this.db = db));
-  }
-
-  private async init(): Promise<Database> {
-    try {
-      this.db = await open({
+    this.db = knex({
+      client: "sqlite3",
+      connection: {
         filename: __dirname + "/../../database.db",
-        driver: sqlite3.Database,
-      });
-      return this.db;
-    } catch (err) {
-      console.error("Error opening database", err);
-      throw err;
-    }
+      },
+      useNullAsDefault: true,
+    });
   }
 
-  private ensureDb(): Database {
-    if (!this.db) throw new Error("Database not initialized");
+  public getKnex(): Knex {
     return this.db;
   }
 
   public async create(query: string, params: unknown[] = []): Promise<void> {
     try {
-      await this.ensureDb().run(query, params);
+      await this.db.raw(query, params);
     } catch (err) {
       console.error("Error creating data", err);
       throw err;
@@ -46,22 +38,17 @@ export class DatabaseService implements IDatabaseService {
 
   public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
     try {
-      const rows = await this.ensureDb().all(query, params);
-      if (!rows) return [];
+      const result = await this.db.raw(query, params);
+      const rows = result || [];
 
       return rows.map((row: { [key: string]: string }) => {
         for (const key in row) {
           if (typeof row[key] === "string") {
             try {
-              try {
-                const parsed = JSON.parse(row[key]);
-                row[key] = parsed;
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              } catch (e: unknown) {
-                // Not a JSON string, leave as is
-              }
+              const parsed = JSON.parse(row[key]);
+              row[key] = parsed;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e: unknown) {
-              console.warn(`Failed to parse JSON for key ${key}:`, e);
               // Not a JSON string, leave as is
             }
           }
@@ -76,7 +63,7 @@ export class DatabaseService implements IDatabaseService {
 
   public async update(query: string, params: unknown[] = []): Promise<void> {
     try {
-      await this.ensureDb().run(query, params);
+      await this.db.raw(query, params);
     } catch (err) {
       console.error("Error updating data", err);
       throw err;
@@ -85,11 +72,15 @@ export class DatabaseService implements IDatabaseService {
 
   public async delete(query: string, params: unknown[] = []): Promise<void> {
     try {
-      await this.ensureDb().run(query, params);
+      await this.db.raw(query, params);
     } catch (err) {
       console.error("Error deleting data", err);
       throw err;
     }
+  }
+
+  public async destroy(): Promise<void> {
+    await this.db.destroy();
   }
 }
 

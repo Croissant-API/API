@@ -8,39 +8,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseService = void 0;
-const sqlite3_1 = __importDefault(require("sqlite3"));
-const sqlite_1 = require("sqlite");
+const knex_1 = require("knex");
 const inversify_1 = require("inversify");
 let DatabaseService = class DatabaseService {
     constructor() {
-        this.init().then((db) => (this.db = db));
-    }
-    async init() {
-        try {
-            this.db = await (0, sqlite_1.open)({
+        this.db = (0, knex_1.knex)({
+            client: "sqlite3",
+            connection: {
                 filename: __dirname + "/../../database.db",
-                driver: sqlite3_1.default.Database,
-            });
-            return this.db;
-        }
-        catch (err) {
-            console.error("Error opening database", err);
-            throw err;
-        }
+            },
+            useNullAsDefault: true,
+        });
     }
-    ensureDb() {
-        if (!this.db)
-            throw new Error("Database not initialized");
+    getKnex() {
         return this.db;
     }
     async create(query, params = []) {
         try {
-            await this.ensureDb().run(query, params);
+            await this.db.raw(query, params);
         }
         catch (err) {
             console.error("Error creating data", err);
@@ -49,24 +36,17 @@ let DatabaseService = class DatabaseService {
     }
     async read(query, params = []) {
         try {
-            const rows = await this.ensureDb().all(query, params);
-            if (!rows)
-                return [];
+            const result = await this.db.raw(query, params);
+            const rows = result || [];
             return rows.map((row) => {
                 for (const key in row) {
                     if (typeof row[key] === "string") {
                         try {
-                            try {
-                                const parsed = JSON.parse(row[key]);
-                                row[key] = parsed;
-                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                            }
-                            catch (e) {
-                                // Not a JSON string, leave as is
-                            }
+                            const parsed = JSON.parse(row[key]);
+                            row[key] = parsed;
+                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         }
                         catch (e) {
-                            console.warn(`Failed to parse JSON for key ${key}:`, e);
                             // Not a JSON string, leave as is
                         }
                     }
@@ -81,7 +61,7 @@ let DatabaseService = class DatabaseService {
     }
     async update(query, params = []) {
         try {
-            await this.ensureDb().run(query, params);
+            await this.db.raw(query, params);
         }
         catch (err) {
             console.error("Error updating data", err);
@@ -90,12 +70,15 @@ let DatabaseService = class DatabaseService {
     }
     async delete(query, params = []) {
         try {
-            await this.ensureDb().run(query, params);
+            await this.db.raw(query, params);
         }
         catch (err) {
             console.error("Error deleting data", err);
             throw err;
         }
+    }
+    async destroy() {
+        await this.db.destroy();
     }
 };
 exports.DatabaseService = DatabaseService;
