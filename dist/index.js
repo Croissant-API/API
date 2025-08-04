@@ -4,11 +4,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const app_1 = require("./app");
+const socketServer_1 = require("./socketServer");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const port = process.env.PORT || 3000;
-app_1.app.listen(port, () => {
-    console.log(`Server started on port ${port}`);
+const port = process.env.PORT || 3456;
+// Configurer Socket.IO avec l'app Express
+const { server } = (0, socketServer_1.setupSocketIO)(app_1.app);
+// Démarrer le serveur avec Socket.IO intégré
+server.listen(port, () => {
+    console.log(`API Server with Socket.IO started on port ${port}`);
 });
 function getTimestamp() {
     const now = new Date();

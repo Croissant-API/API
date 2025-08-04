@@ -16,6 +16,7 @@ const LogService_1 = require("./services/LogService");
 const GameGiftService_1 = require("./services/GameGiftService");
 const MarketListingService_1 = require("./services/MarketListingService");
 const BuyOrderService_1 = require("./services/BuyOrderService");
+const LobbySocket_1 = require("./sockets/LobbySocket");
 const container = new inversify_1.Container();
 container.bind("DatabaseService").to(DatabaseService_1.DatabaseService).inSingletonScope();
 container.bind("InventoryService").to(InventoryService_1.InventoryService).inSingletonScope();
@@ -32,4 +33,6 @@ container.bind("LogService").to(LogService_1.LogService).inSingletonScope();
 container.bind("GameGiftService").to(GameGiftService_1.GameGiftService).inSingletonScope();
 container.bind("MarketListingService").to(MarketListingService_1.MarketListingService).inSingletonScope();
 container.bind("BuyOrderService").to(BuyOrderService_1.BuyOrderService).inSingletonScope();
+// Socket services
+container.bind("LobbySocket").to(LobbySocket_1.LobbySocket).inSingletonScope();
 exports.default = container;

@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const inversify_1 = require("inversify");
 let LobbyService = class LobbyService {
     constructor(databaseService, userService) {
@@ -24,14 +25,14 @@ let LobbyService = class LobbyService {
         if (lobby.length === 0)
             return null;
         const userIds = lobby[0].users;
-        const users = await this.getUsersByIds(userIds);
+        const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
         return { lobbyId: lobby[0].lobbyId, users };
     }
     async joinLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const users = [...new Set([...lobby.users, userId])];
+        const users = [...new Set([...lobby.users.map((u) => u.user_id), userId])];
         await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(users), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
@@ -40,10 +41,10 @@ let LobbyService = class LobbyService {
             throw new Error("Lobby not found");
         const newUsers = lobby.users.filter((u) => u.user_id !== userId);
         if (newUsers.length === 0) {
-            await this.deleteLobby(lobbyId);
+            // await this.deleteLobby(lobbyId);
         }
         else {
-            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers), lobbyId]);
+            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers.map((u) => u.user_id)), lobbyId]);
         }
     }
     async getUserLobby(userId) {
@@ -52,7 +53,7 @@ let LobbyService = class LobbyService {
             return null;
         const lobby = lobbies[0];
         const userIds = lobby.users;
-        const users = await this.getUsersByIds(userIds);
+        const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
         return { lobbyId: lobby.lobbyId, users };
     }
     async createLobby(lobbyId, users = []) {
@@ -67,7 +68,7 @@ let LobbyService = class LobbyService {
         const lobbies = await this.databaseService.read("SELECT lobbyId, users FROM lobbies WHERE JSON_EXTRACT(users, '$') LIKE ?", [`%"${userId}"%`]);
         return Promise.all(lobbies.map(async (lobby) => {
             const userIds = lobby.users;
-            const users = await this.getUsersByIds(userIds);
+            const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
             return { lobbyId: lobby.lobbyId, users };
         }));
     }
