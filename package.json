@@ -62,8 +62,8 @@
     "eslint": "^9.25.0",
     "prettier": "^3.5.3",
     "supertest": "^7.1.0",
-    "ts-node": "^10.0.0",
-    "typescript": "^4.9.5",
+    "ts-node": "^10.9.2",
+    "typescript": "5.3",
     "typescript-eslint": "^8.30.1"
   },
   "author": "fox3000foxy",
