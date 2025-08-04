@@ -33,7 +33,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true, trade });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Récupérer une trade par ID
@@ -43,7 +44,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true, trade });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Ajouter un item à la trade
@@ -55,7 +57,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Retirer un item de la trade
@@ -67,7 +70,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Approuver la trade
@@ -82,7 +86,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Annuler la trade
@@ -95,7 +100,8 @@ let TradeSocket = class TradeSocket {
                     cb?.({ success: true });
                 }
                 catch (err) {
-                    cb?.({ success: false, error: err.message });
+                    const error = err instanceof Error ? err.message : 'An unknown error occurred';
+                    cb?.({ success: false, error: error });
                 }
             });
             // Rejoindre une room de trade pour recevoir les updates
