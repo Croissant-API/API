@@ -13,7 +13,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
-/* eslint-disable @typescript-eslint/no-unused-vars */
 const inversify_1 = require("inversify");
 let LobbyService = class LobbyService {
     constructor(databaseService, userService) {
