@@ -25,12 +25,12 @@ let DatabaseService = class DatabaseService {
     getKnex() {
         return this.db;
     }
-    async create(query, params = []) {
+    async request(query, params = []) {
         try {
             await this.db.raw(query, params);
         }
         catch (err) {
-            console.error("Error creating data", err);
+            console.error("Error executing query", err);
             throw err;
         }
     }
@@ -56,24 +56,6 @@ let DatabaseService = class DatabaseService {
         }
         catch (err) {
             console.error("Error reading data", err);
-            throw err;
-        }
-    }
-    async update(query, params = []) {
-        try {
-            await this.db.raw(query, params);
-        }
-        catch (err) {
-            console.error("Error updating data", err);
-            throw err;
-        }
-    }
-    async delete(query, params = []) {
-        try {
-            await this.db.raw(query, params);
-        }
-        catch (err) {
-            console.error("Error deleting data", err);
             throw err;
         }
     }

@@ -33,7 +33,7 @@ export class OAuth2Service implements IOAuth2Service {
     async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
         const client_id = uuidv4();
         const client_secret = uuidv4();
-        await this.db.create(
+        await this.db.request(
             "INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)",
             [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]
         );
@@ -96,7 +96,7 @@ export class OAuth2Service implements IOAuth2Service {
 
     async generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string> {
         const code = uuidv4();
-        await this.db.create(
+        await this.db.request(
             "INSERT INTO oauth2_codes (code, client_id, redirect_uri, user_id) VALUES (?, ?, ?, ?)",
             [code, client_id, redirect_uri, user_id]
         );
@@ -104,7 +104,7 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async deleteApp(client_id: string, owner_id: string): Promise<void> {
-        await this.db.delete(
+        await this.db.request(
             "DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?",
             [client_id, owner_id]
         );
@@ -114,7 +114,7 @@ export class OAuth2Service implements IOAuth2Service {
         const { fields, values } = buildUpdateFields(update, { redirect_urls: v => JSON.stringify(v) });
         if (!fields.length) return;
         values.push(client_id, owner_id);
-        await this.db.update(
+        await this.db.request(
             `UPDATE oauth2_apps SET ${fields.join(", ")} WHERE client_id = ? AND owner_id = ?`,
             values
         );

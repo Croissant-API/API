@@ -74,10 +74,10 @@ let UserService = UserService_1 = class UserService {
         if (updates.length === 0)
             return;
         params.push(user_id);
-        await this.databaseService.update(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
+        await this.databaseService.request(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
     }
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
-        await this.databaseService.update("UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?", [steam_id, steam_username, steam_avatar_url, user_id]);
+        await this.databaseService.request("UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?", [steam_id, steam_username, steam_avatar_url, user_id]);
     }
     async findByEmail(email) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE email = ?", [email]);
@@ -85,21 +85,21 @@ let UserService = UserService_1 = class UserService {
     }
     async associateOAuth(user_id, provider, providerId) {
         const column = provider === "discord" ? "discord_id" : "google_id";
-        await this.databaseService.update(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
+        await this.databaseService.request(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
     }
     async disableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
         }
-        await this.databaseService.update("UPDATE users SET disabled = 1 WHERE user_id = ?", [targetUserId]);
+        await this.databaseService.request("UPDATE users SET disabled = 1 WHERE user_id = ?", [targetUserId]);
     }
     async reenableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
         }
-        await this.databaseService.update("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
+        await this.databaseService.request("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
     }
     async searchUsersByUsername(query) {
         const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin FROM users WHERE (disabled = 0 OR disabled IS NULL)`);
@@ -123,7 +123,7 @@ let UserService = UserService_1 = class UserService {
             }
             return existing;
         }
-        await this.databaseService.create("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
+        await this.databaseService.request("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
             user_id,
             username,
             email,
@@ -134,7 +134,7 @@ let UserService = UserService_1 = class UserService {
         return (await this.getUser(user_id));
     }
     async createBrandUser(user_id, username) {
-        await this.databaseService.create("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
+        await this.databaseService.request("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
         return (await this.getUser(user_id));
     }
     async getUser(user_id) {
@@ -178,11 +178,11 @@ let UserService = UserService_1 = class UserService {
     }
     async generatePasswordResetToken(email) {
         const token = crypto_1.default.randomBytes(32).toString("hex");
-        await this.databaseService.update("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
+        await this.databaseService.request("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
         return token;
     }
     async deleteUser(user_id) {
-        await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
+        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [
             user_id,
         ]);
     }
@@ -199,7 +199,7 @@ let UserService = UserService_1 = class UserService {
         return user;
     }
     async updateWebauthnChallenge(user_id, challenge) {
-        await this.databaseService.update("UPDATE users SET webauthn_challenge = ? WHERE user_id = ?", [challenge, user_id]);
+        await this.databaseService.request("UPDATE users SET webauthn_challenge = ? WHERE user_id = ?", [challenge, user_id]);
     }
     async addWebauthnCredential(userId, credential) {
         const existing = await this.getUser(userId);
@@ -212,14 +212,14 @@ let UserService = UserService_1 = class UserService {
             name: credential.name,
             created_at: credential.created_at,
         });
-        await this.databaseService.update("UPDATE users SET webauthn_credentials = ? WHERE user_id = ?", [JSON.stringify(credentials), userId]);
+        await this.databaseService.request("UPDATE users SET webauthn_credentials = ? WHERE user_id = ?", [JSON.stringify(credentials), userId]);
     }
     async getUserByCredentialId(credentialId) {
         const users = await this.databaseService.read("SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${credentialId}%`]);
         return users.length > 0 ? users[0] : null;
     }
     async setAuthenticatorSecret(userId, secret) {
-        return this.databaseService.update("UPDATE users SET authenticator_secret = ? WHERE user_id = ?", [secret, userId]);
+        return this.databaseService.request("UPDATE users SET authenticator_secret = ? WHERE user_id = ?", [secret, userId]);
     }
     async getAuthenticatorSecret(userId) {
         const user = await this.getUser(userId);
@@ -285,7 +285,7 @@ let UserService = UserService_1 = class UserService {
       WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
       GROUP BY u.user_id
     `;
-        await this.databaseService.update(`DELETE FROM inventories 
+        await this.databaseService.request(`DELETE FROM inventories 
        WHERE user_id = (
          SELECT user_id FROM users 
          WHERE user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?

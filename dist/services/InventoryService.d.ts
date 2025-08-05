@@ -25,7 +25,6 @@ export declare class InventoryService implements IInventoryService {
     private userService;
     constructor(databaseService: IDatabaseService, userService: IUserService);
     private getCorrectedUserId;
-    private parseMetadata;
     getInventory(userId: string): Promise<Inventory>;
     getItemAmount(userId: string, itemId: string): Promise<number>;
     addItem(userId: string, itemId: string, amount: number, metadata?: {

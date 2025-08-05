@@ -24,7 +24,7 @@ export class GameGiftService implements IGameGiftService {
     const giftCode = this.generateGiftCode();
     const createdAt = new Date();
 
-    await this.databaseService.update(
+    await this.databaseService.request(
       `INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [giftId, gameId, fromUserId, giftCode, createdAt.toISOString(), 1, message || null]
@@ -49,7 +49,7 @@ export class GameGiftService implements IGameGiftService {
     if (gift.fromUserId === userId) throw new Error("Cannot claim your own gift");
 
     const claimedAt = new Date();
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`,
       [userId, claimedAt.toISOString(), giftCode]
     );
@@ -133,7 +133,7 @@ export class GameGiftService implements IGameGiftService {
     if (gift[0].fromUserId !== userId) throw new Error("You can only revoke your own gifts");
     if (!gift[0].isActive) throw new Error("Gift is no longer active");
 
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE game_gifts SET isActive = 0 WHERE id = ?`,
       [giftId]
     );

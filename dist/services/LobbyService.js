@@ -33,7 +33,7 @@ let LobbyService = class LobbyService {
         if (!lobby)
             throw new Error("Lobby not found");
         const users = [...new Set([...lobby.users.map((u) => u.user_id), userId])];
-        await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(users), lobbyId]);
+        await this.databaseService.request("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(users), lobbyId]);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
@@ -44,7 +44,7 @@ let LobbyService = class LobbyService {
             // await this.deleteLobby(lobbyId);
         }
         else {
-            await this.databaseService.update("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers.map((u) => u.user_id)), lobbyId]);
+            await this.databaseService.request("UPDATE lobbies SET users = ? WHERE lobbyId = ?", [JSON.stringify(newUsers.map((u) => u.user_id)), lobbyId]);
         }
     }
     async getUserLobby(userId) {
@@ -57,10 +57,10 @@ let LobbyService = class LobbyService {
         return { lobbyId: lobby.lobbyId, users };
     }
     async createLobby(lobbyId, users = []) {
-        await this.databaseService.update("INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)", [lobbyId, JSON.stringify(users)]);
+        await this.databaseService.request("INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)", [lobbyId, JSON.stringify(users)]);
     }
     async deleteLobby(lobbyId) {
-        await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [
+        await this.databaseService.request("DELETE FROM lobbies WHERE lobbyId = ?", [
             lobbyId,
         ]);
     }

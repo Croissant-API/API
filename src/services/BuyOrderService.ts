@@ -29,7 +29,7 @@ export class BuyOrderService implements IBuyOrderService {
             updated_at: now
         };
 
-        await this.databaseService.create(
+        await this.databaseService.request(
             `INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [order.id, order.buyer_id, order.item_id, order.price, order.status, order.created_at, order.updated_at]
@@ -39,7 +39,7 @@ export class BuyOrderService implements IBuyOrderService {
     }
 
     async cancelBuyOrder(orderId: string, buyerId: string): Promise<void> {
-        await this.databaseService.update(
+        await this.databaseService.request(
             `UPDATE buy_orders 
              SET status = 'cancelled', updated_at = ? 
              WHERE id = ? AND buyer_id = ? AND status = 'active'`,

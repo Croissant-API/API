@@ -48,7 +48,7 @@ export class StudioService implements IStudioService {
     users: User[]
   ): Promise<void> {
     const userIds = users.map((u) => u.user_id);
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?",
       [admin_id, JSON.stringify(userIds), user_id]
     );
@@ -95,7 +95,7 @@ export class StudioService implements IStudioService {
     const user_id = crypto.randomUUID();
 
     await this.userService.createBrandUser(user_id, studioName);
-    await this.databaseService.create(
+    await this.databaseService.request(
       "INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)",
       [user_id, admin_id, JSON.stringify([])]
     );

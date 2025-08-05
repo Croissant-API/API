@@ -45,7 +45,7 @@ let TradeService = class TradeService {
             createdAt: now,
             updatedAt: now,
         };
-        await this.databaseService.create(`INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
+        await this.databaseService.request(`INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             newTrade.id,
             newTrade.fromUserId,
@@ -280,7 +280,7 @@ let TradeService = class TradeService {
         trade.updatedAt = new Date().toISOString();
         trade.approvedFromUser = false;
         trade.approvedToUser = false;
-        await this.databaseService.update(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
+        await this.databaseService.request(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
     }
     async removeItemFromTrade(tradeId, userId, tradeItem) {
         const trade = await this.getTradeById(tradeId);
@@ -320,7 +320,7 @@ let TradeService = class TradeService {
         trade.updatedAt = new Date().toISOString();
         trade.approvedFromUser = false;
         trade.approvedToUser = false;
-        await this.databaseService.update(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
+        await this.databaseService.request(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
     }
     async approveTrade(tradeId, userId) {
         const trade = await this.getTradeById(tradeId);
@@ -332,7 +332,7 @@ let TradeService = class TradeService {
         if (!updateField)
             throw new Error("User not part of this trade");
         const updatedAt = new Date().toISOString();
-        await this.databaseService.update(`UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`, [updatedAt, tradeId]);
+        await this.databaseService.request(`UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`, [updatedAt, tradeId]);
         // Récupère la trade mise à jour pour vérifier l'état actuel
         const updatedTrade = await this.getTradeById(tradeId);
         if (!updatedTrade)
@@ -352,7 +352,7 @@ let TradeService = class TradeService {
         }
         trade.status = "canceled";
         trade.updatedAt = new Date().toISOString();
-        await this.databaseService.update(`UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`, [trade.status, trade.updatedAt, tradeId]);
+        await this.databaseService.request(`UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`, [trade.status, trade.updatedAt, tradeId]);
     }
     // Échange les items et passe la trade à completed
     async exchangeTradeItems(trade) {
@@ -402,7 +402,7 @@ let TradeService = class TradeService {
         }
         // Met à jour la trade
         const now = new Date().toISOString();
-        await this.databaseService.update(`UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`, [now, trade.id]);
+        await this.databaseService.request(`UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`, [now, trade.id]);
     }
 };
 exports.TradeService = TradeService;

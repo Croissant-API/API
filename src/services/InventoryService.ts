@@ -32,20 +32,11 @@ export class InventoryService implements IInventoryService {
     return user?.user_id || userId;
   }
 
-  private parseMetadata(metadataJson: string | null): { [key: string]: unknown } | undefined {
-    if (!metadataJson) return undefined;
-    try {
-      return JSON.parse(metadataJson);
-    } catch {
-      return undefined;
-    }
-  }
-
   async getInventory(userId: string): Promise<Inventory> {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
     // Supprimer automatiquement les items non-existants ou supprimés
-    await this.databaseService.update(
+    await this.databaseService.request(
       `DELETE FROM inventories 
        WHERE user_id = ? 
        AND item_id NOT IN (
@@ -120,7 +111,7 @@ export class InventoryService implements IInventoryService {
 
       for (let i = 0; i < amount; i++) {
         const uniqueMetadata = { ...metadataWithUniqueId, _unique_id: uuidv4() };
-        await this.databaseService.update(
+        await this.databaseService.request(
           "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
           [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice]
         );
@@ -133,12 +124,12 @@ export class InventoryService implements IInventoryService {
       );
 
       if (items.length > 0) {
-        await this.databaseService.update(
+        await this.databaseService.request(
           "UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))",
           [amount, correctedUserId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]
         );
       } else {
-        await this.databaseService.update(
+        await this.databaseService.request(
           "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
           [correctedUserId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]
         );
@@ -150,7 +141,7 @@ export class InventoryService implements IInventoryService {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
     if (amount <= 0) {
-      await this.databaseService.update(
+      await this.databaseService.request(
         `DELETE FROM inventories WHERE user_id = ? AND item_id = ?`,
         [correctedUserId, itemId]
       );
@@ -164,12 +155,12 @@ export class InventoryService implements IInventoryService {
     );
 
     if (items.length > 0) {
-      await this.databaseService.update(
+      await this.databaseService.request(
         `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL`,
         [amount, correctedUserId, itemId]
       );
     } else {
-      await this.databaseService.update(
+      await this.databaseService.request(
         `INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`,
         [correctedUserId, itemId, amount, null, 0, null]
       );
@@ -181,7 +172,7 @@ export class InventoryService implements IInventoryService {
     const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
     const metadataJson = JSON.stringify(metadataWithUniqueId);
 
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?",
       [metadataJson, correctedUserId, itemId, uniqueId]
     );
@@ -206,12 +197,12 @@ export class InventoryService implements IInventoryService {
       const newAmount = item.amount - toRemoveFromStack;
 
       if (newAmount <= 0) {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`,
           [correctedUserId, itemId, item.sellable ? 1 : 0]
         );
       } else {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`,
           [newAmount, correctedUserId, itemId, item.sellable ? 1 : 0]
         );
@@ -223,7 +214,7 @@ export class InventoryService implements IInventoryService {
   async removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
 
-    await this.databaseService.update(
+    await this.databaseService.request(
       `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
       [correctedUserId, itemId, uniqueId]
     );
@@ -273,12 +264,12 @@ export class InventoryService implements IInventoryService {
       const newAmount = item.amount - toRemoveFromStack;
 
       if (newAmount <= 0) {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`,
           [correctedUserId, itemId]
         );
       } else {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`,
           [newAmount, correctedUserId, itemId]
         );
@@ -305,12 +296,12 @@ export class InventoryService implements IInventoryService {
       const newAmount = item.amount - toRemoveFromStack;
 
       if (newAmount <= 0) {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
           [correctedUserId, itemId, purchasePrice]
         );
       } else {
-        await this.databaseService.update(
+        await this.databaseService.request(
           `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
           [newAmount, correctedUserId, itemId, purchasePrice]
         );
@@ -334,7 +325,7 @@ export class InventoryService implements IInventoryService {
     }
 
     // Transférer la propriété en changeant seulement le user_id
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
       [correctedToUserId, correctedFromUserId, itemId, uniqueId]
     );

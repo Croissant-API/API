@@ -45,7 +45,7 @@ export class LobbyService implements ILobbyService {
     const lobby = await this.getLobby(lobbyId);
     if (!lobby) throw new Error("Lobby not found");
     const users = [...new Set([...lobby.users.map((u) => u.user_id), userId])];
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
       [JSON.stringify(users), lobbyId]
     );
@@ -58,7 +58,7 @@ export class LobbyService implements ILobbyService {
     if (newUsers.length === 0) {
       // await this.deleteLobby(lobbyId);
     } else {
-      await this.databaseService.update(
+      await this.databaseService.request(
         "UPDATE lobbies SET users = ? WHERE lobbyId = ?",
         [JSON.stringify(newUsers.map((u) => u.user_id)), lobbyId]
       );
@@ -83,14 +83,14 @@ export class LobbyService implements ILobbyService {
   }
 
   async createLobby(lobbyId: string, users: string[] = []): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       "INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)",
       [lobbyId, JSON.stringify(users)]
     );
   }
 
   async deleteLobby(lobbyId: string): Promise<void> {
-    await this.databaseService.update("DELETE FROM lobbies WHERE lobbyId = ?", [
+    await this.databaseService.request("DELETE FROM lobbies WHERE lobbyId = ?", [
       lobbyId,
     ]);
   }

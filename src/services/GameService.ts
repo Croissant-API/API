@@ -145,7 +145,7 @@ export class GameService implements IGameService {
   }
 
   async createGame(game: Omit<Game, "id">): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       `INSERT INTO games (
                 gameId, name, description, price, owner_id, showInStore, download_link,
                 iconHash, splashHash, bannerHash, genre, release_date, developer,
@@ -182,26 +182,26 @@ export class GameService implements IGameService {
     const { fields, values } = buildUpdateFields(game, ["owners"]);
     if (!fields.length) return;
     values.push(gameId);
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`,
       values
     );
   }
 
   async deleteGame(gameId: string): Promise<void> {
-    await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [gameId]);
-    await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
+    await this.databaseService.request("DELETE FROM games WHERE gameId = ?", [gameId]);
+    await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
   }
 
   async addOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
       [gameId, ownerId]
     );
   }
 
   async removeOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
       [gameId, ownerId]
     );

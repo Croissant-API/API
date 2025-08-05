@@ -2,10 +2,8 @@ import { Knex, knex } from "knex";
 import { injectable } from "inversify";
 
 export interface IDatabaseService {
-  create(query: string, params?: unknown[]): Promise<void>;
+  request(query: string, params?: unknown[]): Promise<void>;
   read<T>(query: string, params?: unknown[]): Promise<T[]>;
-  update(query: string, params?: unknown[]): Promise<void>;
-  delete(query: string, params?: unknown[]): Promise<void>;
   getKnex(): Knex;
 }
 
@@ -27,11 +25,11 @@ export class DatabaseService implements IDatabaseService {
     return this.db;
   }
 
-  public async create(query: string, params: unknown[] = []): Promise<void> {
+  public async request(query: string, params: unknown[] = []): Promise<void> {
     try {
       await this.db.raw(query, params);
     } catch (err) {
-      console.error("Error creating data", err);
+      console.error("Error executing query", err);
       throw err;
     }
   }
@@ -57,24 +55,6 @@ export class DatabaseService implements IDatabaseService {
       });
     } catch (err) {
       console.error("Error reading data", err);
-      throw err;
-    }
-  }
-
-  public async update(query: string, params: unknown[] = []): Promise<void> {
-    try {
-      await this.db.raw(query, params);
-    } catch (err) {
-      console.error("Error updating data", err);
-      throw err;
-    }
-  }
-
-  public async delete(query: string, params: unknown[] = []): Promise<void> {
-    try {
-      await this.db.raw(query, params);
-    } catch (err) {
-      console.error("Error deleting data", err);
       throw err;
     }
   }

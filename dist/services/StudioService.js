@@ -35,7 +35,7 @@ let StudioService = class StudioService {
     }
     async setStudioProperties(user_id, admin_id, users) {
         const userIds = users.map((u) => u.user_id);
-        await this.databaseService.update("UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?", [admin_id, JSON.stringify(userIds), user_id]);
+        await this.databaseService.request("UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?", [admin_id, JSON.stringify(userIds), user_id]);
     }
     async getUserStudios(user_id) {
         const studiosResponse = await this.databaseService.read(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
@@ -64,7 +64,7 @@ let StudioService = class StudioService {
     async createStudio(studioName, admin_id) {
         const user_id = crypto_1.default.randomUUID();
         await this.userService.createBrandUser(user_id, studioName);
-        await this.databaseService.create("INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)", [user_id, admin_id, JSON.stringify([])]);
+        await this.databaseService.request("INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)", [user_id, admin_id, JSON.stringify([])]);
     }
     async addUserToStudio(studioId, user) {
         const studio = await this.getStudio(studioId);

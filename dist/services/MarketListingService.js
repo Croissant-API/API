@@ -72,7 +72,7 @@ let MarketListingService = class MarketListingService {
         };
         try {
             // 1. Ajouter l'ordre de vente (correction: utiliser create au lieu de read)
-            await this.databaseService.create(`INSERT INTO market_listings (id, seller_id, item_id, price, status, metadata, created_at, updated_at, purchasePrice) 
+            await this.databaseService.request(`INSERT INTO market_listings (id, seller_id, item_id, price, status, metadata, created_at, updated_at, purchasePrice) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
                 marketListing.id,
                 marketListing.seller_id,
@@ -87,7 +87,7 @@ let MarketListingService = class MarketListingService {
             // 2. Retirer l'item de l'inventaire
             if (inventoryItem.metadata && inventoryItem.metadata._unique_id) {
                 // Item unique avec _unique_id
-                await this.databaseService.delete(`DELETE FROM inventories 
+                await this.databaseService.request(`DELETE FROM inventories 
                      WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [sellerId, inventoryItem.item_id, inventoryItem.metadata._unique_id]);
             }
             else if (inventoryItem.purchasePrice) {
@@ -95,26 +95,26 @@ let MarketListingService = class MarketListingService {
                 // Si amount > 1, décrémenter, sinon supprimer l'entrée
                 const result = await this.databaseService.read(`SELECT amount FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [sellerId, inventoryItem.item_id, inventoryItem.purchasePrice]);
                 if (result.length > 0 && result[0].amount > 1) {
-                    await this.databaseService.update(`UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [sellerId, inventoryItem.item_id, inventoryItem.purchasePrice]);
+                    await this.databaseService.request(`UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [sellerId, inventoryItem.item_id, inventoryItem.purchasePrice]);
                 }
                 else {
-                    await this.databaseService.delete(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [sellerId, inventoryItem.item_id, inventoryItem.purchasePrice]);
+                    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [sellerId, inventoryItem.item_id, inventoryItem.purchasePrice]);
                 }
             }
             else {
                 // Item ordinaire sans métadonnées spécifiques
-                await this.databaseService.update(`UPDATE inventories 
+                await this.databaseService.request(`UPDATE inventories 
          SET amount = amount - 1 
          WHERE user_id = ? AND item_id = ? AND amount > 0`, [sellerId, inventoryItem.item_id]);
                 // Supprimer l'entrée si la quantité devient 0
-                await this.databaseService.delete(`DELETE FROM inventories 
+                await this.databaseService.request(`DELETE FROM inventories 
          WHERE user_id = ? AND item_id = ? AND amount = 0`, [sellerId, inventoryItem.item_id]);
             }
             // Tentative de matching automatique avec un buy order
             const matchedBuyOrder = await this.buyOrderService.matchSellOrder(marketListing.item_id, marketListing.price);
             if (matchedBuyOrder) {
                 // 1. Marquer le buy order comme fulfilled (ou décrémenter amount si > 1)
-                await this.databaseService.update(`UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`, [now, now, matchedBuyOrder.id]);
+                await this.databaseService.request(`UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`, [now, now, matchedBuyOrder.id]);
                 // 2. Effectuer la vente automatiquement (transfert item, crédits, etc.)
                 await this.buyMarketListing(marketListing.id, matchedBuyOrder.buyer_id);
                 // Tu peux notifier les deux utilisateurs ici si besoin
@@ -143,7 +143,7 @@ let MarketListingService = class MarketListingService {
             const listing = listingResult[0];
             const metadata = JSON.parse(typeof listing.metadata === 'string' ? listing.metadata : JSON.stringify(listing.metadata || {}));
             // 2. Marquer l'ordre comme annulé
-            await this.databaseService.update(`UPDATE market_listings SET status = 'cancelled', updated_at = ? WHERE id = ?`, [new Date().toISOString(), listingId]);
+            await this.databaseService.request(`UPDATE market_listings SET status = 'cancelled', updated_at = ? WHERE id = ?`, [new Date().toISOString(), listingId]);
             // 3. Remettre l'item dans l'inventaire
             const inventoryItem = {
                 user_id: sellerId,
@@ -178,16 +178,16 @@ let MarketListingService = class MarketListingService {
             throw new Error('Not enough balance to buy this item');
         }
         // 3. Débiter les crédits de l'acheteur
-        await this.databaseService.update(`UPDATE users SET balance = balance - ? WHERE user_id = ?`, [listing.price, buyerId]);
+        await this.databaseService.request(`UPDATE users SET balance = balance - ? WHERE user_id = ?`, [listing.price, buyerId]);
         // Ajouter 75% des crédits au vendeur
         const sellerCreditsResult = await this.databaseService.read(`SELECT balance FROM users WHERE user_id = ?`, [listing.seller_id]);
         if (sellerCreditsResult.length === 0) {
             throw new Error('Seller not found');
         }
         const amountToAdd = Math.floor(listing.price * 0.75);
-        await this.databaseService.update(`UPDATE users SET balance = balance + ? WHERE user_id = ?`, [amountToAdd, listing.seller_id]);
+        await this.databaseService.request(`UPDATE users SET balance = balance + ? WHERE user_id = ?`, [amountToAdd, listing.seller_id]);
         // 4. Marquer l'ordre de vente comme vendu
-        await this.databaseService.update(`UPDATE market_listings SET status = 'sold', buyer_id = ?, sold_at = ?, updated_at = ? WHERE id = ?`, [buyerId, now, now, listingId]);
+        await this.databaseService.request(`UPDATE market_listings SET status = 'sold', buyer_id = ?, sold_at = ?, updated_at = ? WHERE id = ?`, [buyerId, now, now, listingId]);
         // 5. Ajouter l'item à l'inventaire de l'acheteur
         const inventoryItem = {
             user_id: buyerId,
@@ -286,7 +286,7 @@ let MarketListingService = class MarketListingService {
     async addItemToInventory(inventoryItem) {
         if (inventoryItem.metadata && inventoryItem.metadata._unique_id) {
             // Item unique - créer une nouvelle entrée
-            await this.databaseService.create(`INSERT INTO inventories (user_id, item_id, amount, ${inventoryItem.metadata && Object.keys(inventoryItem.metadata).length > 0 ? 'metadata, ' : ''}sellable, purchasePrice) 
+            await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, ${inventoryItem.metadata && Object.keys(inventoryItem.metadata).length > 0 ? 'metadata, ' : ''}sellable, purchasePrice) 
                  VALUES (?, ?, ?, ${inventoryItem.metadata && Object.keys(inventoryItem.metadata).length > 0 ? '?, ' : ''}?, ?)`, [
                 inventoryItem.user_id,
                 inventoryItem.item_id,
@@ -302,10 +302,10 @@ let MarketListingService = class MarketListingService {
             // Item ordinaire - incrémenter ou créer
             const existingResult = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [inventoryItem.user_id, inventoryItem.item_id, inventoryItem.purchasePrice || null]);
             if (existingResult.length > 0) {
-                await this.databaseService.update(`UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [inventoryItem.amount, inventoryItem.user_id, inventoryItem.item_id, inventoryItem.purchasePrice || null]);
+                await this.databaseService.request(`UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [inventoryItem.amount, inventoryItem.user_id, inventoryItem.item_id, inventoryItem.purchasePrice || null]);
             }
             else {
-                await this.databaseService.create(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) 
+                await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) 
                      VALUES (?, ?, ?, ?, ?, ?)`, [
                     inventoryItem.user_id,
                     inventoryItem.item_id,

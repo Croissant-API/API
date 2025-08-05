@@ -32,7 +32,7 @@ export class ItemService implements IItemService {
     if (existingItems.length > 0) {
       throw new Error("ItemId already exists");
     }
-    await this.databaseService.create(
+    await this.databaseService.request(
       `INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -86,14 +86,14 @@ export class ItemService implements IItemService {
     const { fields, values } = buildUpdateFields(item);
     if (!fields.length) return;
     values.push(itemId);
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`,
       values
     );
   }
 
   async deleteItem(itemId: string): Promise<void> {
-    await this.databaseService.delete("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
+    await this.databaseService.request("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
   }
 
   /**

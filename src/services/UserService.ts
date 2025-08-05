@@ -117,7 +117,7 @@ export class UserService implements IUserService {
     }
     if (updates.length === 0) return;
     params.push(user_id);
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`,
       params
     );
@@ -129,7 +129,7 @@ export class UserService implements IUserService {
     steam_username: string | null,
     steam_avatar_url: string | null
   ): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?",
       [steam_id, steam_username, steam_avatar_url, user_id]
     );
@@ -149,7 +149,7 @@ export class UserService implements IUserService {
     providerId: string
   ): Promise<void> {
     const column = provider === "discord" ? "discord_id" : "google_id";
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE users SET ${column} = ? WHERE user_id = ?`,
       [providerId, user_id]
     );
@@ -160,7 +160,7 @@ export class UserService implements IUserService {
     if (!admin || !admin.admin) {
       throw new Error("Unauthorized: not admin");
     }
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET disabled = 1 WHERE user_id = ?",
       [targetUserId]
     );
@@ -171,7 +171,7 @@ export class UserService implements IUserService {
     if (!admin || !admin.admin) {
       throw new Error("Unauthorized: not admin");
     }
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET disabled = 0 WHERE user_id = ?",
       [targetUserId]
     );
@@ -209,7 +209,7 @@ export class UserService implements IUserService {
       }
       return existing;
     }
-    await this.databaseService.create(
+    await this.databaseService.request(
       "INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)",
       [
         user_id,
@@ -224,7 +224,7 @@ export class UserService implements IUserService {
   }
 
   async createBrandUser(user_id: string, username: string): Promise<User> {
-    await this.databaseService.create(
+    await this.databaseService.request(
       "INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)",
       [user_id, username, ""]
     );
@@ -286,7 +286,7 @@ export class UserService implements IUserService {
 
   async generatePasswordResetToken(email: string): Promise<string> {
     const token = crypto.randomBytes(32).toString("hex");
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET forgot_password_token = ? WHERE email = ?",
       [token, email]
     );
@@ -294,7 +294,7 @@ export class UserService implements IUserService {
   }
 
   async deleteUser(user_id: string): Promise<void> {
-    await this.databaseService.delete("DELETE FROM users WHERE user_id = ?", [
+    await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [
       user_id,
     ]);
   }
@@ -313,7 +313,7 @@ export class UserService implements IUserService {
   }
 
   async updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void> {
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET webauthn_challenge = ? WHERE user_id = ?",
       [challenge, user_id]
     );
@@ -333,7 +333,7 @@ export class UserService implements IUserService {
       name: credential.name,
       created_at: credential.created_at,
     });
-    await this.databaseService.update(
+    await this.databaseService.request(
       "UPDATE users SET webauthn_credentials = ? WHERE user_id = ?",
       [JSON.stringify(credentials), userId]
     );
@@ -348,7 +348,7 @@ export class UserService implements IUserService {
   }
 
   async setAuthenticatorSecret(userId: string, secret: string | null): Promise<void> {
-    return this.databaseService.update(
+    return this.databaseService.request(
       "UPDATE users SET authenticator_secret = ? WHERE user_id = ?",
       [secret, userId]
     );
@@ -420,7 +420,7 @@ export class UserService implements IUserService {
       GROUP BY u.user_id
     `;
 
-    await this.databaseService.update(
+    await this.databaseService.request(
       `DELETE FROM inventories 
        WHERE user_id = (
          SELECT user_id FROM users 

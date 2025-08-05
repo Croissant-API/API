@@ -42,7 +42,7 @@ export class LogService implements ILogService {
       logData.status_code || null
     ];
 
-    await this.databaseService.create(query, params);
+    await this.databaseService.request(query, params);
   }
 
   async getLogs(limit = 100, offset = 0): Promise<Log[]> {
@@ -89,7 +89,7 @@ export class LogService implements ILogService {
       DELETE FROM logs 
       WHERE timestamp < datetime('now', '-' || ? || ' days')
     `;
-    await this.databaseService.delete(query, [daysOld]);
+    await this.databaseService.request(query, [daysOld]);
   }
 
   // Méthodes utilitaires pour les statistiques

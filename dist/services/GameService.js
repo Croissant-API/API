@@ -97,7 +97,7 @@ let GameService = class GameService {
         return games;
     }
     async createGame(game) {
-        await this.databaseService.update(`INSERT INTO games (
+        await this.databaseService.request(`INSERT INTO games (
                 gameId, name, description, price, owner_id, showInStore, download_link,
                 iconHash, splashHash, bannerHash, genre, release_date, developer,
                 publisher, platforms, rating, website, trailer_link, multiplayer
@@ -128,17 +128,17 @@ let GameService = class GameService {
         if (!fields.length)
             return;
         values.push(gameId);
-        await this.databaseService.update(`UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`, values);
+        await this.databaseService.request(`UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`, values);
     }
     async deleteGame(gameId) {
-        await this.databaseService.update("DELETE FROM games WHERE gameId = ?", [gameId]);
-        await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
+        await this.databaseService.request("DELETE FROM games WHERE gameId = ?", [gameId]);
+        await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
     }
     async addOwner(gameId, ownerId) {
-        await this.databaseService.update("INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)", [gameId, ownerId]);
+        await this.databaseService.request("INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)", [gameId, ownerId]);
     }
     async removeOwner(gameId, ownerId) {
-        await this.databaseService.update("DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?", [gameId, ownerId]);
+        await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?", [gameId, ownerId]);
     }
     async transferOwnership(gameId, newOwnerId) {
         const game = await this.getGame(gameId);

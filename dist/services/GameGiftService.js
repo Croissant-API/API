@@ -27,7 +27,7 @@ let GameGiftService = class GameGiftService {
         const giftId = (0, uuid_1.v4)();
         const giftCode = this.generateGiftCode();
         const createdAt = new Date();
-        await this.databaseService.update(`INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
+        await this.databaseService.request(`INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
        VALUES (?, ?, ?, ?, ?, ?, ?)`, [giftId, gameId, fromUserId, giftCode, createdAt.toISOString(), 1, message || null]);
         return {
             id: giftId,
@@ -50,7 +50,7 @@ let GameGiftService = class GameGiftService {
         if (gift.fromUserId === userId)
             throw new Error("Cannot claim your own gift");
         const claimedAt = new Date();
-        await this.databaseService.update(`UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`, [userId, claimedAt.toISOString(), giftCode]);
+        await this.databaseService.request(`UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`, [userId, claimedAt.toISOString(), giftCode]);
         return {
             ...gift,
             toUserId: userId,
@@ -111,7 +111,7 @@ let GameGiftService = class GameGiftService {
             throw new Error("You can only revoke your own gifts");
         if (!gift[0].isActive)
             throw new Error("Gift is no longer active");
-        await this.databaseService.update(`UPDATE game_gifts SET isActive = 0 WHERE id = ?`, [giftId]);
+        await this.databaseService.request(`UPDATE game_gifts SET isActive = 0 WHERE id = ?`, [giftId]);
     }
     generateGiftCode() {
         // Génère un code de 16 caractères alphanumériques

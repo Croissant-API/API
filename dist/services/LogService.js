@@ -36,7 +36,7 @@ let LogService = class LogService {
             logData.user_id || null,
             logData.status_code || null
         ];
-        await this.databaseService.create(query, params);
+        await this.databaseService.request(query, params);
     }
     async getLogs(limit = 100, offset = 0) {
         const query = `
@@ -78,7 +78,7 @@ let LogService = class LogService {
       DELETE FROM logs 
       WHERE timestamp < datetime('now', '-' || ? || ' days')
     `;
-        await this.databaseService.delete(query, [daysOld]);
+        await this.databaseService.request(query, [daysOld]);
     }
     // Méthodes utilitaires pour les statistiques
     async getLogStats() {

@@ -30,12 +30,12 @@ let BuyOrderService = class BuyOrderService {
             created_at: now,
             updated_at: now
         };
-        await this.databaseService.create(`INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
+        await this.databaseService.request(`INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`, [order.id, order.buyer_id, order.item_id, order.price, order.status, order.created_at, order.updated_at]);
         return order;
     }
     async cancelBuyOrder(orderId, buyerId) {
-        await this.databaseService.update(`UPDATE buy_orders 
+        await this.databaseService.request(`UPDATE buy_orders 
              SET status = 'cancelled', updated_at = ? 
              WHERE id = ? AND buyer_id = ? AND status = 'active'`, [new Date().toISOString(), orderId, buyerId]);
     }

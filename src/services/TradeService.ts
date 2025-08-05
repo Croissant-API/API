@@ -66,7 +66,7 @@ export class TradeService implements ITradeService {
       updatedAt: now,
     };
     
-    await this.databaseService.create(
+    await this.databaseService.request(
       `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -340,7 +340,7 @@ export class TradeService implements ITradeService {
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
     
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
       [JSON.stringify(items), trade.updatedAt, tradeId]
     );
@@ -395,7 +395,7 @@ export class TradeService implements ITradeService {
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
     
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
       [JSON.stringify(items), trade.updatedAt, tradeId]
     );
@@ -412,7 +412,7 @@ export class TradeService implements ITradeService {
     
     const updatedAt = new Date().toISOString();
     
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`,
       [updatedAt, tradeId]
     );
@@ -439,7 +439,7 @@ export class TradeService implements ITradeService {
     trade.status = "canceled";
     trade.updatedAt = new Date().toISOString();
     
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`,
       [trade.status, trade.updatedAt, tradeId]
     );
@@ -551,7 +551,7 @@ export class TradeService implements ITradeService {
     
     // Met à jour la trade
     const now = new Date().toISOString();
-    await this.databaseService.update(
+    await this.databaseService.request(
       `UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`,
       [now, trade.id]
     );
