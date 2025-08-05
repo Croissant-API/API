@@ -3,6 +3,7 @@ import { IDatabaseService } from "./DatabaseService";
 import { Inventory, InventoryItem } from "../interfaces/Inventory";
 import { IUserService } from "./UserService";
 import { v4 as uuidv4 } from "uuid";
+import { Knex } from "knex";
 
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
@@ -22,6 +23,9 @@ export interface IInventoryService {
 
 @injectable()
 export class InventoryService implements IInventoryService {
+  private readonly inventoriesTable = 'inventories';
+  private readonly itemsTable = 'items';
+
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService,
     @inject("UserService") private userService: IUserService
@@ -43,190 +47,247 @@ export class InventoryService implements IInventoryService {
 
   async getInventory(userId: string): Promise<Inventory> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    // Supprimer automatiquement les items non-existants ou supprimés
-    await this.databaseService.update(
-      `DELETE FROM inventories 
-       WHERE user_id = ? 
-       AND item_id NOT IN (
-         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
-       )`,
-      [correctedUserId]
-    );
+    try {
+      // Supprimer automatiquement les items non-existants ou supprimés
+      await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId })
+        .whereNotIn('item_id', (qb: Knex.QueryBuilder) => {
+          qb.select('itemId').from(this.itemsTable).whereNull('deleted').orWhere({ deleted: 0 });
+        })
+        .delete();
 
-    // Récupérer les items avec toutes leurs données en une seule requête
-    const items = await this.databaseService.read<InventoryItem>(
-      `SELECT 
-         inv.user_id, 
-         inv.item_id, 
-         inv.amount, 
-         inv.metadata,
-         inv.sellable,
-         inv.purchasePrice,
-         i.itemId,
-         i.name,
-         i.description,
-         i.iconHash,
-         i.price,
-         i.owner,
-         i.showInStore
-       FROM inventories inv
-       INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-       WHERE inv.user_id = ? AND inv.amount > 0`,
-      [correctedUserId]
-    );
+      // Récupérer les items avec toutes leurs données en une seule requête
+      const items: InventoryItem[] = await knex(this.inventoriesTable + ' as inv')
+        .join(this.itemsTable + ' as i', function() {
+          this.on('inv.item_id', '=', 'i.itemId').andOn(knex.raw('i.deleted IS NULL OR i.deleted = 0'));
+        })
+        .select(
+          'inv.user_id',
+          'inv.item_id',
+          'inv.amount',
+          'inv.metadata',
+          'inv.sellable',
+          'inv.purchasePrice',
+          'i.itemId',
+          'i.name',
+          'i.description',
+          'i.iconHash',
+          'i.price',
+          'i.owner',
+          'i.showInStore'
+        )
+        .where({ 'inv.user_id': correctedUserId })
+        .andWhere('inv.amount', '>', 0);
 
-    items.sort((a: InventoryItem, b: InventoryItem) => {
-      const nameCompare = a.name?.localeCompare(b.name || '') || 0;
-      if (nameCompare !== 0) return nameCompare;
-      // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
-      if (!a.metadata && b.metadata) return -1;
-      if (a.metadata && !b.metadata) return 1;
-      return 0;
-    });
+      items.sort((a: InventoryItem, b: InventoryItem) => {
+        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+        if (nameCompare !== 0) return nameCompare;
+        // Si même nom, trier par présence de métadonnées (sans métadonnées en premier)
+        if (!a.metadata && b.metadata) return -1;
+        if (a.metadata && !b.metadata) return 1;
+        return 0;
+      });
 
-    const processedItems: InventoryItem[] = items.map((item) => ({
-      user_id: item.user_id,
-      item_id: item.item_id,
-      amount: item.amount,
-      metadata: item.metadata,
-      sellable: !!item.sellable,
-      purchasePrice: item.purchasePrice,
-      // Données de l'item
-      name: item.name,
-      description: item.description,
-      iconHash: item.iconHash,
-      price: item.purchasePrice
-    }));
+      const processedItems: InventoryItem[] = items.map((item) => ({
+        user_id: item.user_id,
+        item_id: item.item_id,
+        amount: item.amount,
+        metadata: item.metadata,
+        sellable: !!item.sellable,
+        purchasePrice: item.purchasePrice,
+        // Données de l'item
+        name: item.name,
+        description: item.description,
+        iconHash: item.iconHash,
+        price: item.purchasePrice
+      }));
 
-    return { user_id: userId, inventory: processedItems };
+      return { user_id: userId, inventory: processedItems };
+    } catch (error) {
+      console.error("Error getting inventory:", error);
+      throw error;
+    }
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<InventoryItem>(
-      "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ?",
-      [correctedUserId, itemId]
-    );
-    return items.length === 0 || !items[0].amount ? 0 : items[0].amount;
+    const knex = this.databaseService.getKnex();
+
+    try {
+      const result = await knex(this.inventoriesTable)
+        .sum('amount as total')
+        .where({ user_id: correctedUserId, item_id: itemId })
+        .first();
+
+      return (result?.total as number) || 0;
+    } catch (error) {
+      console.error("Error getting item amount:", error);
+      throw error;
+    }
   }
 
   async addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable: boolean = false, purchasePrice?: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    if (metadata) {
-      // Items avec métadonnées : créer des entrées uniques pour chaque quantité
-      const metadataWithUniqueId = { ...metadata, _unique_id: uuidv4() };
+    try {
+      if (metadata) {
+        // Items avec métadonnées : créer des entrées uniques pour chaque quantité
+        for (let i = 0; i < amount; i++) {
+          const uniqueId = uuidv4();
+          const uniqueMetadata = { ...metadata, _unique_id: uniqueId };
 
-      for (let i = 0; i < amount; i++) {
-        const uniqueMetadata = { ...metadataWithUniqueId, _unique_id: uuidv4() };
-        await this.databaseService.update(
-          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-          [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice]
-        );
-      }
-    } else {
-      // Items sans métadonnées : peuvent s'empiler seulement s'ils ont le même état sellable ET le même prix d'achat
-      const items = await this.databaseService.read<InventoryItem[]>(
-        "SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))",
-        [correctedUserId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]
-      );
-
-      if (items.length > 0) {
-        await this.databaseService.update(
-          "UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))",
-          [amount, correctedUserId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]
-        );
+          await knex(this.inventoriesTable).insert({
+            user_id: correctedUserId,
+            item_id: itemId,
+            amount: 1,
+            metadata: JSON.stringify(uniqueMetadata),
+            sellable: sellable ? 1 : 0,
+            purchasePrice: purchasePrice
+          });
+        }
       } else {
-        await this.databaseService.update(
-          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-          [correctedUserId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]
-        );
+        // Items sans métadonnées : peuvent s'empiler seulement s'ils ont le même état sellable ET le même prix d'achat
+        const existingItem = await knex(this.inventoriesTable)
+          .where({
+            user_id: correctedUserId,
+            item_id: itemId,
+            metadata: null,
+            sellable: sellable ? 1 : 0,
+            purchasePrice: purchasePrice
+          })
+          .first();
+
+        if (existingItem) {
+          await knex(this.inventoriesTable)
+            .where({
+              user_id: correctedUserId,
+              item_id: itemId,
+              metadata: null,
+              sellable: sellable ? 1 : 0,
+              purchasePrice: purchasePrice
+            })
+            .increment('amount', amount);
+        } else {
+          await knex(this.inventoriesTable).insert({
+            user_id: correctedUserId,
+            item_id: itemId,
+            amount: amount,
+            metadata: null,
+            sellable: sellable ? 1 : 0,
+            purchasePrice: purchasePrice
+          });
+        }
       }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      throw error;
     }
   }
 
   async setItemAmount(userId: string, itemId: string, amount: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    if (amount <= 0) {
-      await this.databaseService.update(
-        `DELETE FROM inventories WHERE user_id = ? AND item_id = ?`,
-        [correctedUserId, itemId]
-      );
-      return;
-    }
+    try {
+      if (amount <= 0) {
+        await knex(this.inventoriesTable)
+          .where({ user_id: correctedUserId, item_id: itemId })
+          .delete();
+        return;
+      }
 
-    // Items sans métadonnées seulement - par défaut sellable = false, pas de prix d'achat
-    const items = await this.databaseService.read<InventoryItem[]>(
-      "SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL",
-      [correctedUserId, itemId]
-    );
+      const existingItem = await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null })
+        .first();
 
-    if (items.length > 0) {
-      await this.databaseService.update(
-        `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL`,
-        [amount, correctedUserId, itemId]
-      );
-    } else {
-      await this.databaseService.update(
-        `INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`,
-        [correctedUserId, itemId, amount, null, 0, null]
-      );
+      if (existingItem) {
+        await knex(this.inventoriesTable)
+          .where({ user_id: correctedUserId, item_id: itemId, metadata: null })
+          .update({ amount: amount });
+      } else {
+        await knex(this.inventoriesTable).insert({
+          user_id: correctedUserId,
+          item_id: itemId,
+          amount: amount,
+          metadata: null,
+          sellable: 0,
+          purchasePrice: null
+        });
+      }
+    } catch (error) {
+      console.error("Error setting item amount:", error);
+      throw error;
     }
   }
 
   async updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: { [key: string]: unknown }): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
-    const metadataJson = JSON.stringify(metadataWithUniqueId);
+    const knex = this.databaseService.getKnex();
 
-    await this.databaseService.update(
-      "UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?",
-      [metadataJson, correctedUserId, itemId, uniqueId]
-    );
+    try {
+      const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
+      const metadataJson = JSON.stringify(metadataWithUniqueId);
+
+      await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId })
+        .where(knex.raw(`JSON_EXTRACT(metadata, '$._unique_id') = ?`, uniqueId))
+        .update({ metadata: metadataJson });
+    } catch (error) {
+      console.error("Error updating item metadata:", error);
+      throw error;
+    }
   }
 
   async removeItem(userId: string, itemId: string, amount: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    // Ne supprimer que les items SANS métadonnées
-    const items = await this.databaseService.read<InventoryItem>(
-      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL ORDER BY amount DESC`,
-      [correctedUserId, itemId]
-    );
+    try {
+      const items = await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null })
+        .orderBy('amount', 'desc');
 
-    let remainingToRemove = amount;
+      let remainingToRemove = amount;
 
-    for (const item of items) {
-      if (remainingToRemove <= 0) break;
+      for (const item of items) {
+        if (remainingToRemove <= 0) break;
 
-      // Items sans métadonnées : peuvent être réduits
-      const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
-      const newAmount = item.amount - toRemoveFromStack;
+        const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
+        const newAmount = item.amount - toRemoveFromStack;
 
-      if (newAmount <= 0) {
-        await this.databaseService.update(
-          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`,
-          [correctedUserId, itemId, item.sellable ? 1 : 0]
-        );
-      } else {
-        await this.databaseService.update(
-          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`,
-          [newAmount, correctedUserId, itemId, item.sellable ? 1 : 0]
-        );
+        if (newAmount <= 0) {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: item.sellable ? 1 : 0 })
+            .delete();
+        } else {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: item.sellable ? 1 : 0 })
+            .update({ amount: newAmount });
+        }
+        remainingToRemove -= toRemoveFromStack;
       }
-      remainingToRemove -= toRemoveFromStack;
+    } catch (error) {
+      console.error("Error removing item:", error);
+      throw error;
     }
   }
 
   async removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    await this.databaseService.update(
-      `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
-      [correctedUserId, itemId, uniqueId]
-    );
+    try {
+      await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId })
+        .where(knex.raw(`JSON_EXTRACT(metadata, '$._unique_id') = ?`, uniqueId))
+        .delete();
+    } catch (error) {
+      console.error("Error removing item by unique ID:", error);
+      throw error;
+    }
   }
 
   async hasItem(userId: string, itemId: string, amount = 1): Promise<boolean> {
@@ -236,107 +297,132 @@ export class InventoryService implements IInventoryService {
 
   async hasItemWithoutMetadata(userId: string, itemId: string, amount = 1): Promise<boolean> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<{ total: number | null }>(
-      "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL",
-      [correctedUserId, itemId]
-    );
-    const totalAmount = items.length === 0 || !items[0].total ? 0 : items[0].total;
-    return totalAmount >= amount;
-  }
+    const knex = this.databaseService.getKnex();
 
-  // Nouvelle méthode pour vérifier les items sellable
-  async hasItemWithoutMetadataSellable(userId: string, itemId: string, amount = 1): Promise<boolean> {
-    const correctedUserId = await this.getCorrectedUserId(userId);
-    const items = await this.databaseService.read<{ total: number | null }>(
-      "SELECT SUM(amount) as total FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1",
-      [correctedUserId, itemId]
-    );
-    const totalAmount = items.length === 0 || !items[0].total ? 0 : items[0].total;
-    return totalAmount >= amount;
-  }
+    try {
+      const result = await knex(this.inventoriesTable)
+        .sum('amount as total')
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null })
+        .first();
 
-  // Nouvelle méthode pour supprimer spécifiquement les items sellable
-  async removeSellableItem(userId: string, itemId: string, amount: number): Promise<void> {
-    const correctedUserId = await this.getCorrectedUserId(userId);
-
-    const items = await this.databaseService.read<InventoryItem>(
-      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 ORDER BY amount DESC`,
-      [correctedUserId, itemId]
-    );
-
-    let remainingToRemove = amount;
-
-    for (const item of items) {
-      if (remainingToRemove <= 0) break;
-
-      const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
-      const newAmount = item.amount - toRemoveFromStack;
-
-      if (newAmount <= 0) {
-        await this.databaseService.update(
-          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`,
-          [correctedUserId, itemId]
-        );
-      } else {
-        await this.databaseService.update(
-          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`,
-          [newAmount, correctedUserId, itemId]
-        );
-      }
-      remainingToRemove -= toRemoveFromStack;
+      const totalAmount = (result?.total as number) || 0;
+      return totalAmount >= amount;
+    } catch (error) {
+      console.error("Error checking item without metadata:", error);
+      throw error;
     }
   }
 
-  // Nouvelle méthode pour supprimer spécifiquement les items sellable avec un prix donné
+  async hasItemWithoutMetadataSellable(userId: string, itemId: string, amount = 1): Promise<boolean> {
+    const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      const result = await knex(this.inventoriesTable)
+        .sum('amount as total')
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1 })
+        .first();
+
+      const totalAmount = (result?.total as number) || 0;
+      return totalAmount >= amount;
+    } catch (error) {
+      console.error("Error checking sellable item without metadata:", error);
+      throw error;
+    }
+  }
+
+  async removeSellableItem(userId: string, itemId: string, amount: number): Promise<void> {
+    const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      const items = await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1 })
+        .orderBy('amount', 'desc');
+
+      let remainingToRemove = amount;
+
+      for (const item of items) {
+        if (remainingToRemove <= 0) break;
+
+        const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
+        const newAmount = item.amount - toRemoveFromStack;
+
+        if (newAmount <= 0) {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1 })
+            .delete();
+        } else {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1 })
+            .update({ amount: newAmount });
+        }
+        remainingToRemove -= toRemoveFromStack;
+      }
+    } catch (error) {
+      console.error("Error removing sellable item:", error);
+      throw error;
+    }
+  }
+
   async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
+    const knex = this.databaseService.getKnex();
 
-    const items = await this.databaseService.read<InventoryItem>(
-      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ? ORDER BY amount DESC`,
-      [correctedUserId, itemId, purchasePrice]
-    );
+    try {
+      const items = await knex(this.inventoriesTable)
+        .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1, purchasePrice: purchasePrice })
+        .orderBy('amount', 'desc');
 
-    let remainingToRemove = amount;
+      let remainingToRemove = amount;
 
-    for (const item of items) {
-      if (remainingToRemove <= 0) break;
+      for (const item of items) {
+        if (remainingToRemove <= 0) break;
 
-      const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
-      const newAmount = item.amount - toRemoveFromStack;
+        const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
+        const newAmount = item.amount - toRemoveFromStack;
 
-      if (newAmount <= 0) {
-        await this.databaseService.update(
-          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
-          [correctedUserId, itemId, purchasePrice]
-        );
-      } else {
-        await this.databaseService.update(
-          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
-          [newAmount, correctedUserId, itemId, purchasePrice]
-        );
+        if (newAmount <= 0) {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1, purchasePrice: purchasePrice })
+            .delete();
+        } else {
+          await knex(this.inventoriesTable)
+            .where({ user_id: correctedUserId, item_id: itemId, metadata: null, sellable: 1, purchasePrice: purchasePrice })
+            .update({ amount: newAmount });
+        }
+        remainingToRemove -= toRemoveFromStack;
       }
-      remainingToRemove -= toRemoveFromStack;
+    } catch (error) {
+      console.error("Error removing sellable item with price:", error);
+      throw error;
     }
   }
 
   async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {
     const correctedFromUserId = await this.getCorrectedUserId(fromUserId);
     const correctedToUserId = await this.getCorrectedUserId(toUserId);
+    const knex = this.databaseService.getKnex();
 
-    // Vérifier que l'item existe dans l'inventaire du fromUser
-    const items = await this.databaseService.read<(InventoryItem & { metadata: string | null })[]>(
-      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
-      [correctedFromUserId, itemId, uniqueId]
-    );
+    try {
+      // Vérifier que l'item existe dans l'inventaire du fromUser
+      const item = await knex(this.inventoriesTable)
+        .where({ user_id: correctedFromUserId, item_id: itemId })
+        .where(knex.raw(`JSON_EXTRACT(metadata, '$._unique_id') = ?`, uniqueId))
+        .first();
 
-    if (items.length === 0) {
-      throw new Error("Item not found in user's inventory");
+      if (!item) {
+        throw new Error("Item not found in user's inventory");
+      }
+
+      // Transférer la propriété en changeant seulement le user_id
+      await knex(this.inventoriesTable)
+        .where({ user_id: correctedFromUserId, item_id: itemId })
+        .where(knex.raw(`JSON_EXTRACT(metadata, '$._unique_id') = ?`, uniqueId))
+        .update({ user_id: correctedToUserId });
+    } catch (error) {
+      console.error("Error transferring item:", error);
+      throw error;
     }
-
-    // Transférer la propriété en changeant seulement le user_id
-    await this.databaseService.update(
-      `UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
-      [correctedToUserId, correctedFromUserId, itemId, uniqueId]
-    );
   }
 }

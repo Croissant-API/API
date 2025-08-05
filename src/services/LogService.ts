@@ -18,111 +18,139 @@ export interface ILogService {
 
 @injectable()
 export class LogService implements ILogService {
+  private readonly tableName = 'logs';
+
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
   ) {}
 
   async createLog(logData: CreateLogData): Promise<void> {
-    const query = `
-      INSERT INTO logs (
-        timestamp, ip_address, table_name, controller, 
-        original_path, http_method, request_body, user_id, status_code
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    const knex = this.databaseService.getKnex();
 
-    const params = [
-      new Date().toISOString(),
-      logData.ip_address,
-      logData.table_name || null,
-      logData.controller,
-      logData.original_path,
-      logData.http_method,
-      logData.request_body ? JSON.stringify(logData.request_body) : null,
-      logData.user_id || null,
-      logData.status_code || null
-    ];
-
-    await this.databaseService.create(query, params);
+    try {
+      await knex(this.tableName).insert({
+        timestamp: new Date().toISOString(),
+        ip_address: logData.ip_address,
+        table_name: logData.table_name || null,
+        controller: logData.controller,
+        original_path: logData.original_path,
+        http_method: logData.http_method,
+        request_body: logData.request_body ? JSON.stringify(logData.request_body) : null,
+        user_id: logData.user_id || null,
+        status_code: logData.status_code || null
+      });
+    } catch (error) {
+      console.error("Error creating log:", error);
+      throw error;
+    }
   }
 
   async getLogs(limit = 100, offset = 0): Promise<Log[]> {
-    const query = `
-      SELECT * FROM logs 
-      ORDER BY timestamp DESC 
-      LIMIT ? OFFSET ?
-    `;
-    return await this.databaseService.read<Log>(query, [limit, offset]);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      return await knex(this.tableName)
+        .select('*')
+        .orderBy('timestamp', 'desc')
+        .limit(limit)
+        .offset(offset);
+    } catch (error) {
+      console.error("Error getting logs:", error);
+      throw error;
+    }
   }
 
   async getLogsByController(controller: string, limit = 100): Promise<Log[]> {
-    const query = `
-      SELECT * FROM logs 
-      WHERE controller = ? 
-      ORDER BY timestamp DESC 
-      LIMIT ?
-    `;
-    return await this.databaseService.read<Log>(query, [controller, limit]);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      return await knex(this.tableName)
+        .select('*')
+        .where({ controller: controller })
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+    } catch (error) {
+      console.error("Error getting logs by controller:", error);
+      throw error;
+    }
   }
 
   async getLogsByUser(userId: string, limit = 100): Promise<Log[]> {
-    const query = `
-      SELECT * FROM logs 
-      WHERE user_id = ? 
-      ORDER BY timestamp DESC 
-      LIMIT ?
-    `;
-    return await this.databaseService.read<Log>(query, [userId, limit]);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      return await knex(this.tableName)
+        .select('*')
+        .where({ user_id: userId })
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+    } catch (error) {
+      console.error("Error getting logs by user:", error);
+      throw error;
+    }
   }
 
   async getLogsByTable(tableName: string, limit = 100): Promise<Log[]> {
-    const query = `
-      SELECT * FROM logs 
-      WHERE table_name = ? 
-      ORDER BY timestamp DESC 
-      LIMIT ?
-    `;
-    return await this.databaseService.read<Log>(query, [tableName, limit]);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      return await knex(this.tableName)
+        .select('*')
+        .where({ table_name: tableName })
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+    } catch (error) {
+      console.error("Error getting logs by table:", error);
+      throw error;
+    }
   }
 
   async deleteOldLogs(daysOld: number): Promise<void> {
-    const query = `
-      DELETE FROM logs 
-      WHERE timestamp < datetime('now', '-' || ? || ' days')
-    `;
-    await this.databaseService.delete(query, [daysOld]);
+    const knex = this.databaseService.getKnex();
+
+    try {
+      await knex(this.tableName)
+        .where('timestamp', '<', knex.raw('datetime("now", ?)', [`-${daysOld} days`]))
+        .delete();
+    } catch (error) {
+      console.error("Error deleting old logs:", error);
+      throw error;
+    }
   }
 
-  // Méthodes utilitaires pour les statistiques
   async getLogStats(): Promise<{
     totalLogs: number;
     logsByController: { controller: string; count: number }[];
     logsByTable: { table_name: string; count: number }[];
   }> {
-    const totalQuery = "SELECT COUNT(*) as count FROM logs";
-    const controllerQuery = `
-      SELECT controller, COUNT(*) as count 
-      FROM logs 
-      GROUP BY controller 
-      ORDER BY count DESC
-    `;
-    const tableQuery = `
-      SELECT table_name, COUNT(*) as count 
-      FROM logs 
-      WHERE table_name IS NOT NULL 
-      GROUP BY table_name 
-      ORDER BY count DESC
-    `;
+    const knex = this.databaseService.getKnex();
 
-    const [totalResult, controllerStats, tableStats] = await Promise.all([
-      this.databaseService.read<{ count: number }>(totalQuery),
-      this.databaseService.read<{ controller: string; count: number }>(controllerQuery),
-      this.databaseService.read<{ table_name: string; count: number }>(tableQuery)
-    ]);
+    try {
+      const totalLogsResult = await knex(this.tableName)
+        .count('* as count')
+        .first();
 
-    return {
-      totalLogs: totalResult[0]?.count || 0,
-      logsByController: controllerStats,
-      logsByTable: tableStats
-    };
+      const logsByController = await knex(this.tableName)
+        .select('controller')
+        .count('* as count')
+        .groupBy('controller')
+        .orderBy('count', 'desc');
+
+      const logsByTable = await knex(this.tableName)
+        .select('table_name')
+        .count('* as count')
+        .whereNotNull('table_name')
+        .groupBy('table_name')
+        .orderBy('count', 'desc');
+
+      return {
+        totalLogs: Number(totalLogsResult?.count) || 0,
+        logsByController: logsByController.map(item => ({ controller: String(item.controller), count: Number(item.count) })),
+        logsByTable: logsByTable.map(item => ({ table_name: String(item.table_name), count: Number(item.count) }))
+      };
+    } catch (error) {
+      console.error("Error getting log stats:", error);
+      throw error;
+    }
   }
 }

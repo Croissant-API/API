@@ -22,24 +22,36 @@ export interface IStudioService {
 
 @injectable()
 export class StudioService implements IStudioService {
+  private readonly studiosTable = 'studios';
+  private readonly usersTable = 'users';
+
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService,
     @inject("UserService") private userService: IUserService
   ) {}
 
   async getStudio(user_id: string): Promise<Studio | null> {
-    const studiosResponse = await this.databaseService.read<{user_id: string, admin_id: string, users: string[]}>("SELECT * FROM studios WHERE user_id = ?", [user_id]);
+    const knex = this.databaseService.getKnex();
 
-    if (studiosResponse.length === 0) return null;
+    try {
+      const studioResponse = await knex(this.studiosTable)
+        .select('user_id', 'admin_id', 'users')
+        .where({ user_id: user_id })
+        .first();
 
-    const studioResponse = studiosResponse[0];
+      if (!studioResponse) return null;
 
-    const users = await this.getUsersByIds(studioResponse.users);
-    const me = (await this.userService.getUserWithPublicProfile(
-      studioResponse.user_id
-    )) as StudioUser;
+      const users: string[] = JSON.parse(studioResponse.users);
+      const usersData = await this.getUsersByIds(users);
+      const me = (await this.userService.getUserWithPublicProfile(
+        studioResponse.user_id
+      )) as StudioUser;
 
-    return { ...studioResponse, users, me };
+      return { ...studioResponse, users: usersData, me };
+    } catch (error) {
+      console.error("Error getting studio:", error);
+      throw error;
+    }
   }
 
   async setStudioProperties(
@@ -47,58 +59,77 @@ export class StudioService implements IStudioService {
     admin_id: string,
     users: User[]
   ): Promise<void> {
+    const knex = this.databaseService.getKnex();
     const userIds = users.map((u) => u.user_id);
-    await this.databaseService.update(
-      "UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?",
-      [admin_id, JSON.stringify(userIds), user_id]
-    );
+
+    try {
+      await knex(this.studiosTable)
+        .where({ user_id: user_id })
+        .update({
+          admin_id: admin_id,
+          users: JSON.stringify(userIds),
+        });
+    } catch (error) {
+      console.error("Error setting studio properties:", error);
+      throw error;
+    }
   }
 
   async getUserStudios(user_id: string): Promise<StudioWithApiKey[]> {
-    const studiosResponse = await this.databaseService.read<{
-      user_id: string;
-      admin_id: string;
-      users: string;
-    }>(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
-      user_id,
-      `%"${user_id}"%`,
-    ]);
+    const knex = this.databaseService.getKnex();
 
-    const studios = await Promise.all(
-      studiosResponse.map(async (studioResponse) => {
-        const userIds = [
-          ...studioResponse.users,
-          studioResponse.admin_id,
-        ];
-        const users = await this.getUsersByIds(userIds);
-        const me = (await this.userService.getUser(
-          studioResponse.user_id
-        )) as StudioUser;
+    try {
+      const studiosResponse = await knex(this.studiosTable)
+        .select('user_id', 'admin_id', 'users')
+        .where({ admin_id: user_id })
+        .orWhereRaw('users LIKE ?', [`%"${user_id}"%`]);
 
-        return {
-          user_id: studioResponse.user_id,
-          admin_id: studioResponse.admin_id,
-          users,
-          me,
-          apiKey:
-            studioResponse.admin_id === user_id
-              ? genKey(studioResponse.user_id)
-              : undefined,
-        };
-      })
-    );
+      const studios = await Promise.all(
+        studiosResponse.map(async (studioResponse) => {
+          const userIds = [
+            ...JSON.parse(studioResponse.users),
+            studioResponse.admin_id,
+          ];
+          const users = await this.getUsersByIds(userIds);
+          const me = (await this.userService.getUser(
+            studioResponse.user_id
+          )) as StudioUser;
 
-    return studios;
+          return {
+            user_id: studioResponse.user_id,
+            admin_id: studioResponse.admin_id,
+            users,
+            me,
+            apiKey:
+              studioResponse.admin_id === user_id
+                ? genKey(studioResponse.user_id)
+                : undefined,
+          };
+        })
+      );
+
+      return studios;
+    } catch (error) {
+      console.error("Error getting user studios:", error);
+      throw error;
+    }
   }
 
   async createStudio(studioName: string, admin_id: string): Promise<void> {
+    const knex = this.databaseService.getKnex();
     const user_id = crypto.randomUUID();
 
-    await this.userService.createBrandUser(user_id, studioName);
-    await this.databaseService.create(
-      "INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)",
-      [user_id, admin_id, JSON.stringify([])]
-    );
+    try {
+      await this.userService.createBrandUser(user_id, studioName);
+      await knex(this.studiosTable).insert({
+        user_id: user_id,
+        admin_id: admin_id,
+        users: JSON.stringify([]),
+      });
+    } catch (error) {
+      console.error("Error creating studio:", error);
+      throw error;
+    }
   }
 
   async addUserToStudio(studioId: string, user: User): Promise<void> {
@@ -130,13 +161,17 @@ export class StudioService implements IStudioService {
   }
 
   private async getUsersByIds(userIds: string[]): Promise<User[]> {
-    if (userIds.length === 0) return [];
+    const knex = this.databaseService.getKnex();
 
-    return await this.databaseService.read<User>(
-      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(
-        ","
-      )})`,
-      userIds
-    );
+    try {
+      if (userIds.length === 0) return [];
+
+      return await knex(this.usersTable)
+        .select('user_id', 'username', 'verified', 'admin')
+        .whereIn('user_id', userIds);
+    } catch (error) {
+      console.error("Error getting users by ids:", error);
+      throw error;
+    }
   }
 }

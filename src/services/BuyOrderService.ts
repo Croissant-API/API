@@ -13,12 +13,16 @@ export interface IBuyOrderService {
 
 @injectable()
 export class BuyOrderService implements IBuyOrderService {
+    private readonly tableName = 'buy_orders';
+
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
     ) {}
 
     async createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder> {
+        const knex = this.databaseService.getKnex();
         const now = new Date().toISOString();
+        
         const order: BuyOrder = {
             id: uuidv4(),
             buyer_id: buyerId,
@@ -29,51 +33,83 @@ export class BuyOrderService implements IBuyOrderService {
             updated_at: now
         };
 
-        await this.databaseService.create(
-            `INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [order.id, order.buyer_id, order.item_id, order.price, order.status, order.created_at, order.updated_at]
-        );
-
-        return order;
+        try {
+            await knex(this.tableName).insert(order);
+            return order;
+        } catch (err) {
+            console.error("Error creating buy order", err);
+            throw err;
+        }
     }
 
     async cancelBuyOrder(orderId: string, buyerId: string): Promise<void> {
-        await this.databaseService.update(
-            `UPDATE buy_orders 
-             SET status = 'cancelled', updated_at = ? 
-             WHERE id = ? AND buyer_id = ? AND status = 'active'`,
-            [new Date().toISOString(), orderId, buyerId]
-        );
+        const knex = this.databaseService.getKnex();
+        
+        try {
+            await knex(this.tableName)
+                .where({ 
+                    id: orderId, 
+                    buyer_id: buyerId, 
+                    status: 'active' 
+                })
+                .update({ 
+                    status: 'cancelled', 
+                    updated_at: new Date().toISOString() 
+                });
+        } catch (err) {
+            console.error("Error cancelling buy order", err);
+            throw err;
+        }
     }
 
     async getBuyOrdersByUser(userId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE buyer_id = ? 
-             ORDER BY created_at DESC`,
-            [userId]
-        );
+        const knex = this.databaseService.getKnex();
+        
+        try {
+            return await knex(this.tableName)
+                .where({ buyer_id: userId })
+                .orderBy('created_at', 'desc');
+        } catch (err) {
+            console.error("Error getting buy orders by user", err);
+            throw err;
+        }
     }
 
     async getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' 
-             ORDER BY price DESC, created_at ASC`,
-            [itemId]
-        );
+        const knex = this.databaseService.getKnex();
+        
+        try {
+            return await knex(this.tableName)
+                .where({ 
+                    item_id: itemId, 
+                    status: 'active' 
+                })
+                .orderBy('price', 'desc')
+                .orderBy('created_at', 'asc');
+        } catch (err) {
+            console.error("Error getting active buy orders for item", err);
+            throw err;
+        }
     }
 
     async matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null> {
-        const orders = await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' AND price >= ? 
-             ORDER BY price DESC, created_at ASC 
-             LIMIT 1`,
-            [itemId, sellPrice]
-        );
+        const knex = this.databaseService.getKnex();
+        
+        try {
+            const orders = await knex(this.tableName)
+                .where({ 
+                    item_id: itemId, 
+                    status: 'active' 
+                })
+                .where('price', '>=', sellPrice)
+                .orderBy('price', 'desc')
+                .orderBy('created_at', 'asc')
+                .limit(1);
 
-        return orders.length > 0 ? orders[0] : null;
+            return orders.length > 0 ? orders[0] : null;
+        } catch (err) {
+            console.error("Error matching sell order", err);
+            throw err;
+        }
     }
 }

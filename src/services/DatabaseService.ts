@@ -2,11 +2,12 @@ import { Knex, knex } from "knex";
 import { injectable } from "inversify";
 
 export interface IDatabaseService {
+  getKnex(): Knex;
+  // Legacy methods for backward compatibility - will be deprecated
   create(query: string, params?: unknown[]): Promise<void>;
   read<T>(query: string, params?: unknown[]): Promise<T[]>;
   update(query: string, params?: unknown[]): Promise<void>;
   delete(query: string, params?: unknown[]): Promise<void>;
-  getKnex(): Knex;
 }
 
 @injectable()
@@ -27,7 +28,9 @@ export class DatabaseService implements IDatabaseService {
     return this.db;
   }
 
+  // Legacy methods for backward compatibility - DEPRECATED: Use getKnex() instead
   public async create(query: string, params: unknown[] = []): Promise<void> {
+    console.warn("DatabaseService.create() is deprecated. Use getKnex() instead.");
     try {
       await this.db.raw(query, params);
     } catch (err) {
@@ -37,6 +40,7 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
+    console.warn("DatabaseService.read() is deprecated. Use getKnex() instead.");
     try {
       const result = await this.db.raw(query, params);
       const rows = result || [];
@@ -62,6 +66,7 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async update(query: string, params: unknown[] = []): Promise<void> {
+    console.warn("DatabaseService.update() is deprecated. Use getKnex() instead.");
     try {
       await this.db.raw(query, params);
     } catch (err) {
@@ -71,6 +76,7 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async delete(query: string, params: unknown[] = []): Promise<void> {
+    console.warn("DatabaseService.delete() is deprecated. Use getKnex() instead.");
     try {
       await this.db.raw(query, params);
     } catch (err) {
