@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
+import { IDatabaseConnection, IDatabaseService } from "./DatabaseService";
 import { Game } from "../interfaces/Game";
 
 export interface IGameService {
@@ -145,34 +145,53 @@ export class GameService implements IGameService {
   }
 
   async createGame(game: Omit<Game, "id">): Promise<void> {
-    await this.databaseService.request(
-      `INSERT INTO games (
-                gameId, name, description, price, owner_id, showInStore, download_link,
-                iconHash, splashHash, bannerHash, genre, release_date, developer,
-                publisher, platforms, rating, website, trailer_link, multiplayer
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        game.gameId,
-        game.name,
-        game.description,
-        game.price,
-        game.owner_id,
-        toDbBool(game.showInStore),
-        game.download_link,
-        game.iconHash ?? null,
-        game.splashHash ?? null,
-        game.bannerHash ?? null,
-        game.genre ?? null,
-        game.release_date ?? null,
-        game.developer ?? null,
-        game.publisher ?? null,
-        game.platforms ?? null,
-        game.rating ?? 0,
-        game.website ?? null,
-        game.trailer_link ?? null,
-        toDbBool(game.multiplayer),
-      ]
-    );
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que le gameId n'existe pas déjà
+      const existingGame = await connection.read<{gameId: string}>(
+        "SELECT gameId FROM games WHERE gameId = ?",
+        [game.gameId]
+      );
+
+      if (existingGame.length > 0) {
+        throw new Error("Game ID already exists");
+      }
+
+      // Créer le jeu
+      await connection.request(
+        `INSERT INTO games (
+                  gameId, name, description, price, owner_id, showInStore, download_link,
+                  iconHash, splashHash, bannerHash, genre, release_date, developer,
+                  publisher, platforms, rating, website, trailer_link, multiplayer
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          game.gameId,
+          game.name,
+          game.description,
+          game.price,
+          game.owner_id,
+          toDbBool(game.showInStore),
+          game.download_link,
+          game.iconHash ?? null,
+          game.splashHash ?? null,
+          game.bannerHash ?? null,
+          game.genre ?? null,
+          game.release_date ?? null,
+          game.developer ?? null,
+          game.publisher ?? null,
+          game.platforms ?? null,
+          game.rating ?? 0,
+          game.website ?? null,
+          game.trailer_link ?? null,
+          toDbBool(game.multiplayer),
+        ]
+      );
+
+      // Ajouter automatiquement le créateur comme propriétaire
+      await connection.request(
+        "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
+        [game.gameId, game.owner_id]
+      );
+    });
   }
 
   async updateGame(
@@ -189,31 +208,119 @@ export class GameService implements IGameService {
   }
 
   async deleteGame(gameId: string): Promise<void> {
-    await this.databaseService.request("DELETE FROM games WHERE gameId = ?", [gameId]);
-    await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que le jeu existe
+      const game = await connection.read<{gameId: string}>(
+        "SELECT gameId FROM games WHERE gameId = ? FOR UPDATE",
+        [gameId]
+      );
+
+      if (game.length === 0) {
+        throw new Error("Game not found");
+      }
+
+      // Supprimer d'abord les propriétaires
+      await connection.request(
+        "DELETE FROM game_owners WHERE gameId = ?", 
+        [gameId]
+      );
+      
+      // Supprimer les cadeaux liés
+      await connection.request(
+        "DELETE FROM game_gifts WHERE gameId = ?", 
+        [gameId]
+      );
+
+      // Supprimer le jeu
+      await connection.request(
+        "DELETE FROM games WHERE gameId = ?", 
+        [gameId]
+      );
+    });
   }
 
   async addOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.request(
-      "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
-      [gameId, ownerId]
-    );
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que le jeu existe
+      const game = await connection.read<{gameId: string}>(
+        "SELECT gameId FROM games WHERE gameId = ?",
+        [gameId]
+      );
+
+      if (game.length === 0) {
+        throw new Error("Game not found");
+      }
+
+      // Vérifier que l'utilisateur ne possède pas déjà le jeu
+      const existingOwner = await connection.read<{ownerId: string}>(
+        "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ?",
+        [gameId, ownerId]
+      );
+
+      if (existingOwner.length > 0) {
+        throw new Error("User already owns this game");
+      }
+
+      await connection.request(
+        "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
+        [gameId, ownerId]
+      );
+    });
   }
 
   async removeOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.request(
-      "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
-      [gameId, ownerId]
-    );
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que l'utilisateur possède bien le jeu
+      const owner = await connection.read<{ownerId: string}>(
+        "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ? FOR UPDATE",
+        [gameId, ownerId]
+      );
+
+      if (owner.length === 0) {
+        throw new Error("User does not own this game");
+      }
+
+      await connection.request(
+        "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
+        [gameId, ownerId]
+      );
+    });
   }
 
   async transferOwnership(
     gameId: string,
     newOwnerId: string
   ): Promise<void> {
-    const game = await this.getGame(gameId);
-    if (!game) throw new Error("Game not found");
-    await this.updateGame(gameId, { owner_id: newOwnerId });
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que le jeu existe
+      const game = await connection.read<Game>(
+        "SELECT * FROM games WHERE gameId = ? FOR UPDATE",
+        [gameId]
+      );
+
+      if (game.length === 0) {
+        throw new Error("Game not found");
+      }
+
+      // Mettre à jour le propriétaire principal
+      await connection.request(
+        "UPDATE games SET owner_id = ? WHERE gameId = ?",
+        [newOwnerId, gameId]
+      );
+
+      // S'assurer que le nouveau propriétaire est dans game_owners
+      const existingOwner = await connection.read<{ownerId: string}>(
+        "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ?",
+        [gameId, newOwnerId]
+      );
+
+      if (existingOwner.length === 0) {
+        await connection.request(
+          "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
+          [gameId, newOwnerId]
+        );
+      }
+    });
   }
 
   async canUserGiftGame(): Promise<boolean> {
@@ -223,39 +330,70 @@ export class GameService implements IGameService {
   }
 
   async userOwnsGame(gameId: string, userId: string): Promise<boolean> {
-    const userGames = await this.getUserGames(userId);
-    return userGames.some(game => game.gameId === gameId);
+    const userGames = await this.databaseService.read<{ownerId: string}>(
+      "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ?",
+      [gameId, userId]
+    );
+    return userGames.length > 0;
   }
 
   async transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void> {
-    // Vérifier que l'expéditeur possède le jeu
-    const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
-    if (!fromUserOwns) {
-      throw new Error("You don't own this game");
-    }
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que le jeu existe
+      const game = await connection.read<Game>(
+        "SELECT * FROM games WHERE gameId = ? FOR UPDATE",
+        [gameId]
+      );
 
-    // Vérifier que le destinataire ne possède pas déjà le jeu
-    const toUserOwns = await this.userOwnsGame(gameId, toUserId);
-    if (toUserOwns) {
-      throw new Error("Recipient already owns this game");
-    }
+      if (game.length === 0) {
+        throw new Error("Game not found");
+      }
 
-    // Vérifier que l'expéditeur n'est pas le créateur du jeu
-    const game = await this.getGame(gameId);
-    if (!game) {
-      throw new Error("Game not found");
-    }
-    
-    if (game.owner_id === fromUserId) {
-      throw new Error("Game creator cannot transfer their copy");
-    }
+      // Vérifier que l'expéditeur possède le jeu
+      const fromOwner = await connection.read<{ownerId: string}>(
+        "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ? FOR UPDATE",
+        [gameId, fromUserId]
+      );
 
-    // Effectuer le transfert
-    await this.removeOwner(gameId, fromUserId);
-    await this.addOwner(gameId, toUserId);
+      if (fromOwner.length === 0) {
+        throw new Error("You don't own this game");
+      }
+
+      // Vérifier que le destinataire ne possède pas déjà le jeu
+      const toOwner = await connection.read<{ownerId: string}>(
+        "SELECT ownerId FROM game_owners WHERE gameId = ? AND ownerId = ?",
+        [gameId, toUserId]
+      );
+
+      if (toOwner.length > 0) {
+        throw new Error("Recipient already owns this game");
+      }
+
+      // Vérifier que l'expéditeur n'est pas le créateur du jeu
+      if (game[0].owner_id === fromUserId) {
+        throw new Error("Game creator cannot transfer their copy");
+      }
+
+      // Effectuer le transfert
+      await connection.request(
+        "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
+        [gameId, fromUserId]
+      );
+
+      await connection.request(
+        "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
+        [gameId, toUserId]
+      );
+    });
   }
 
   async canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{ canTransfer: boolean; reason?: string }> {
+    // Vérifier que le jeu existe
+    const game = await this.getGame(gameId);
+    if (!game) {
+      return { canTransfer: false, reason: "Game not found" };
+    }
+
     // Vérifier que l'expéditeur possède le jeu
     const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
     if (!fromUserOwns) {
@@ -269,11 +407,6 @@ export class GameService implements IGameService {
     }
 
     // Vérifier que l'expéditeur n'est pas le créateur du jeu
-    const game = await this.getGame(gameId);
-    if (!game) {
-      return { canTransfer: false, reason: "Game not found" };
-    }
-    
     if (game.owner_id === fromUserId) {
       return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
     }

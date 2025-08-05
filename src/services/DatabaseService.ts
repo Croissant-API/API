@@ -1,10 +1,54 @@
 import { Knex, knex } from "knex";
 import { injectable } from "inversify";
 
+export interface IDatabaseConnection {
+  read<T>(query: string, params?: unknown[]): Promise<T[]>;
+  request(query: string, params?: unknown[]): Promise<void>;
+}
+
 export interface IDatabaseService {
   request(query: string, params?: unknown[]): Promise<void>;
   read<T>(query: string, params?: unknown[]): Promise<T[]>;
+  transaction<T>(callback: (connection: IDatabaseConnection) => Promise<T>): Promise<T>;
   getKnex(): Knex;
+}
+
+class DatabaseConnection implements IDatabaseConnection {
+  constructor(private trx: Knex.Transaction) {}
+
+  public async request(query: string, params: unknown[] = []): Promise<void> {
+    try {
+      await this.trx.raw(query, params);
+    } catch (err) {
+      console.error("Error executing transaction query", err);
+      throw err;
+    }
+  }
+
+  public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
+    try {
+      const result = await this.trx.raw(query, params);
+      const rows = result || [];
+
+      return rows.map((row: { [key: string]: string }) => {
+        for (const key in row) {
+          if (typeof row[key] === "string") {
+            try {
+              const parsed = JSON.parse(row[key]);
+              row[key] = parsed;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (e: unknown) {
+              // Not a JSON string, leave as is
+            }
+          }
+        }
+        return row as T;
+      });
+    } catch (err) {
+      console.error("Error reading transaction data", err);
+      throw err;
+    }
+  }
 }
 
 @injectable()
@@ -57,6 +101,13 @@ export class DatabaseService implements IDatabaseService {
       console.error("Error reading data", err);
       throw err;
     }
+  }
+
+  public async transaction<T>(callback: (connection: IDatabaseConnection) => Promise<T>): Promise<T> {
+    return await this.db.transaction(async (trx) => {
+      const connection = new DatabaseConnection(trx);
+      return await callback(connection);
+    });
   }
 
   public async destroy(): Promise<void> {

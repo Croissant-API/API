@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
+import { IDatabaseConnection, IDatabaseService } from "./DatabaseService";
 import { GameGift } from "../interfaces/GameGift";
 import { v4 } from "uuid";
 import crypto from "crypto";
@@ -20,46 +20,101 @@ export class GameGiftService implements IGameGiftService {
   ) {}
 
   async createGift(gameId: string, fromUserId: string, message?: string): Promise<GameGift> {
-    const giftId = v4();
-    const giftCode = this.generateGiftCode();
-    const createdAt = new Date();
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Vérifier que l'utilisateur possède le jeu
+      const userGames = await connection.read<{id: string}>(
+        `SELECT id FROM user_games WHERE user_id = ? AND game_id = ?`,
+        [fromUserId, gameId]
+      );
 
-    await this.databaseService.request(
-      `INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [giftId, gameId, fromUserId, giftCode, createdAt.toISOString(), 1, message || null]
-    );
+      if (userGames.length === 0) {
+        throw new Error("Vous ne possédez pas ce jeu");
+      }
 
-    return {
-      id: giftId,
-      gameId,
-      fromUserId,
-      giftCode,
-      createdAt,
-      isActive: true,
-      message
-    };
+      const giftId = v4();
+      const giftCode = this.generateGiftCode();
+      const createdAt = new Date();
+
+      await connection.request(
+        `INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [giftId, gameId, fromUserId, giftCode, createdAt.toISOString(), 1, message || null]
+      );
+
+      return {
+        id: giftId,
+        gameId,
+        fromUserId,
+        giftCode,
+        createdAt,
+        isActive: true,
+        message
+      };
+    });
   }
 
   async claimGift(giftCode: string, userId: string): Promise<GameGift> {
-    const gift = await this.getGift(giftCode);
-    if (!gift) throw new Error("Gift not found");
-    if (!gift.isActive) throw new Error("Gift is no longer active");
-    if (gift.toUserId) throw new Error("Gift already claimed");
-    if (gift.fromUserId === userId) throw new Error("Cannot claim your own gift");
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Récupérer le cadeau avec verrouillage
+      const giftRows = await connection.read<GameGift>(
+        `SELECT * FROM game_gifts WHERE giftCode = ? FOR UPDATE`,
+        [giftCode]
+      );
 
-    const claimedAt = new Date();
-    await this.databaseService.request(
-      `UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`,
-      [userId, claimedAt.toISOString(), giftCode]
-    );
+      if (giftRows.length === 0) {
+        throw new Error("Gift not found");
+      }
 
-    return {
-      ...gift,
-      toUserId: userId,
-      claimedAt,
-      isActive: false
-    };
+      const gift = giftRows[0];
+      
+      if (!gift.isActive) {
+        throw new Error("Gift is no longer active");
+      }
+      
+      if (gift.toUserId) {
+        throw new Error("Gift already claimed");
+      }
+      
+      if (gift.fromUserId === userId) {
+        throw new Error("Cannot claim your own gift");
+      }
+
+      // Vérifier que l'utilisateur ne possède pas déjà le jeu
+      const existingGame = await connection.read<{id: string}>(
+        `SELECT id FROM user_games WHERE user_id = ? AND game_id = ?`,
+        [userId, gift.gameId]
+      );
+
+      if (existingGame.length > 0) {
+        throw new Error("You already own this game");
+      }
+
+      const claimedAt = new Date();
+
+      // Mettre à jour le cadeau
+      await connection.request(
+        `UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`,
+        [userId, claimedAt.toISOString(), giftCode]
+      );
+
+      // Ajouter le jeu à la bibliothèque de l'utilisateur
+      await connection.request(
+        `INSERT INTO user_games (id, user_id, game_id, acquired_at) VALUES (?, ?, ?, ?)`,
+        [v4(), userId, gift.gameId, claimedAt.toISOString()]
+      );
+
+      return {
+        id: gift.id,
+        gameId: gift.gameId,
+        fromUserId: gift.fromUserId,
+        toUserId: userId,
+        giftCode: gift.giftCode,
+        createdAt: new Date(gift.createdAt),
+        claimedAt,
+        isActive: false,
+        message: gift.message
+      };
+    });
   }
 
   async getGift(giftCode: string): Promise<GameGift | null> {
@@ -122,21 +177,38 @@ export class GameGiftService implements IGameGiftService {
     }));
   }
 
-
   async revokeGift(giftId: string, userId: string): Promise<void> {
-    const gift = await this.databaseService.read<GameGift>(
-      `SELECT * FROM game_gifts WHERE id = ?`,
-      [giftId]
-    );
+    await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Récupérer le cadeau avec verrouillage
+      const giftRows = await connection.read<GameGift>(
+        `SELECT * FROM game_gifts WHERE id = ? FOR UPDATE`,
+        [giftId]
+      );
 
-    if (!gift) throw new Error("Gift not found");
-    if (gift[0].fromUserId !== userId) throw new Error("You can only revoke your own gifts");
-    if (!gift[0].isActive) throw new Error("Gift is no longer active");
+      if (giftRows.length === 0) {
+        throw new Error("Gift not found");
+      }
 
-    await this.databaseService.request(
-      `UPDATE game_gifts SET isActive = 0 WHERE id = ?`,
-      [giftId]
-    );
+      const gift = giftRows[0];
+      
+      if (gift.fromUserId !== userId) {
+        throw new Error("You can only revoke your own gifts");
+      }
+      
+      if (!gift.isActive) {
+        throw new Error("Gift is no longer active");
+      }
+
+      if (gift.toUserId) {
+        throw new Error("Cannot revoke a gift that has already been claimed");
+      }
+
+      // Révoquer le cadeau
+      await connection.request(
+        `UPDATE game_gifts SET isActive = 0, updated_at = ? WHERE id = ?`,
+        [new Date().toISOString(), giftId]
+      );
+    });
   }
 
   private generateGiftCode(): string {

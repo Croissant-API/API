@@ -1,6 +1,6 @@
 import { Item } from "interfaces/Item";
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
+import { IDatabaseConnection, IDatabaseService } from "./DatabaseService";
 
 export interface IItemService {
   createItem(item: Omit<Item, "id">): Promise<void>;
@@ -24,28 +24,32 @@ export class ItemService implements IItemService {
   ) {}
 
   async createItem(item: Omit<Item, "id">): Promise<void> {
-    // Check if itemId already exists (even if deleted)
-    const existingItems = await this.databaseService.read<Item>(
-      "SELECT * FROM items WHERE itemId = ?",
-      [item.itemId]
-    );
-    if (existingItems.length > 0) {
-      throw new Error("ItemId already exists");
-    }
-    await this.databaseService.request(
-      `INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        item.itemId,
-        item.name ?? null,
-        item.description ?? null,
-        item.price ?? 0,
-        item.owner,
-        item.iconHash ?? null,
-        item.showInStore ? 1 : 0,
-        item.deleted ? 1 : 0,
-      ]
-    );
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Check if itemId already exists (even if deleted) with locking
+      const existingItems = await connection.read<Item>(
+        "SELECT * FROM items WHERE itemId = ? FOR UPDATE",
+        [item.itemId]
+      );
+      
+      if (existingItems.length > 0) {
+        throw new Error("ItemId already exists");
+      }
+
+      await connection.request(
+        `INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          item.itemId,
+          item.name ?? null,
+          item.description ?? null,
+          item.price ?? 0,
+          item.owner,
+          item.iconHash ?? null,
+          item.showInStore ? 1 : 0,
+          item.deleted ? 1 : 0,
+        ]
+      );
+    });
   }
 
   async getItem(itemId: string): Promise<Item | null> {
@@ -57,7 +61,7 @@ export class ItemService implements IItemService {
   }
 
   async getAllItems(): Promise<Item[]> {
-    return this.databaseService.read<Item>("SELECT * FROM items");
+    return this.databaseService.read<Item>("SELECT * FROM items ORDER BY name");
   }
 
   async getStoreItems(): Promise<Item[]> {
@@ -83,17 +87,58 @@ export class ItemService implements IItemService {
     itemId: string,
     item: Partial<Omit<Item, "id" | "itemId">>
   ): Promise<void> {
-    const { fields, values } = buildUpdateFields(item);
-    if (!fields.length) return;
-    values.push(itemId);
-    await this.databaseService.request(
-      `UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`,
-      values
-    );
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Verify item exists and lock it
+      const existingItems = await connection.read<Item>(
+        "SELECT * FROM items WHERE itemId = ? FOR UPDATE",
+        [itemId]
+      );
+
+      if (existingItems.length === 0) {
+        throw new Error("Item not found");
+      }
+
+      const existingItem = existingItems[0];
+      
+      if (existingItem.deleted) {
+        throw new Error("Cannot update deleted item");
+      }
+
+      const { fields, values } = buildUpdateFields(item);
+      if (!fields.length) return;
+      
+      values.push(itemId);
+      
+      await connection.request(
+        `UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`,
+        values
+      );
+    });
   }
 
   async deleteItem(itemId: string): Promise<void> {
-    await this.databaseService.request("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Verify item exists and lock it
+      const existingItems = await connection.read<Item>(
+        "SELECT * FROM items WHERE itemId = ? FOR UPDATE",
+        [itemId]
+      );
+
+      if (existingItems.length === 0) {
+        throw new Error("Item not found");
+      }
+
+      const existingItem = existingItems[0];
+      
+      if (existingItem.deleted) {
+        throw new Error("Item already deleted");
+      }
+
+      await connection.request(
+        "UPDATE items SET deleted = 1 WHERE itemId = ?", 
+        [itemId]
+      );
+    });
   }
 
   /**
@@ -110,14 +155,29 @@ export class ItemService implements IItemService {
     );
   }
 
-  async transferOwnership( 
-    itemId: string,
-    newOwnerId: string
-  ): Promise<void> {
-    const item = await this.getItem(itemId);
-    if (!item) throw new Error("Item not found");
-    if (item.deleted) throw new Error("Cannot transfer deleted item");
-    await this.updateItem(itemId, { owner: newOwnerId });
+  async transferOwnership(itemId: string, newOwnerId: string): Promise<void> {
+    return await this.databaseService.transaction(async (connection: IDatabaseConnection) => {
+      // Verify item exists and lock it
+      const existingItems = await connection.read<Item>(
+        "SELECT * FROM items WHERE itemId = ? FOR UPDATE",
+        [itemId]
+      );
+
+      if (existingItems.length === 0) {
+        throw new Error("Item not found");
+      }
+
+      const existingItem = existingItems[0];
+      
+      if (existingItem.deleted) {
+        throw new Error("Cannot transfer deleted item");
+      }
+
+      await connection.request(
+        "UPDATE items SET owner = ? WHERE itemId = ?",
+        [newOwnerId, itemId]
+      );
+    });
   }
 }
 
