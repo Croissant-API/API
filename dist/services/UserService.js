@@ -17,7 +17,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var UserService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
