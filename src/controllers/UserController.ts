@@ -98,11 +98,16 @@ export class Users {
     }
 
     const users = await this.userService.getAllUsersWithDisabled();
-    console.log(users);
-    const token = req.headers["authorization"] as string;
+    // console.log(users);
+    const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+    // const authHeader =
+    //   req.headers["authorization"] ||
+    //   "Bearer " +
+    //   req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+    // const token = authHeader.split("Bearer ")[1];
 
-    let user = await this.userService.authenticateUser(token);
-    console.log(user)
+    let user = await this.userService.authenticateUser(token as string);
+    
     if (!user) {
       user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
     }
@@ -117,7 +122,7 @@ export class Users {
         provider,
         providerId
       );
-      await this.mailService.sendAccountConfirmationMail(user.email);
+      // await this.mailService.sendAccountConfirmationMail(user.email);
       await this.createLog(req, 'loginOAuth', 'users', 201, userId);
     } else {
       if (
