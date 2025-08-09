@@ -119,10 +119,10 @@ let Users = class Users {
             }
             if ((provider === "discord" &&
                 user.discord_id &&
-                user.discord_id !== providerId) ||
+                user.discord_id != providerId) ||
                 (provider === "google" &&
                     user.google_id &&
-                    user.google_id !== providerId)) {
+                    user.google_id != providerId)) {
                 await this.createLog(req, 'loginOAuth', 'users', 401, user.user_id);
                 return this.sendError(res, 401, "OAuth providerId mismatch");
             }
