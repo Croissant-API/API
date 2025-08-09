@@ -82,7 +82,7 @@ let LobbyService = class LobbyService {
             return [];
         return await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds
             .map(() => "?")
-            .join(",")})`, userIds);
+            .join(",")}) AND disabled = 0`, userIds);
     }
 };
 exports.LobbyService = LobbyService;

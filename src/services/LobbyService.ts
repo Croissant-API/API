@@ -124,8 +124,8 @@ export class LobbyService implements ILobbyService {
 
     return await this.databaseService.read<User>(
       `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds
-        .map(() => "?")
-        .join(",")})`,
+      .map(() => "?")
+      .join(",")}) AND disabled = 0`,
       userIds
     );
   }
