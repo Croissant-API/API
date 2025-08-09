@@ -98,13 +98,11 @@ export class Users {
     }
 
     const users = await this.userService.getAllUsersWithDisabled();
-    const authHeader =
-      req.headers["authorization"] ||
-      "Bearer " +
-      req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-    const token = authHeader.split("Bearer ")[1];
+    console.log(users);
+    const token = req.headers["authorization"] as string;
 
     let user = await this.userService.authenticateUser(token);
+    console.log(user)
     if (!user) {
       user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
     }
