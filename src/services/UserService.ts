@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { User, PublicUser, UserExtensions, PublicUserAsAdmin } from "../interfaces/User";
