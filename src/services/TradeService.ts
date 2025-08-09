@@ -4,6 +4,7 @@ import { Trade, TradeItem } from "../interfaces/Trade";
 import { v4 } from "uuid";
 import { IInventoryService } from "./InventoryService";
 import { InventoryItem } from "interfaces/Inventory";
+import { Item } from "interfaces/Item";
 
 export interface ITradeService {
   startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
@@ -45,11 +46,11 @@ export class TradeService implements ITradeService {
        LIMIT 1`,
       [fromUserId, toUserId, toUserId, fromUserId]
     );
-    
+
     if (trades.length > 0) {
       return trades[0];
     }
-    
+
     // Sinon, crée une nouvelle trade
     const now = new Date().toISOString();
     const id = v4();
@@ -65,7 +66,7 @@ export class TradeService implements ITradeService {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     await this.databaseService.request(
       `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -82,11 +83,9 @@ export class TradeService implements ITradeService {
         newTrade.updatedAt,
       ]
     );
-    
+
     return newTrade;
   }
-
-
 
   async getTradeById(id: string): Promise<Trade | null> {
     const trades = await this.databaseService.read<Trade>(
@@ -98,76 +97,60 @@ export class TradeService implements ITradeService {
   }
 
   async getFormattedTradeById(id: string): Promise<Trade | null> {
-    const query = `
-      SELECT 
-        t.id,
-        t.fromUserId,
-        t.toUserId,
-        t.approvedFromUser,
-        t.approvedToUser,
-        t.status,
-        t.createdAt,
-        t.updatedAt,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(fromItem.value, '$.itemId') IS NOT NULL AND i1.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(fromItem.value, '$.itemId'),
-                'name', i1.name,
-                'description', i1.description,
-                'iconHash', i1.iconHash,
-                'amount', json_extract(fromItem.value, '$.amount'),
-                'uniqueId', json_extract(fromItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(fromItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(fromItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(fromItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.fromUserItems) AS fromItem
-          LEFT JOIN items i1 ON json_extract(fromItem.value, '$.itemId') = i1.itemId 
-            AND (i1.deleted IS NULL OR i1.deleted = 0)
-          WHERE json_extract(fromItem.value, '$.itemId') IS NOT NULL
-        ) as fromUserItems,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(toItem.value, '$.itemId') IS NOT NULL AND i2.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(toItem.value, '$.itemId'),
-                'name', i2.name,
-                'description', i2.description,
-                'iconHash', i2.iconHash,
-                'amount', json_extract(toItem.value, '$.amount'),
-                'uniqueId', json_extract(toItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(toItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(toItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(toItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.toUserItems) AS toItem
-          LEFT JOIN items i2 ON json_extract(toItem.value, '$.itemId') = i2.itemId 
-            AND (i2.deleted IS NULL OR i2.deleted = 0)
-          WHERE json_extract(toItem.value, '$.itemId') IS NOT NULL
-        ) as toUserItems
-      FROM trades t
-      WHERE t.id = ?
-    `;
+    // 1. Récupère la trade brute
+    const trades = await this.databaseService.read<Trade>(
+      "SELECT * FROM trades WHERE id = ?",
+      [id]
+    );
+    if (trades.length === 0) return null;
+    const trade = trades[0];
 
-    const results = await this.databaseService.read<Trade>(query, [id]);
-    if (results.length === 0) return null;
+    // 2. Parse les items JSON
+    const fromUserItems: TradeItem[] =
+      typeof trade.fromUserItems === "string"
+        ? JSON.parse(trade.fromUserItems)
+        : trade.fromUserItems;
+    const toUserItems: TradeItem[] =
+      typeof trade.toUserItems === "string"
+        ? JSON.parse(trade.toUserItems)
+        : trade.toUserItems;
 
-    const trade = results[0];
-    
+    // 3. (Optionnel) Récupère les infos des items pour enrichir
+    const allItemIds = [
+      ...fromUserItems.map((i) => i.itemId),
+      ...toUserItems.map((i) => i.itemId),
+    ];
+    const uniqueItemIds = Array.from(new Set(allItemIds));
+    let itemsInfo: Record<string, Item> = {};
+    if (uniqueItemIds.length > 0) {
+      const placeholders = uniqueItemIds.map(() => "?").join(",");
+      const items = await this.databaseService.read<Item>(
+        `SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`,
+        uniqueItemIds
+      );
+      itemsInfo = Object.fromEntries(
+        items.map((item: Item) => [item.itemId, item])
+      );
+    }
+
+    // 4. Enrichit les items avec les infos de la table items
+    const enrich = (arr: TradeItem[]) =>
+      arr.map((item) => ({
+        ...item,
+        ...(itemsInfo[item.itemId] || {}),
+      }));
+
     return {
       id: trade.id,
       fromUserId: trade.fromUserId,
       toUserId: trade.toUserId,
-      fromUserItems: trade.fromUserItems,
-      toUserItems: trade.toUserItems,
+      fromUserItems: enrich(fromUserItems),
+      toUserItems: enrich(toUserItems),
       approvedFromUser: !!trade.approvedFromUser,
       approvedToUser: !!trade.approvedToUser,
       status: trade.status,
       createdAt: trade.createdAt,
-      updatedAt: trade.updatedAt
+      updatedAt: trade.updatedAt,
     };
   }
 
@@ -180,78 +163,32 @@ export class TradeService implements ITradeService {
   }
 
   async getFormattedTradesByUser(userId: string): Promise<Trade[]> {
-    const query = `
-      SELECT 
-        t.id,
-        t.fromUserId,
-        t.toUserId,
-        t.approvedFromUser,
-        t.approvedToUser,
-        t.status,
-        t.createdAt,
-        t.updatedAt,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(fromItem.value, '$.itemId') IS NOT NULL AND i1.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(fromItem.value, '$.itemId'),
-                'name', i1.name,
-                'description', i1.description,
-                'iconHash', i1.iconHash,
-                'amount', json_extract(fromItem.value, '$.amount'),
-                'uniqueId', json_extract(fromItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(fromItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(fromItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(fromItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.fromUserItems) AS fromItem
-          LEFT JOIN items i1 ON json_extract(fromItem.value, '$.itemId') = i1.itemId 
-            AND (i1.deleted IS NULL OR i1.deleted = 0)
-          WHERE json_extract(fromItem.value, '$.itemId') IS NOT NULL
-        ) as fromUserItems,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(toItem.value, '$.itemId') IS NOT NULL AND i2.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(toItem.value, '$.itemId'),
-                'name', i2.name,
-                'description', i2.description,
-                'iconHash', i2.iconHash,
-                'amount', json_extract(toItem.value, '$.amount'),
-                'uniqueId', json_extract(toItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(toItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(toItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(toItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.toUserItems) AS toItem
-          LEFT JOIN items i2 ON json_extract(toItem.value, '$.itemId') = i2.itemId 
-            AND (i2.deleted IS NULL OR i2.deleted = 0)
-          WHERE json_extract(toItem.value, '$.itemId') IS NOT NULL
-        ) as toUserItems
-      FROM trades t
-      WHERE t.fromUserId = ? OR t.toUserId = ?
-      ORDER BY t.createdAt DESC
-    `;
+    // On récupère les trades avec les items JSON bruts
+    const trades = await this.databaseService.read<Trade>(
+      "SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC",
+      [userId, userId]
+    );
 
-    const results = await this.databaseService.read<Trade>(query, [userId, userId]);
-
-    return results.map((trade: Trade) => ({
-      id: trade.id,
-      fromUserId: trade.fromUserId,
-      toUserId: trade.toUserId,
-      fromUserItems: trade.fromUserItems,
-      toUserItems: trade.toUserItems,
+    // On parse les items JSON côté application
+    return trades.map((trade) => ({
+      ...trade,
+      fromUserItems:
+        typeof trade.fromUserItems === "string"
+          ? JSON.parse(trade.fromUserItems)
+          : trade.fromUserItems,
+      toUserItems:
+        typeof trade.toUserItems === "string"
+          ? JSON.parse(trade.toUserItems)
+          : trade.toUserItems,
       approvedFromUser: !!trade.approvedFromUser,
       approvedToUser: !!trade.approvedToUser,
-      status: trade.status,
-      createdAt: trade.createdAt,
-      updatedAt: trade.updatedAt
     }));
   }
 
-  private getUserKey(trade: Trade, userId: string): "fromUserItems" | "toUserItems" {
+  private getUserKey(
+    trade: Trade,
+    userId: string
+  ): "fromUserItems" | "toUserItems" {
     if (trade.fromUserId === userId) return "fromUserItems";
     if (trade.toUserId === userId) return "toUserItems";
     throw new Error("User not part of this trade");
@@ -269,22 +206,24 @@ export class TradeService implements ITradeService {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
     this.assertPending(trade);
-    
+
     const userKey = this.getUserKey(trade, userId);
-    
+
     // Vérification différente selon si l'item a des métadonnées ou non
     if (tradeItem.metadata?._unique_id) {
       // Pour les items avec métadonnées, vérifier l'existence spécifique
-      const inventoryItems = await this.databaseService.read<Array<{
-        user_id: string;
-        item_id: string;
-        amount: number;
-      }>>(
+      const inventoryItems = await this.databaseService.read<
+        Array<{
+          user_id: string;
+          item_id: string;
+          amount: number;
+        }>
+      >(
         `SELECT user_id, item_id, amount FROM inventories 
          WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
         [userId, tradeItem.itemId, tradeItem.metadata._unique_id]
       );
-      
+
       if (inventoryItems.length === 0) {
         throw new Error("User does not have this specific item");
       }
@@ -296,26 +235,36 @@ export class TradeService implements ITradeService {
            WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`,
           [userId, tradeItem.itemId, tradeItem.purchasePrice]
         );
-        
-        const totalAvailable = inventoryItems.reduce((sum: number, item: { amount: number; }) => sum + item.amount, 0);
+
+        const totalAvailable = inventoryItems.reduce(
+          (sum: number, item: { amount: number }) => sum + item.amount,
+          0
+        );
         if (totalAvailable < tradeItem.amount) {
-          throw new Error("User does not have enough of the item with specified purchase price");
+          throw new Error(
+            "User does not have enough of the item with specified purchase price"
+          );
         }
       } else {
         // Vérification normale sans prix spécifique
-        const hasItem = await this.inventoryService.hasItemWithoutMetadata(userId, tradeItem.itemId, tradeItem.amount);
+        const hasItem = await this.inventoryService.hasItemWithoutMetadata(
+          userId,
+          tradeItem.itemId,
+          tradeItem.amount
+        );
         if (!hasItem) throw new Error("User does not have enough of the item");
       }
     }
-    
+
     const items = [...trade[userKey]];
-    
+
     // Pour les items avec _unique_id, ne pas les empiler
     if (tradeItem.metadata?._unique_id) {
       // Vérifier que cet item unique n'est pas déjà dans le trade
-      const existingItem = items.find(i => 
-        i.itemId === tradeItem.itemId && 
-        i.metadata?._unique_id === tradeItem.metadata?._unique_id
+      const existingItem = items.find(
+        (i) =>
+          i.itemId === tradeItem.itemId &&
+          i.metadata?._unique_id === tradeItem.metadata?._unique_id
       );
       if (existingItem) {
         throw new Error("This specific item is already in the trade");
@@ -323,10 +272,11 @@ export class TradeService implements ITradeService {
       items.push({ ...tradeItem });
     } else {
       // Pour les items sans métadonnées, vérifier l'empilage avec le prix d'achat
-      const idx = items.findIndex((i) => 
-        i.itemId === tradeItem.itemId && 
-        !i.metadata?._unique_id &&
-        i.purchasePrice === tradeItem.purchasePrice
+      const idx = items.findIndex(
+        (i) =>
+          i.itemId === tradeItem.itemId &&
+          !i.metadata?._unique_id &&
+          i.purchasePrice === tradeItem.purchasePrice
       );
       if (idx >= 0) {
         items[idx].amount += tradeItem.amount;
@@ -334,12 +284,12 @@ export class TradeService implements ITradeService {
         items.push({ ...tradeItem });
       }
     }
-    
+
     trade[userKey] = items;
     trade.updatedAt = new Date().toISOString();
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
-    
+
     await this.databaseService.request(
       `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
       [JSON.stringify(items), trade.updatedAt, tradeId]
@@ -354,47 +304,50 @@ export class TradeService implements ITradeService {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
     this.assertPending(trade);
-    
+
     const userKey = this.getUserKey(trade, userId);
     const items = [...trade[userKey]];
-    
+
     let idx = -1;
-    
+
     if (tradeItem.metadata?._unique_id) {
       // Pour les items avec _unique_id, chercher l'item spécifique
-      idx = items.findIndex((i) => 
-        i.itemId === tradeItem.itemId && 
-        i.metadata?._unique_id === tradeItem.metadata?._unique_id
+      idx = items.findIndex(
+        (i) =>
+          i.itemId === tradeItem.itemId &&
+          i.metadata?._unique_id === tradeItem.metadata?._unique_id
       );
     } else {
       // Pour les items sans métadonnées, chercher avec le prix d'achat
-      idx = items.findIndex((i) => 
-        i.itemId === tradeItem.itemId && 
-        !i.metadata?._unique_id &&
-        i.purchasePrice === tradeItem.purchasePrice
+      idx = items.findIndex(
+        (i) =>
+          i.itemId === tradeItem.itemId &&
+          !i.metadata?._unique_id &&
+          i.purchasePrice === tradeItem.purchasePrice
       );
     }
-    
+
     if (idx === -1) return;
-    
+
     if (tradeItem.metadata?._unique_id) {
       // Pour les items uniques, les supprimer complètement
       items.splice(idx, 1);
     } else {
       // Pour les items empilables, décrémenter la quantité
-      if (items[idx].amount < tradeItem.amount) throw new Error("Not enough amount to remove");
-      
+      if (items[idx].amount < tradeItem.amount)
+        throw new Error("Not enough amount to remove");
+
       items[idx].amount -= tradeItem.amount;
       if (items[idx].amount <= 0) {
         items.splice(idx, 1);
       }
     }
-    
+
     trade[userKey] = items;
     trade.updatedAt = new Date().toISOString();
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
-    
+
     await this.databaseService.request(
       `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
       [JSON.stringify(items), trade.updatedAt, tradeId]
@@ -405,22 +358,26 @@ export class TradeService implements ITradeService {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
     this.assertPending(trade);
-    
-    const updateField = trade.fromUserId === userId ? "approvedFromUser" : 
-                      trade.toUserId === userId ? "approvedToUser" : null;
+
+    const updateField =
+      trade.fromUserId === userId
+        ? "approvedFromUser"
+        : trade.toUserId === userId
+          ? "approvedToUser"
+          : null;
     if (!updateField) throw new Error("User not part of this trade");
-    
+
     const updatedAt = new Date().toISOString();
-    
+
     await this.databaseService.request(
       `UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`,
       [updatedAt, tradeId]
     );
-    
+
     // Récupère la trade mise à jour pour vérifier l'état actuel
     const updatedTrade = await this.getTradeById(tradeId);
     if (!updatedTrade) throw new Error("Trade not found after update");
-    
+
     // Vérifie si les deux utilisateurs ont approuvé
     if (updatedTrade.approvedFromUser && updatedTrade.approvedToUser) {
       await this.exchangeTradeItems(updatedTrade);
@@ -431,14 +388,14 @@ export class TradeService implements ITradeService {
     const trade = await this.getTradeById(tradeId);
     if (!trade) throw new Error("Trade not found");
     this.assertPending(trade);
-    
+
     if (trade.fromUserId !== userId && trade.toUserId !== userId) {
       throw new Error("User not part of this trade");
     }
-    
+
     trade.status = "canceled";
     trade.updatedAt = new Date().toISOString();
-    
+
     await this.databaseService.request(
       `UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`,
       [trade.status, trade.updatedAt, tradeId]
@@ -474,13 +431,15 @@ export class TradeService implements ITradeService {
           );
         } else {
           // Méthode normale pour les items sans prix spécifique
-          const inventory = await this.inventoryService.getInventory(trade.fromUserId);
+          const inventory = await this.inventoryService.getInventory(
+            trade.fromUserId
+          );
           const inventoryItem = inventory.inventory.find(
-            invItem => invItem.item_id === item.itemId && !invItem.metadata
+            (invItem) => invItem.item_id === item.itemId && !invItem.metadata
           );
           const isSellable = inventoryItem?.sellable || false;
           const purchasePrice = inventoryItem?.purchasePrice;
-          
+
           await this.inventoryService.removeItem(
             trade.fromUserId,
             item.itemId,
@@ -497,7 +456,7 @@ export class TradeService implements ITradeService {
         }
       }
     }
-    
+
     for (const item of trade.toUserItems) {
       if (item.metadata?._unique_id) {
         await this.inventoryService.transferItem(
@@ -525,13 +484,15 @@ export class TradeService implements ITradeService {
           );
         } else {
           // Méthode normale pour les items sans prix spécifique
-          const inventory = await this.inventoryService.getInventory(trade.toUserId);
+          const inventory = await this.inventoryService.getInventory(
+            trade.toUserId
+          );
           const inventoryItem = inventory.inventory.find(
-            invItem => invItem.item_id === item.itemId && !invItem.metadata
+            (invItem) => invItem.item_id === item.itemId && !invItem.metadata
           );
           const isSellable = inventoryItem?.sellable || false;
           const purchasePrice = inventoryItem?.purchasePrice;
-          
+
           await this.inventoryService.removeItem(
             trade.toUserId,
             item.itemId,
@@ -548,7 +509,7 @@ export class TradeService implements ITradeService {
         }
       }
     }
-    
+
     // Met à jour la trade
     const now = new Date().toISOString();
     await this.databaseService.request(

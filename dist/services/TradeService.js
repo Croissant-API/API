@@ -67,74 +67,46 @@ let TradeService = class TradeService {
         return trades[0];
     }
     async getFormattedTradeById(id) {
-        const query = `
-      SELECT 
-        t.id,
-        t.fromUserId,
-        t.toUserId,
-        t.approvedFromUser,
-        t.approvedToUser,
-        t.status,
-        t.createdAt,
-        t.updatedAt,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(fromItem.value, '$.itemId') IS NOT NULL AND i1.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(fromItem.value, '$.itemId'),
-                'name', i1.name,
-                'description', i1.description,
-                'iconHash', i1.iconHash,
-                'amount', json_extract(fromItem.value, '$.amount'),
-                'uniqueId', json_extract(fromItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(fromItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(fromItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(fromItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.fromUserItems) AS fromItem
-          LEFT JOIN items i1 ON json_extract(fromItem.value, '$.itemId') = i1.itemId 
-            AND (i1.deleted IS NULL OR i1.deleted = 0)
-          WHERE json_extract(fromItem.value, '$.itemId') IS NOT NULL
-        ) as fromUserItems,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(toItem.value, '$.itemId') IS NOT NULL AND i2.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(toItem.value, '$.itemId'),
-                'name', i2.name,
-                'description', i2.description,
-                'iconHash', i2.iconHash,
-                'amount', json_extract(toItem.value, '$.amount'),
-                'uniqueId', json_extract(toItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(toItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(toItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(toItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.toUserItems) AS toItem
-          LEFT JOIN items i2 ON json_extract(toItem.value, '$.itemId') = i2.itemId 
-            AND (i2.deleted IS NULL OR i2.deleted = 0)
-          WHERE json_extract(toItem.value, '$.itemId') IS NOT NULL
-        ) as toUserItems
-      FROM trades t
-      WHERE t.id = ?
-    `;
-        const results = await this.databaseService.read(query, [id]);
-        if (results.length === 0)
+        // 1. Récupère la trade brute
+        const trades = await this.databaseService.read("SELECT * FROM trades WHERE id = ?", [id]);
+        if (trades.length === 0)
             return null;
-        const trade = results[0];
+        const trade = trades[0];
+        // 2. Parse les items JSON
+        const fromUserItems = typeof trade.fromUserItems === "string"
+            ? JSON.parse(trade.fromUserItems)
+            : trade.fromUserItems;
+        const toUserItems = typeof trade.toUserItems === "string"
+            ? JSON.parse(trade.toUserItems)
+            : trade.toUserItems;
+        // 3. (Optionnel) Récupère les infos des items pour enrichir
+        const allItemIds = [
+            ...fromUserItems.map((i) => i.itemId),
+            ...toUserItems.map((i) => i.itemId),
+        ];
+        const uniqueItemIds = Array.from(new Set(allItemIds));
+        let itemsInfo = {};
+        if (uniqueItemIds.length > 0) {
+            const placeholders = uniqueItemIds.map(() => "?").join(",");
+            const items = await this.databaseService.read(`SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`, uniqueItemIds);
+            itemsInfo = Object.fromEntries(items.map((item) => [item.itemId, item]));
+        }
+        // 4. Enrichit les items avec les infos de la table items
+        const enrich = (arr) => arr.map((item) => ({
+            ...item,
+            ...(itemsInfo[item.itemId] || {}),
+        }));
         return {
             id: trade.id,
             fromUserId: trade.fromUserId,
             toUserId: trade.toUserId,
-            fromUserItems: trade.fromUserItems,
-            toUserItems: trade.toUserItems,
+            fromUserItems: enrich(fromUserItems),
+            toUserItems: enrich(toUserItems),
             approvedFromUser: !!trade.approvedFromUser,
             approvedToUser: !!trade.approvedToUser,
             status: trade.status,
             createdAt: trade.createdAt,
-            updatedAt: trade.updatedAt
+            updatedAt: trade.updatedAt,
         };
     }
     async getTradesByUser(userId) {
@@ -142,72 +114,19 @@ let TradeService = class TradeService {
         return trades;
     }
     async getFormattedTradesByUser(userId) {
-        const query = `
-      SELECT 
-        t.id,
-        t.fromUserId,
-        t.toUserId,
-        t.approvedFromUser,
-        t.approvedToUser,
-        t.status,
-        t.createdAt,
-        t.updatedAt,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(fromItem.value, '$.itemId') IS NOT NULL AND i1.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(fromItem.value, '$.itemId'),
-                'name', i1.name,
-                'description', i1.description,
-                'iconHash', i1.iconHash,
-                'amount', json_extract(fromItem.value, '$.amount'),
-                'uniqueId', json_extract(fromItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(fromItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(fromItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(fromItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.fromUserItems) AS fromItem
-          LEFT JOIN items i1 ON json_extract(fromItem.value, '$.itemId') = i1.itemId 
-            AND (i1.deleted IS NULL OR i1.deleted = 0)
-          WHERE json_extract(fromItem.value, '$.itemId') IS NOT NULL
-        ) as fromUserItems,
-        (
-          SELECT json_group_array(
-            CASE WHEN json_extract(toItem.value, '$.itemId') IS NOT NULL AND i2.itemId IS NOT NULL THEN
-              json_object(
-                'itemId', json_extract(toItem.value, '$.itemId'),
-                'name', i2.name,
-                'description', i2.description,
-                'iconHash', i2.iconHash,
-                'amount', json_extract(toItem.value, '$.amount'),
-                'uniqueId', json_extract(toItem.value, '$.metadata._unique_id'),
-                'metadata', CASE WHEN json_extract(toItem.value, '$.metadata') IS NOT NULL THEN json(json_extract(toItem.value, '$.metadata')) ELSE NULL END,
-                'purchasePrice', json_extract(toItem.value, '$.purchasePrice')
-              )
-            END
-          )
-          FROM json_each(t.toUserItems) AS toItem
-          LEFT JOIN items i2 ON json_extract(toItem.value, '$.itemId') = i2.itemId 
-            AND (i2.deleted IS NULL OR i2.deleted = 0)
-          WHERE json_extract(toItem.value, '$.itemId') IS NOT NULL
-        ) as toUserItems
-      FROM trades t
-      WHERE t.fromUserId = ? OR t.toUserId = ?
-      ORDER BY t.createdAt DESC
-    `;
-        const results = await this.databaseService.read(query, [userId, userId]);
-        return results.map((trade) => ({
-            id: trade.id,
-            fromUserId: trade.fromUserId,
-            toUserId: trade.toUserId,
-            fromUserItems: trade.fromUserItems,
-            toUserItems: trade.toUserItems,
+        // On récupère les trades avec les items JSON bruts
+        const trades = await this.databaseService.read("SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC", [userId, userId]);
+        // On parse les items JSON côté application
+        return trades.map((trade) => ({
+            ...trade,
+            fromUserItems: typeof trade.fromUserItems === "string"
+                ? JSON.parse(trade.fromUserItems)
+                : trade.fromUserItems,
+            toUserItems: typeof trade.toUserItems === "string"
+                ? JSON.parse(trade.toUserItems)
+                : trade.toUserItems,
             approvedFromUser: !!trade.approvedFromUser,
             approvedToUser: !!trade.approvedToUser,
-            status: trade.status,
-            createdAt: trade.createdAt,
-            updatedAt: trade.updatedAt
         }));
     }
     getUserKey(trade, userId) {
@@ -257,7 +176,7 @@ let TradeService = class TradeService {
         // Pour les items avec _unique_id, ne pas les empiler
         if (tradeItem.metadata?._unique_id) {
             // Vérifier que cet item unique n'est pas déjà dans le trade
-            const existingItem = items.find(i => i.itemId === tradeItem.itemId &&
+            const existingItem = items.find((i) => i.itemId === tradeItem.itemId &&
                 i.metadata?._unique_id === tradeItem.metadata?._unique_id);
             if (existingItem) {
                 throw new Error("This specific item is already in the trade");
@@ -327,8 +246,11 @@ let TradeService = class TradeService {
         if (!trade)
             throw new Error("Trade not found");
         this.assertPending(trade);
-        const updateField = trade.fromUserId === userId ? "approvedFromUser" :
-            trade.toUserId === userId ? "approvedToUser" : null;
+        const updateField = trade.fromUserId === userId
+            ? "approvedFromUser"
+            : trade.toUserId === userId
+                ? "approvedToUser"
+                : null;
         if (!updateField)
             throw new Error("User not part of this trade");
         const updatedAt = new Date().toISOString();
@@ -370,7 +292,7 @@ let TradeService = class TradeService {
                 else {
                     // Méthode normale pour les items sans prix spécifique
                     const inventory = await this.inventoryService.getInventory(trade.fromUserId);
-                    const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                    const inventoryItem = inventory.inventory.find((invItem) => invItem.item_id === item.itemId && !invItem.metadata);
                     const isSellable = inventoryItem?.sellable || false;
                     const purchasePrice = inventoryItem?.purchasePrice;
                     await this.inventoryService.removeItem(trade.fromUserId, item.itemId, item.amount);
@@ -392,7 +314,7 @@ let TradeService = class TradeService {
                 else {
                     // Méthode normale pour les items sans prix spécifique
                     const inventory = await this.inventoryService.getInventory(trade.toUserId);
-                    const inventoryItem = inventory.inventory.find(invItem => invItem.item_id === item.itemId && !invItem.metadata);
+                    const inventoryItem = inventory.inventory.find((invItem) => invItem.item_id === item.itemId && !invItem.metadata);
                     const isSellable = inventoryItem?.sellable || false;
                     const purchasePrice = inventoryItem?.purchasePrice;
                     await this.inventoryService.removeItem(trade.toUserId, item.itemId, item.amount);
