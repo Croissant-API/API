@@ -1,4 +1,3 @@
-import { IDatabaseService } from "./DatabaseService";
 import { Log, CreateLogData } from "../interfaces/Log";
 export interface ILogService {
     createLog(logData: CreateLogData): Promise<void>;
@@ -20,8 +19,9 @@ export interface ILogService {
     }>;
 }
 export declare class LogService implements ILogService {
-    private databaseService;
-    constructor(databaseService: IDatabaseService);
+    private ensureFileExists;
+    private readLogs;
+    private writeLogs;
     createLog(logData: CreateLogData): Promise<void>;
     getLogs(limit?: number, offset?: number): Promise<Log[]>;
     getLogsByController(controller: string, limit?: number): Promise<Log[]>;

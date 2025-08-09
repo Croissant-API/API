@@ -139,3 +139,4 @@ database.db
 databaseBackup.db
 archive
 userCache.json
+logs.csv
