@@ -15,6 +15,7 @@ import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
 import { SteamOAuthService } from "../services/SteamOAuthService";
 import { requireFields } from "../utils/helpers";
+import { generateUserJwt } from "../utils/Jwt";
 
 @controller("/users")
 export class Users {
@@ -148,14 +149,16 @@ export class Users {
       return this.sendError(res, 403, "Account is disabled");
     }
     await this.createLog(req, 'loginOAuth', 'users', 200, user.user_id);
+    const apiKey = genKey(user.user_id);
+    const jwtToken = generateUserJwt(user, apiKey);
     res.status(200).send({
       message: "Login successful",
+      token: jwtToken,
       user: {
         userId: user.user_id,
         username: user.username,
         email: user.email,
       },
-      token: genKey(user.user_id),
     });
   }
 
@@ -197,9 +200,11 @@ export class Users {
       );
       await this.mailService.sendAccountConfirmationMail(user.email);
       await this.createLog(req, 'register', 'users', 201, userId);
+      const apiKey = genKey(user.user_id);
+      const jwtToken = generateUserJwt(user, apiKey);
       res
         .status(201)
-        .send({ message: "User registered", token: genKey(user.user_id) });
+        .send({ message: "User registered", token: jwtToken });
     } catch (error) {
       console.error("Error registering user", error);
       await this.createLog(req, 'register', 'users', 500);
@@ -232,9 +237,11 @@ export class Users {
 
     await this.createLog(req, 'login', 'users', 200, user.user_id);
     if (!user.authenticator_secret) {
+      const apiKey = genKey(user.user_id);
+      const jwtToken = generateUserJwt(user, apiKey);
       res.status(200).send({
         message: "Login successful",
-        token: genKey(user.user_id),
+        token: jwtToken,
       });
     } else {
       res.status(200).send({
@@ -395,7 +402,9 @@ export class Users {
     try {
       await this.userService.updateUserPassword(user.user_id, hashedPassword);
       await this.createLog(req, 'resetPassword', 'users', 200, user.user_id);
-      res.status(200).send({ message: "Password reset successfully", token: genKey(user.user_id) });
+      const apiKey = genKey(user.user_id);
+      const jwtToken = generateUserJwt(user, apiKey);
+      res.status(200).send({ message: "Password reset successfully", token: jwtToken });
     } catch (error) {
       await this.createLog(req, 'resetPassword', 'users', 500, user.user_id);
       this.sendError(res, 500, "Error resetting password");

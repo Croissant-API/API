@@ -26,9 +26,9 @@ function backupDatabase() {
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
   }
-  
+
   const dbUser = process.env.DB_USER;
-  const dbPassword = process.env.DB_PASSWORD;
+  const dbPassword = process.env.DB_PASS;
   const dbName = process.env.DB_NAME;
   const dbHost = process.env.DB_HOST;
 

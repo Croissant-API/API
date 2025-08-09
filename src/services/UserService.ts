@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { genKey } from "../utils/GenKey";
 import removeDiacritics from "diacritics";
 import { InventoryItem } from "interfaces/Inventory";
+import { verifyUserJwt } from "../utils/Jwt";
 
 function slugify(str: string): string {
   str = str.normalize("NFKD");
@@ -302,13 +303,20 @@ export class UserService implements IUserService {
     ]);
   }
 
-  async authenticateUser(api_key: string): Promise<User | null> {
+  async authenticateUser(tokenOrApiKey: string): Promise<User | null> {
+    // Essaye de décoder comme JWT
+    const jwtPayload = verifyUserJwt(tokenOrApiKey);
+    let apiKey = tokenOrApiKey;
+    if (jwtPayload && jwtPayload.apiKey) {
+      apiKey = jwtPayload.apiKey;
+    }
+    // Recherche l'utilisateur par apiKey (clé API)
     const users = await this.getAllUsersWithDisabled();
     if (!users) {
       console.error("Error fetching users", users);
       return null;
     }
-    const user = users.find((user) => genKey(user.user_id) === api_key) || null;
+    const user = users.find((user) => genKey(user.user_id) === apiKey) || null;
     if (!user) {
       return null;
     }

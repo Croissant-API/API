@@ -42,6 +42,7 @@ const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const qrcode = __importStar(require("qrcode"));
 const time2fa_1 = require("time2fa");
 const GenKey_1 = require("../utils/GenKey");
+const Jwt_1 = require("../utils/Jwt");
 // --- UTILS ---
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -142,7 +143,10 @@ let Authenticator = class Authenticator {
             const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
             if (isValid) {
                 await this.logAction(req, "verifyKey", 200);
-                return res.status(200).send({ message: "Key verified successfully", token: (0, GenKey_1.genKey)(user.user_id) });
+                // Génère la clé API puis le JWT
+                const apiKey = (0, GenKey_1.genKey)(user.user_id);
+                const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
+                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
             }
             else {
                 await this.logAction(req, "verifyKey", 400);

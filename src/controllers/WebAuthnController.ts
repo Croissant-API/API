@@ -6,6 +6,7 @@ import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } 
 import { genKey } from "../utils/GenKey";
 import { ILogService } from "../services/LogService"; // Ajout import LogService
 import { WebAuthnCredential } from "@simplewebauthn/server/script/types";
+import { generateUserJwt } from "../utils/Jwt";
 
 @controller("/webauthn")
 export class WebAuthn {
@@ -151,10 +152,11 @@ export class WebAuthn {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const token = genKey(user.user_id);
+      const apiKey = genKey(user.user_id);
+      const jwtToken = generateUserJwt(user, apiKey);
 
       await this.createLog(req, 'verifyAuthenticationHandler', 'users', 200, user.user_id);
-      res.status(200).json({ message: "Authentication successful", token });
+      res.status(200).json({ message: "Authentication successful", token: jwtToken });
     } catch (error: unknown) {
       await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId, { error: (error as Error).message });
       res.status(500).json({ message: "Error verifying authentication" });

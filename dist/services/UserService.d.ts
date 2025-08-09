@@ -62,7 +62,7 @@ export declare class UserService implements IUserService {
     getUserBySteamId(steamId: string): Promise<User | null>;
     generatePasswordResetToken(email: string): Promise<string>;
     deleteUser(user_id: string): Promise<void>;
-    authenticateUser(api_key: string): Promise<User | null>;
+    authenticateUser(tokenOrApiKey: string): Promise<User | null>;
     updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
     addWebauthnCredential(userId: string, credential: {
         id: string;

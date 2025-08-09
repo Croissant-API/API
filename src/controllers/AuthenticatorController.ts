@@ -7,6 +7,7 @@ import { Totp } from "time2fa";
 import { genKey } from "../utils/GenKey";
 import { IUserService } from "../services/UserService";
 import { ILogService } from "../services/LogService";
+import { generateUserJwt } from "../utils/Jwt";
 
 // --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
@@ -117,7 +118,10 @@ export class Authenticator {
             const isValid = Totp.validate({ secret: key, passcode: code });
             if (isValid) {
                 await this.logAction(req, "verifyKey", 200);
-                return res.status(200).send({ message: "Key verified successfully", token: genKey(user.user_id) });
+                // Génère la clé API puis le JWT
+                const apiKey = genKey(user.user_id);
+                const jwtToken = generateUserJwt(user, apiKey);
+                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
             } else {
                 await this.logAction(req, "verifyKey", 400);
                 return res.status(400).send({ message: "Invalid key or code" });

@@ -24,6 +24,7 @@ const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
 const diacritics_1 = __importDefault(require("diacritics"));
+const Jwt_1 = require("../utils/Jwt");
 function slugify(str) {
     str = str.normalize("NFKD");
     str = diacritics_1.default.remove(str);
@@ -190,13 +191,20 @@ let UserService = UserService_1 = class UserService {
             user_id,
         ]);
     }
-    async authenticateUser(api_key) {
+    async authenticateUser(tokenOrApiKey) {
+        // Essaye de décoder comme JWT
+        const jwtPayload = (0, Jwt_1.verifyUserJwt)(tokenOrApiKey);
+        let apiKey = tokenOrApiKey;
+        if (jwtPayload && jwtPayload.apiKey) {
+            apiKey = jwtPayload.apiKey;
+        }
+        // Recherche l'utilisateur par apiKey (clé API)
         const users = await this.getAllUsersWithDisabled();
         if (!users) {
             console.error("Error fetching users", users);
             return null;
         }
-        const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === api_key) || null;
+        const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === apiKey) || null;
         if (!user) {
             return null;
         }

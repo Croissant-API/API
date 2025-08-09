@@ -17,6 +17,7 @@ const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
 const webauthnService_1 = require("../lib/webauthnService");
 const GenKey_1 = require("../utils/GenKey");
+const Jwt_1 = require("../utils/Jwt");
 let WebAuthn = class WebAuthn {
     constructor(userService, logService // Injection LogService
     ) {
@@ -149,9 +150,10 @@ let WebAuthn = class WebAuthn {
                 await this.createLog(req, 'verifyAuthenticationHandler', 'users', 404, userId);
                 return res.status(404).json({ message: "User not found" });
             }
-            const token = (0, GenKey_1.genKey)(user.user_id);
+            const apiKey = (0, GenKey_1.genKey)(user.user_id);
+            const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
             await this.createLog(req, 'verifyAuthenticationHandler', 'users', 200, user.user_id);
-            res.status(200).json({ message: "Authentication successful", token });
+            res.status(200).json({ message: "Authentication successful", token: jwtToken });
         }
         catch (error) {
             await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId, { error: error.message });
