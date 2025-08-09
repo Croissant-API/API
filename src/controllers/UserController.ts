@@ -109,7 +109,7 @@ export class Users {
     let user = await this.userService.authenticateUser(token as string);
     
     if (!user) {
-      user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
+      user = users.find((u) => u.discord_id == providerId || u.google_id == providerId) || null;
     }
 
     if (!user) {

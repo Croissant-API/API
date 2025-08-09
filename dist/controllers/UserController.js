@@ -104,7 +104,7 @@ let Users = class Users {
         // const token = authHeader.split("Bearer ")[1];
         let user = await this.userService.authenticateUser(token);
         if (!user) {
-            user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
+            user = users.find((u) => u.discord_id == providerId || u.google_id == providerId) || null;
         }
         if (!user) {
             const userId = crypto_1.default.randomUUID();
