@@ -23,21 +23,21 @@ const CREDIT_TIERS = [
     },
     {
         id: "tier2",
-        price: 199, // 1.99€ in cents
+        price: 198, // 1.98€ in cents
         credits: 400,
         name: "400 credits",
         image: "https://croissant-api.fr/assets/credits/tier2.png"
     },
     {
         id: "tier3",
-        price: 499, // 4.99€ in cents
+        price: 495, // 4.95€ in cents
         credits: 1000,
         name: "1000 credits",
         image: "https://croissant-api.fr/assets/credits/tier3.png"
     },
     {
         id: "tier4",
-        price: 999, // 9.99€ in cents
+        price: 990, // 9.90€ in cents
         credits: 2000,
         name: "2000 credits",
         image: "https://croissant-api.fr/assets/credits/tier4.png"
