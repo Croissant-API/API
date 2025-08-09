@@ -17,6 +17,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var UserService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const inversify_1 = require("inversify");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
@@ -47,6 +48,9 @@ let UserService = UserService_1 = class UserService {
         return base + " AND (disabled = 0 OR disabled IS NULL)";
     }
     async fetchUserByAnyId(user_id, includeDisabled = false) {
+        // console.log("Fetching user by any ID:", user_id);
+        if (!user_id)
+            return null;
         const users = await this.databaseService.read(`SELECT * FROM users WHERE ${UserService_1.getIdWhereClause(includeDisabled)}`, [user_id, user_id, user_id, user_id]);
         return users.length > 0 ? users[0] : null;
     }
@@ -229,9 +233,9 @@ let UserService = UserService_1 = class UserService {
         const query = `
       SELECT 
         u.*,
-        json_group_array(
+        CONCAT('[', GROUP_CONCAT(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            json_object(
+            JSON_OBJECT(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
               'itemId', i.itemId,
@@ -239,14 +243,14 @@ let UserService = UserService_1 = class UserService {
               'description', i.description,
               'amount', inv.amount,
               'iconHash', i.iconHash,
-              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
-              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
+              'metadata', inv.metadata
             )
           END
-        ) as inventory,
-        (SELECT json_group_array(
-          json_object(
+        ), ']') as inventory,
+        (SELECT CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'itemId', oi.itemId,
             'name', oi.name,
             'description', oi.description,
@@ -255,9 +259,9 @@ let UserService = UserService_1 = class UserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT json_group_array(
-          json_object(
+        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
+        (SELECT CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'gameId', g.gameId,
             'name', g.name,
             'description', g.description,
@@ -278,7 +282,7 @@ let UserService = UserService_1 = class UserService {
             'multiplayer', g.multiplayer,
             'download_link', g.download_link
           )
-        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
@@ -298,8 +302,20 @@ let UserService = UserService_1 = class UserService {
             return null;
         const user = results[0];
         if (user.inventory) {
-            user.inventory = user.inventory.filter((item) => item !== null);
-            user.inventory.sort((a, b) => {
+            user.inventory = user.inventory
+                .filter((item) => item !== null)
+                .map((item) => ({
+                ...item,
+                metadata: typeof item.metadata === "string" && item.metadata
+                    ? (() => { try {
+                        return JSON.parse(item.metadata);
+                    }
+                    catch {
+                        return item.metadata;
+                    } })()
+                    : item.metadata
+            }))
+                .sort((a, b) => {
                 const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
@@ -316,9 +332,9 @@ let UserService = UserService_1 = class UserService {
         const query = `
       SELECT 
         u.user_id, u.username, u.verified, u.isStudio, u.admin,
-        json_group_array(
+        CONCAT('[', GROUP_CONCAT(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            json_object(
+            JSON_OBJECT(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
               'itemId', i.itemId,
@@ -326,14 +342,14 @@ let UserService = UserService_1 = class UserService {
               'description', i.description,
               'amount', inv.amount,
               'iconHash', i.iconHash,
-              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
-              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
+              'metadata', inv.metadata
             )
           END
-        ) as inventory,
-        (SELECT json_group_array(
-          json_object(
+        ), ']') as inventory,
+        (SELECT CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'itemId', oi.itemId,
             'name', oi.name,
             'description', oi.description,
@@ -342,9 +358,9 @@ let UserService = UserService_1 = class UserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT json_group_array(
-          json_object(
+        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
+        (SELECT CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'gameId', g.gameId,
             'name', g.name,
             'description', g.description,
@@ -364,7 +380,7 @@ let UserService = UserService_1 = class UserService {
             'trailer_link', g.trailer_link,
             'multiplayer', g.multiplayer
           )
-        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
@@ -376,8 +392,20 @@ let UserService = UserService_1 = class UserService {
             return null;
         const user = results[0];
         if (user.inventory) {
-            user.inventory = user.inventory.filter((item) => item !== null);
-            user.inventory.sort((a, b) => {
+            user.inventory = user.inventory
+                .filter((item) => item !== null)
+                .map((item) => ({
+                ...item,
+                metadata: typeof item.metadata === "string" && item.metadata
+                    ? (() => { try {
+                        return JSON.parse(item.metadata);
+                    }
+                    catch {
+                        return item.metadata;
+                    } })()
+                    : item.metadata
+            }))
+                .sort((a, b) => {
                 const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
@@ -403,9 +431,9 @@ let UserService = UserService_1 = class UserService {
         const query = `
       SELECT 
         u.*,
-        json_group_array(
+        IFNULL(CONCAT('[', GROUP_CONCAT(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            json_object(
+            JSON_OBJECT(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
               'itemId', i.itemId,
@@ -413,14 +441,15 @@ let UserService = UserService_1 = class UserService {
               'description', i.description,
               'amount', inv.amount,
               'iconHash', i.iconHash,
-              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+              'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
-              'metadata', CASE WHEN inv.metadata IS NOT NULL THEN json(inv.metadata) ELSE NULL END
+              'metadata', inv.metadata
             )
           END
-        ) as inventory,
-        (SELECT json_group_array(
-          json_object(
+          ORDER BY i.name SEPARATOR ','
+        ), ']'), '[]') as inventory,
+        (SELECT IFNULL(CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'itemId', oi.itemId,
             'name', oi.name,
             'description', oi.description,
@@ -429,9 +458,10 @@ let UserService = UserService_1 = class UserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ) FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT json_group_array(
-          json_object(
+          ORDER BY oi.name SEPARATOR ','
+        ), ']'), '[]') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1) as ownedItems,
+        (SELECT IFNULL(CONCAT('[', GROUP_CONCAT(
+          JSON_OBJECT(
             'gameId', g.gameId,
             'name', g.name,
             'description', g.description,
@@ -451,7 +481,8 @@ let UserService = UserService_1 = class UserService {
             'trailer_link', g.trailer_link,
             'multiplayer', g.multiplayer
           )
-        ) FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+          ORDER BY g.name SEPARATOR ','
+        ), ']'), '[]') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
@@ -462,19 +493,6 @@ let UserService = UserService_1 = class UserService {
         if (results.length === 0)
             return null;
         const user = results[0];
-        if (user.inventory) {
-            user.inventory = user.inventory.filter((item) => item !== null);
-            user.inventory.sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
-                if (nameCompare !== 0)
-                    return nameCompare;
-                if (!a.metadata && b.metadata)
-                    return -1;
-                if (a.metadata && !b.metadata)
-                    return 1;
-                return 0;
-            });
-        }
         return user;
     }
     async findByResetToken(reset_token) {

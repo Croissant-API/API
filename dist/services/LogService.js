@@ -19,6 +19,7 @@ let LogService = class LogService {
         this.databaseService = databaseService;
     }
     async createLog(logData) {
+        return;
         const query = `
       INSERT INTO logs (
         timestamp, ip_address, table_name, controller, 

@@ -12,14 +12,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseService = void 0;
 const knex_1 = require("knex");
 const inversify_1 = require("inversify");
+require("reflect-metadata");
 let DatabaseService = class DatabaseService {
     constructor() {
+        console.log(process.env.DB_HOST, process.env.DB_USER, process.env.DB_NAME);
         this.db = (0, knex_1.knex)({
-            client: "sqlite3",
+            client: "mysql",
             connection: {
-                filename: __dirname + "/../../database.db",
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                port: 3306,
+                password: process.env.DB_PASS,
+                database: process.env.DB_NAME,
             },
             useNullAsDefault: true,
+        });
+        this.db
+            .raw("SELECT 1")
+            .then(() => {
+            console.log("Database connection established");
+        })
+            .catch((err) => {
+            console.error("Database connection error:", err);
         });
     }
     getKnex() {
@@ -37,7 +51,8 @@ let DatabaseService = class DatabaseService {
     async read(query, params = []) {
         try {
             const result = await this.db.raw(query, params);
-            const rows = result || [];
+            // Pour MySQL, result = [rows, fields]
+            const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
             return rows.map((row) => {
                 for (const key in row) {
                     if (typeof row[key] === "string") {

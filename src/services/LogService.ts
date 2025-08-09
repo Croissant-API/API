@@ -23,6 +23,7 @@ export class LogService implements ILogService {
   ) {}
 
   async createLog(logData: CreateLogData): Promise<void> {
+    return;
     const query = `
       INSERT INTO logs (
         timestamp, ip_address, table_name, controller, 
