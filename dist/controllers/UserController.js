@@ -95,17 +95,21 @@ let Users = class Users {
             return this.sendError(res, 400, "Missing email, provider or providerId");
         }
         const users = await this.userService.getAllUsersWithDisabled();
-        console.log(users);
-        const token = req.headers["authorization"];
+        // console.log(users);
+        const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        // const authHeader =
+        //   req.headers["authorization"] ||
+        //   "Bearer " +
+        //   req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        // const token = authHeader.split("Bearer ")[1];
         let user = await this.userService.authenticateUser(token);
-        console.log(user);
         if (!user) {
             user = users.find((u) => u.discord_id === providerId || u.google_id === providerId) || null;
         }
         if (!user) {
             const userId = crypto_1.default.randomUUID();
             user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
-            await this.mailService.sendAccountConfirmationMail(user.email);
+            // await this.mailService.sendAccountConfirmationMail(user.email);
             await this.createLog(req, 'loginOAuth', 'users', 201, userId);
         }
         else {
