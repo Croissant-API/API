@@ -10,6 +10,8 @@ export interface InventoryItem {
     };
     sellable: boolean;
     purchasePrice?: number;
+    rarity: 'very-common' | 'common' | 'uncommon' | 'rare' | 'very-rare' | 'epic' | 'ultra-epic' | 'legendary' | 'ancient' | 'mythic' | 'godlike' | 'radiant';
+    custom_url_link?: string;
 }
 export interface Inventory {
     user_id: string;

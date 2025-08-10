@@ -252,6 +252,8 @@ let UserService = UserService_1 = class UserService {
               'iconHash', i.iconHash,
               'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
+              'rarity', inv.rarity,
+              'custom_url_link', inv.custom_url_link,
               'metadata', inv.metadata
             )
           END
@@ -351,6 +353,8 @@ let UserService = UserService_1 = class UserService {
               'iconHash', i.iconHash,
               'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
+              'rarity', inv.rarity,
+              'custom_url_link', inv.custom_url_link,
               'metadata', inv.metadata
             )
           END
@@ -450,6 +454,8 @@ let UserService = UserService_1 = class UserService {
               'iconHash', i.iconHash,
               'sellable', IF(inv.sellable = 1, 1, 0),
               'purchasePrice', inv.purchasePrice,
+              'rarity', inv.rarity,
+              'custom_url_link', inv.custom_url_link,
               'metadata', inv.metadata
             )
           END

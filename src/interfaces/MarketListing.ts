@@ -10,6 +10,8 @@ export interface MarketListing {
     sold_at?: string;
     buyer_id?: string;
     purchasePrice?: number;
+    rarity: 'very-common' | 'common' | 'uncommon' | 'rare' | 'very-rare' | 'epic' | 'ultra-epic' | 'legendary' | 'ancient' | 'mythic' | 'godlike' | 'radiant';
+    custom_url_link?: string;
 }
 
 export type MarketListingStatus = "active" | "sold" | "cancelled";

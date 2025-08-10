@@ -40,6 +40,8 @@ let InventoryService = class InventoryService {
          inv.metadata,
          inv.sellable,
          inv.purchasePrice,
+         inv.rarity,
+         inv.custom_url_link,
          i.itemId,
          i.name,
          i.description,
@@ -72,7 +74,9 @@ let InventoryService = class InventoryService {
             name: item.name,
             description: item.description,
             iconHash: item.iconHash,
-            price: item.purchasePrice
+            price: item.purchasePrice,
+            rarity: item.rarity,
+            custom_url_link: item.custom_url_link
         }));
         return { user_id: userId, inventory: processedItems };
     }

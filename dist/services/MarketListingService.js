@@ -35,6 +35,8 @@ let MarketListingService = class MarketListingService {
                 updated_at: row.updated_at,
                 sold_at: row.sold_at || undefined,
                 buyer_id: row.buyer_id || undefined,
+                rarity: row.rarity || 'common',
+                custom_url_link: row.custom_url_link || undefined
             };
             return listing;
         };
@@ -68,7 +70,9 @@ let MarketListingService = class MarketListingService {
             status: 'active',
             metadata: inventoryItem.metadata,
             created_at: now,
-            updated_at: now
+            updated_at: now,
+            rarity: inventoryItem.rarity || 'common',
+            custom_url_link: inventoryItem.custom_url_link || undefined
         };
         try {
             // 1. Ajouter l'ordre de vente (correction: utiliser create au lieu de read)
@@ -151,7 +155,9 @@ let MarketListingService = class MarketListingService {
                 amount: 1,
                 metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
                 sellable: true,
-                purchasePrice: listing.purchasePrice || undefined
+                purchasePrice: listing.purchasePrice || undefined,
+                rarity: listing.rarity,
+                custom_url_link: listing.custom_url_link || undefined
             };
             await this.addItemToInventory(inventoryItem);
         }
@@ -195,7 +201,9 @@ let MarketListingService = class MarketListingService {
             amount: 1,
             metadata: listing.metadata,
             sellable: true,
-            purchasePrice: listing.purchasePrice || undefined
+            purchasePrice: listing.purchasePrice || undefined,
+            rarity: listing.rarity || "common",
+            custom_url_link: listing.custom_url_link
         };
         await this.addItemToInventory(inventoryItem);
         return { ...listing, status: 'sold', buyer_id: buyerId, sold_at: now };
