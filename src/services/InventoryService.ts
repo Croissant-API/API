@@ -116,8 +116,8 @@ export class InventoryService implements IInventoryService {
       for (let i = 0; i < amount; i++) {
         const uniqueMetadata = { ...metadataWithUniqueId, _unique_id: uuidv4() };
         await this.databaseService.request(
-          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)",
-          [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice]
+          "INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice, rarity, custom_url_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [correctedUserId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice, metadata?.rarity, metadata?.custom_url_link]
         );
       }
     } else {

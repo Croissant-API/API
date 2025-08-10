@@ -953,7 +953,7 @@ __decorate([
             userId: "The id of the user to give the item to"
         },
         responseType: { message: "string" },
-        example: 'POST /api/items/give/item_1 {"amount": 1, "metadata": {"rarity": "legendary"}, "userId": "user_2"}',
+        example: `POST /api/items/give/item_1 {"amount": 1, "metadata": {"key": "value", "rarity"?: 'very-common' | 'common' | 'uncommon' | 'rare' | 'very-rare' | 'epic' | 'ultra-epic' | 'legendary' | 'ancient' | 'mythic' | 'godlike' | 'radiant', "custom_url_link"?: "http://example.com/item_1.png"}, "userId": "user_2"}`,
         requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/give/:itemId", OwnerCheck_1.OwnerCheck.middleware),
