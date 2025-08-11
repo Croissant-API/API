@@ -261,6 +261,7 @@ export class UserService implements IUserService {
       isStudio: !!u.isStudio,
       admin: !!u.admin,
       badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+      disabled: !!u.disabled
     }));
   }
 
