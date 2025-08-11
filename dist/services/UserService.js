@@ -28,11 +28,31 @@ function slugify(str) {
     str = str.normalize("NFKD");
     str = diacritics_1.default.remove(str);
     const substitutions = {
-        "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l",
-        "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f",
-        "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l"
+        α: "a",
+        β: "b",
+        γ: "g",
+        δ: "d",
+        ε: "e",
+        θ: "o",
+        λ: "l",
+        μ: "m",
+        ν: "v",
+        π: "p",
+        ρ: "r",
+        σ: "s",
+        τ: "t",
+        φ: "f",
+        χ: "x",
+        ψ: "ps",
+        ω: "w",
+        ℓ: "l",
+        "𝓁": "l",
+        "𝔩": "l",
     };
-    str = str.split("").map(c => substitutions[c] ?? c).join("");
+    str = str
+        .split("")
+        .map((c) => substitutions[c] ?? c)
+        .join("");
     str = str.replace(/[^a-zA-Z0-9]/g, "");
     return str.toLowerCase();
 }
@@ -106,7 +126,7 @@ let UserService = UserService_1 = class UserService {
         await this.databaseService.request("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
     }
     async searchUsersByUsername(query) {
-        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin FROM users WHERE (disabled = 0 OR disabled IS NULL)`);
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin, badges, beta_user FROM users WHERE (disabled = 0 OR disabled IS NULL)`);
         const querySlug = slugify(query);
         const matchedUsers = users.filter((u) => {
             return slugify(u.username).indexOf(querySlug) !== -1;
@@ -117,6 +137,7 @@ let UserService = UserService_1 = class UserService {
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
+            beta_user: !!u.beta_user,
             badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
         }));
     }
@@ -149,7 +170,7 @@ let UserService = UserService_1 = class UserService {
         return this.fetchUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
-        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin FROM users`);
+        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users`);
         const querySlug = slugify(query);
         const matchedUsers = users.filter((u) => {
             return slugify(u.username).indexOf(querySlug) !== -1;
@@ -160,8 +181,9 @@ let UserService = UserService_1 = class UserService {
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
+            beta_user: !!u.beta_user,
             badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
-            disabled: !!u.disabled
+            disabled: !!u.disabled,
         }));
     }
     async getAllUsers() {
@@ -189,9 +211,7 @@ let UserService = UserService_1 = class UserService {
         return token;
     }
     async deleteUser(user_id) {
-        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [
-            user_id,
-        ]);
+        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [user_id]);
     }
     async authenticateUser(tokenOrApiKey) {
         // Essaye de décoder comme JWT
@@ -325,16 +345,18 @@ let UserService = UserService_1 = class UserService {
                 .map((item) => ({
                 ...item,
                 metadata: typeof item.metadata === "string" && item.metadata
-                    ? (() => { try {
-                        return JSON.parse(item.metadata);
-                    }
-                    catch {
-                        return item.metadata;
-                    } })()
-                    : item.metadata
+                    ? (() => {
+                        try {
+                            return JSON.parse(item.metadata);
+                        }
+                        catch {
+                            return item.metadata;
+                        }
+                    })()
+                    : item.metadata,
             }))
                 .sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
                 if (!a.metadata && b.metadata)
@@ -349,7 +371,7 @@ let UserService = UserService_1 = class UserService {
     async getUserWithPublicProfile(user_id) {
         const query = `
       SELECT 
-        u.user_id, u.username, u.verified, u.isStudio, u.admin,
+        u.user_id, u.username, u.verified, u.isStudio, u.admin, u.beta_user, u.badges,
         CONCAT('[', GROUP_CONCAT(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
             JSON_OBJECT(
@@ -417,16 +439,18 @@ let UserService = UserService_1 = class UserService {
                 .map((item) => ({
                 ...item,
                 metadata: typeof item.metadata === "string" && item.metadata
-                    ? (() => { try {
-                        return JSON.parse(item.metadata);
-                    }
-                    catch {
-                        return item.metadata;
-                    } })()
-                    : item.metadata
+                    ? (() => {
+                        try {
+                            return JSON.parse(item.metadata);
+                        }
+                        catch {
+                            return item.metadata;
+                        }
+                    })()
+                    : item.metadata,
             }))
                 .sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
                 if (!a.metadata && b.metadata)
@@ -448,7 +472,8 @@ let UserService = UserService_1 = class UserService {
             inventory: user.inventory || [],
             ownedItems: user.ownedItems || [],
             createdGames: user.createdGames || [],
-            badges: user.badges || []
+            beta_user: user.beta_user,
+            badges: user.badges || [],
         };
     }
     async adminGetUserWithProfile(user_id) {
@@ -530,7 +555,7 @@ let UserService = UserService_1 = class UserService {
     }
     getSteamAuthUrl() {
         const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
-        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
+        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || "")}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
     }
 };
 exports.UserService = UserService;
