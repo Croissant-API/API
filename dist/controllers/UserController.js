@@ -86,6 +86,8 @@ let Users = class Users {
             verified: user.verified,
             isStudio: user.isStudio,
             admin: !!user.admin,
+            badges: user.badges || [],
+            disabled: !!user.disabled
         };
     }
     // --- AUTHENTIFICATION & INSCRIPTION ---
