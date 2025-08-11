@@ -10,7 +10,7 @@ import { userIdParamValidator } from "../validators/UserValidator";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { genKey, genVerificationKey } from "../utils/GenKey";
-import { PublicUser, User } from "../interfaces/User";
+import { PublicUser, PublicUserAsAdmin, User } from "../interfaces/User";
 import { MailService } from "../services/MailService";
 import { StudioService } from "../services/StudioService";
 import { SteamOAuthService } from "../services/SteamOAuthService";
@@ -77,7 +77,7 @@ export class Users {
     };
   }
 
-  private mapUserSearch(user: PublicUser) {
+  private mapUserSearch(user: PublicUserAsAdmin) {
     return {
       id: user.user_id,
       userId: user.user_id,
@@ -85,6 +85,8 @@ export class Users {
       verified: user.verified,
       isStudio: user.isStudio,
       admin: !!user.admin,
+      badges: user.badges || [],
+      disabled: !!user.disabled
     };
   }
 
