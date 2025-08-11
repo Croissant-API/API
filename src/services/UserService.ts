@@ -193,7 +193,8 @@ export class UserService implements IUserService {
       username: u.username,
       verified: !!u.verified,
       isStudio: !!u.isStudio,
-      admin: !!u.admin
+      admin: !!u.admin,
+      badges: u.badges || [],
     }));
   }
 
@@ -255,7 +256,8 @@ export class UserService implements IUserService {
       username: u.username,
       verified: !!u.verified,
       isStudio: !!u.isStudio,
-      admin: !!u.admin
+      admin: !!u.admin,
+      badges: u.badges || [],
     }));
   }
 
@@ -436,7 +438,10 @@ export class UserService implements IUserService {
       `DELETE FROM inventories 
        WHERE user_id = (
          SELECT user_id FROM users 
-         WHERE user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?
+         WHERE user_id = ?
+           OR discord_id = ?
+           OR google_id = ?
+           OR steam_id = ?
        ) 
        AND item_id NOT IN (
          SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
@@ -448,6 +453,9 @@ export class UserService implements IUserService {
     if (results.length === 0) return null;
 
     const user = results[0];
+    if (user.beta_user) {
+      user.badges = ["early_user", ...user.badges];
+    }
     if (user.inventory) {
       user.inventory = user.inventory
         .filter((item: InventoryItem) => item !== null)
@@ -552,6 +560,10 @@ export class UserService implements IUserService {
         });
     }
 
+    if(user.beta_user) {
+      user.badges = ["early_user", ...user.badges];
+    }
+
     return {
       user_id: user.user_id,
       username: user.username,
@@ -560,7 +572,8 @@ export class UserService implements IUserService {
       admin: !!user.admin,
       inventory: user.inventory || [],
       ownedItems: user.ownedItems || [],
-      createdGames: user.createdGames || []
+      createdGames: user.createdGames || [],
+      badges: user.badges || []
     };
   }
 
@@ -633,6 +646,9 @@ export class UserService implements IUserService {
     if (results.length === 0) return null;
 
     const user = results[0];
+    if (user.beta_user) {
+      user.badges = ["early_user", ...user.badges];
+    }
     return user;
   }
 

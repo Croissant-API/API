@@ -73,6 +73,7 @@ export class Users {
       isStudio: !!user.isStudio,
       admin: !!user.admin,
       disabled: !!user.disabled,
+      badges: user.badges || [],
     };
   }
 

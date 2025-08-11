@@ -116,7 +116,8 @@ let UserService = UserService_1 = class UserService {
             username: u.username,
             verified: !!u.verified,
             isStudio: !!u.isStudio,
-            admin: !!u.admin
+            admin: !!u.admin,
+            badges: u.badges || [],
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {
@@ -158,7 +159,8 @@ let UserService = UserService_1 = class UserService {
             username: u.username,
             verified: !!u.verified,
             isStudio: !!u.isStudio,
-            admin: !!u.admin
+            admin: !!u.admin,
+            badges: u.badges || [],
         }));
     }
     async getAllUsers() {
@@ -301,7 +303,10 @@ let UserService = UserService_1 = class UserService {
         await this.databaseService.request(`DELETE FROM inventories 
        WHERE user_id = (
          SELECT user_id FROM users 
-         WHERE user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?
+         WHERE user_id = ?
+           OR discord_id = ?
+           OR google_id = ?
+           OR steam_id = ?
        ) 
        AND item_id NOT IN (
          SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
@@ -435,7 +440,8 @@ let UserService = UserService_1 = class UserService {
             admin: !!user.admin,
             inventory: user.inventory || [],
             ownedItems: user.ownedItems || [],
-            createdGames: user.createdGames || []
+            createdGames: user.createdGames || [],
+            badges: user.badges || []
         };
     }
     async adminGetUserWithProfile(user_id) {

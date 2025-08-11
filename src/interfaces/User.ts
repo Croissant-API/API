@@ -8,6 +8,8 @@ export interface PublicUser {
   verified: boolean;
   isStudio: boolean;
   admin?: boolean;
+  badges: ('staff' | 'moderator' | 'community_manager' | 'early_user' | 'bug_hunter' | 'contributor' | 'partner')[];
+  beta_user?: boolean;
 }
 
 export interface User extends PublicUser {
