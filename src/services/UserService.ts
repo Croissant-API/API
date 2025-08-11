@@ -188,13 +188,15 @@ export class UserService implements IUserService {
     const matchedUsers = users.filter((u: User) => {
       return slugify(u.username).indexOf(querySlug) !== -1;
     });
+
+
     return matchedUsers.map((u: PublicUser) => ({
       user_id: u.user_id,
       username: u.username,
       verified: !!u.verified,
       isStudio: !!u.isStudio,
       admin: !!u.admin,
-      badges: u.badges || [],
+      badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
     }));
   }
 
@@ -251,13 +253,14 @@ export class UserService implements IUserService {
     const matchedUsers = users.filter((u: User) => {
       return slugify(u.username).indexOf(querySlug) !== -1;
     });
+
     return matchedUsers.map((u: User) => ({
       user_id: u.user_id,
       username: u.username,
       verified: !!u.verified,
       isStudio: !!u.isStudio,
       admin: !!u.admin,
-      badges: u.badges || [],
+      badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
     }));
   }
 

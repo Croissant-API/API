@@ -117,7 +117,7 @@ let UserService = UserService_1 = class UserService {
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
-            badges: u.badges || [],
+            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {
@@ -160,7 +160,7 @@ let UserService = UserService_1 = class UserService {
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
-            badges: u.badges || [],
+            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
         }));
     }
     async getAllUsers() {
@@ -315,6 +315,9 @@ let UserService = UserService_1 = class UserService {
         if (results.length === 0)
             return null;
         const user = results[0];
+        if (user.beta_user) {
+            user.badges = ["early_user", ...user.badges];
+        }
         if (user.inventory) {
             user.inventory = user.inventory
                 .filter((item) => item !== null)
@@ -432,6 +435,9 @@ let UserService = UserService_1 = class UserService {
                 return 0;
             });
         }
+        if (user.beta_user) {
+            user.badges = ["early_user", ...user.badges];
+        }
         return {
             user_id: user.user_id,
             username: user.username,
@@ -512,6 +518,9 @@ let UserService = UserService_1 = class UserService {
         if (results.length === 0)
             return null;
         const user = results[0];
+        if (user.beta_user) {
+            user.badges = ["early_user", ...user.badges];
+        }
         return user;
     }
     async findByResetToken(reset_token) {
