@@ -66,27 +66,33 @@ export class GameService implements IGameService {
       `SELECT g.*,
               CASE 
                 WHEN g.owner_id = ? OR go.ownerId IS NOT NULL 
-                THEN g.download_link 
-                ELSE NULL 
-              END as download_link
+                THEN 1 ELSE 0 
+              END as can_download
        FROM games g 
        LEFT JOIN game_owners go ON g.gameId = go.gameId AND go.ownerId = ?
        WHERE g.gameId = ?`,
       [userId, userId, gameId]
     );
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length === 0) return null;
+    const game = rows[0];
+    // On ne renvoie jamais le vrai download_link
+    game.download_link = `/api/games/${gameId}/download`;
+    return game;
   }
 
   async getUserGames(userId: string): Promise<Game[]> {
     const games = await this.databaseService.read<Game>(
-      `SELECT g.*, 
-              CASE WHEN go.ownerId IS NOT NULL THEN g.download_link ELSE NULL END as download_link
+      `SELECT g.* 
        FROM games g 
        INNER JOIN game_owners go ON g.gameId = go.gameId 
        WHERE go.ownerId = ?`,
       [userId]
     );
-    return games;
+    // On ne renvoie jamais le vrai download_link, mais un lien API sécurisé
+    return games.map(game => ({
+      ...game,
+      download_link: `/api/games/${game.gameId}/download`
+    }));
   }
 
   async listGames(): Promise<Game[]> {
@@ -120,13 +126,18 @@ export class GameService implements IGameService {
 
   async getUserOwnedGames(userId: string): Promise<Game[]> {
     const games = await this.databaseService.read<Game>(
-      `SELECT g.*, g.download_link
+      `SELECT g.* 
        FROM games g 
        INNER JOIN game_owners go ON g.gameId = go.gameId 
        WHERE go.ownerId = ?`,
       [userId]
     );
-    return games;
+
+    // On ne renvoie jamais le vrai download_link, mais un lien API sécurisé
+    return games.map(game => ({
+      ...game,
+      download_link: `/api/games/${game.gameId}/download`
+    }));
   }
 
   async searchGames(query: string): Promise<Game[]> {

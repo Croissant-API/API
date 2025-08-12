@@ -21,4 +21,5 @@ export declare class Games {
     transferOwnership(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     transferGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     canTransferGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    downloadGame(req: AuthenticatedRequest, res: Response): Promise<void | Response<any, Record<string, any>>>;
 }

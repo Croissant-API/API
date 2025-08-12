@@ -18,6 +18,10 @@ import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { v4 } from "uuid";
 import { describe } from "../decorators/describe";
 import { IUserService } from "../services/UserService";
+import fetch from "node-fetch"; // npm install node-fetch@2
+import { pipeline } from "stream";
+import { promisify } from "util";
+const streamPipeline = promisify(pipeline);
 
 // --- UTILS ---
 const gameResponseFields = {
@@ -474,6 +478,59 @@ export class Games {
     } catch (error) {
       await this.createLog(req, 'canTransferGame', 'games', 500, fromUserId);
       handleError(res, error, "Error checking transfer eligibility");
+    }
+  }
+
+  @httpGet("/:gameId/download", LoggedCheck.middleware)
+  public async downloadGame(req: AuthenticatedRequest, res: Response) {
+    const { gameId } = req.params;
+    const userId = req.user.user_id;
+
+    try {
+      const game = await this.gameService.getGame(gameId);
+      if (!game) return res.status(404).send({ message: "Game not found" });
+
+      // Vérifie la possession
+      const owns = await this.gameService.userOwnsGame(gameId, userId) || game.owner_id === userId;
+      if (!owns) return res.status(403).send({ message: "You do not own this game" });
+
+      const link = game.download_link;
+      if (!link) return res.status(404).send({ message: "No download link available" });
+
+      // Si c'est un repo GitHub
+      const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
+      if (githubMatch) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [_, owner, repo] = githubMatch;
+        const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
+        return res.redirect(zipUrl);
+      }
+
+      // Proxy le fichier (zip, etc.)
+      const fileRes = await fetch(link);
+      if (!fileRes.ok) return res.status(502).send({ message: "Failed to fetch game file" });
+
+      res.setHeader("Content-Disposition", `attachment; filename="${game.name}.zip"`);
+      res.setHeader("Content-Type", fileRes.headers.get("content-type") || "application/octet-stream");
+
+      const contentLength = fileRes.headers.get("content-length");
+      if (contentLength) {
+        res.setHeader("Content-Length", contentLength);
+      }
+
+      if (fileRes.body) {
+        try {
+          await streamPipeline(fileRes.body, res);
+          console.log(`User ${userId} downloaded game ${gameId}: ${game.name}`);
+        } catch (err) {
+          console.error('Pipeline failed.', err);
+          res.status(500).send({ message: "Error streaming the file." });
+        }
+      } else {
+        res.status(500).send({ message: "Response body is empty." });
+      }
+    } catch (error) {
+      handleError(res, error, "Error downloading game");
     }
   }
 }

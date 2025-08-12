@@ -11,6 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Games = void 0;
 const inversify_1 = require("inversify");
@@ -20,6 +23,10 @@ const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
 const describe_1 = require("../decorators/describe");
+const node_fetch_1 = __importDefault(require("node-fetch")); // npm install node-fetch@2
+const stream_1 = require("stream");
+const util_1 = require("util");
+const streamPipeline = (0, util_1.promisify)(stream_1.pipeline);
 // --- UTILS ---
 const gameResponseFields = {
     gameId: "string",
@@ -386,6 +393,56 @@ let Games = class Games {
             handleError(res, error, "Error checking transfer eligibility");
         }
     }
+    async downloadGame(req, res) {
+        const { gameId } = req.params;
+        const userId = req.user.user_id;
+        try {
+            const game = await this.gameService.getGame(gameId);
+            if (!game)
+                return res.status(404).send({ message: "Game not found" });
+            // Vérifie la possession
+            const owns = await this.gameService.userOwnsGame(gameId, userId) || game.owner_id === userId;
+            if (!owns)
+                return res.status(403).send({ message: "You do not own this game" });
+            const link = game.download_link;
+            if (!link)
+                return res.status(404).send({ message: "No download link available" });
+            // Si c'est un repo GitHub
+            const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
+            if (githubMatch) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const [_, owner, repo] = githubMatch;
+                const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
+                return res.redirect(zipUrl);
+            }
+            // Proxy le fichier (zip, etc.)
+            const fileRes = await (0, node_fetch_1.default)(link);
+            if (!fileRes.ok)
+                return res.status(502).send({ message: "Failed to fetch game file" });
+            res.setHeader("Content-Disposition", `attachment; filename="${game.name}.zip"`);
+            res.setHeader("Content-Type", fileRes.headers.get("content-type") || "application/octet-stream");
+            const contentLength = fileRes.headers.get("content-length");
+            if (contentLength) {
+                res.setHeader("Content-Length", contentLength);
+            }
+            if (fileRes.body) {
+                try {
+                    await streamPipeline(fileRes.body, res);
+                    console.log(`User ${userId} downloaded game ${gameId}: ${game.name}`);
+                }
+                catch (err) {
+                    console.error('Pipeline failed.', err);
+                    res.status(500).send({ message: "Error streaming the file." });
+                }
+            }
+            else {
+                res.status(500).send({ message: "Response body is empty." });
+            }
+        }
+        catch (error) {
+            handleError(res, error, "Error downloading game");
+        }
+    }
 };
 exports.Games = Games;
 __decorate([
@@ -519,6 +576,12 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "canTransferGame", null);
+__decorate([
+    (0, inversify_express_utils_1.httpGet)("/:gameId/download", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Games.prototype, "downloadGame", null);
 exports.Games = Games = __decorate([
     (0, inversify_express_utils_1.controller)("/games"),
     __param(0, (0, inversify_1.inject)("GameService")),
