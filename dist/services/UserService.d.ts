@@ -38,6 +38,7 @@ export interface IUserService {
 }
 export declare class UserService implements IUserService {
     private databaseService;
+    private apiKeyUserCache;
     constructor(databaseService: IDatabaseService);
     private static getIdWhereClause;
     private fetchUserByAnyId;

@@ -60,6 +60,13 @@ function slugify(str) {
 let UserService = UserService_1 = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+        this.apiKeyUserCache = new Map();
+        this.getAllUsersWithDisabled().then((users) => {
+            for (const user of users) {
+                const key = (0, GenKey_1.genKey)(user.user_id);
+                this.apiKeyUserCache.set(key, user);
+            }
+        });
     }
     static getIdWhereClause(includeDisabled = false) {
         const base = "(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)";
@@ -208,26 +215,21 @@ let UserService = UserService_1 = class UserService {
         return token;
     }
     async deleteUser(user_id) {
-        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [user_id]);
+        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [
+            user_id,
+        ]);
     }
     async authenticateUser(tokenOrApiKey) {
-        // Essaye de décoder comme JWT
         const jwtPayload = (0, Jwt_1.verifyUserJwt)(tokenOrApiKey);
-        let apiKey = tokenOrApiKey;
         if (jwtPayload && jwtPayload.apiKey) {
-            apiKey = jwtPayload.apiKey;
+            return this.getUser(jwtPayload.user_id);
         }
-        // Recherche l'utilisateur par apiKey (clé API)
-        const users = await this.getAllUsersWithDisabled();
-        if (!users) {
-            console.error("Error fetching users", users);
+        const apiKey = tokenOrApiKey;
+        // Déchiffre l'user_id depuis la clé API
+        const userId = (0, GenKey_1.decryptUserId)(apiKey);
+        if (!userId)
             return null;
-        }
-        const user = users.find((user) => (0, GenKey_1.genKey)(user.user_id) === apiKey) || null;
-        if (!user) {
-            return null;
-        }
-        return user;
+        return this.getUser(userId);
     }
     async updateWebauthnChallenge(user_id, challenge) {
         await this.databaseService.request("UPDATE users SET webauthn_challenge = ? WHERE user_id = ?", [challenge, user_id]);
@@ -377,7 +379,7 @@ let UserService = UserService_1 = class UserService {
             isStudio: user.isStudio,
             admin: user.admin,
             beta_user: user.beta_user,
-            badges: user.badges
+            badges: user.badges,
         };
         return publicProfile;
     }
@@ -393,7 +395,7 @@ let UserService = UserService_1 = class UserService {
             admin: user.admin,
             beta_user: user.beta_user,
             badges: user.badges,
-            disabled: user.disabled
+            disabled: user.disabled,
         };
         return publicProfile;
     }
