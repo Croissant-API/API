@@ -239,15 +239,9 @@ export class UserService implements IUserService {
 	}
 
 	async searchUsersByUsername(query: string): Promise<PublicUser[]> {
-		const users = await this.databaseService.read<User>(
-			`SELECT user_id, username, verified, isStudio, admin, badges, beta_user FROM users WHERE (disabled = 0 OR disabled IS NULL)`,
-		);
-		const querySlug = slugify(query);
-		const matchedUsers = users.filter((u: User) => {
-			return slugify(u.username).indexOf(querySlug) !== -1;
-		});
-
-		return matchedUsers.map((u: PublicUser) => ({
+		const users = await this.adminSearchUsers(query);
+		// we return users as PublicUser[]
+		return users.map((u: PublicUser) => ({
 			user_id: u.user_id,
 			username: u.username,
 			verified: !!u.verified,
@@ -309,7 +303,7 @@ export class UserService implements IUserService {
 
 	async adminSearchUsers(query: string): Promise<PublicUser[]> {
 		const users = await this.databaseService.read<User>(
-			`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users`,
+			`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users LIMIT 100`,
 		);
 		const querySlug = slugify(query);
 		const matchedUsers = users.filter((u: User) => {
@@ -574,194 +568,38 @@ export class UserService implements IUserService {
 	async getUserWithPublicProfile(
 		user_id: string,
 	): Promise<(PublicUser & UserExtensions) | null> {
-		const query = `
-      SELECT 
-        u.user_id, u.username, u.verified, u.isStudio, u.admin, u.beta_user, u.badges,
-        CONCAT('[', GROUP_CONCAT(
-          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            JSON_OBJECT(
-              'user_id', inv.user_id,
-              'item_id', inv.item_id,
-              'itemId', i.itemId,
-              'name', i.name,
-              'description', i.description,
-              'amount', inv.amount,
-              'iconHash', i.iconHash,
-              'sellable', IF(inv.sellable = 1, 1, 0),
-              'purchasePrice', inv.purchasePrice,
-              'rarity', inv.rarity,
-              'custom_url_link', inv.custom_url_link,
-              'metadata', inv.metadata
-            )
-          END
-        ), ']') as inventory,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'itemId', oi.itemId,
-            'name', oi.name,
-            'description', oi.description,
-            'owner', oi.owner,
-            'price', oi.price,
-            'iconHash', oi.iconHash,
-            'showInStore', oi.showInStore
-          )
-        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'gameId', g.gameId,
-            'name', g.name,
-            'description', g.description,
-            'price', g.price,
-            'owner_id', g.owner_id,
-            'showInStore', g.showInStore,
-            'iconHash', g.iconHash,
-            'splashHash', g.splashHash,
-            'bannerHash', g.bannerHash,
-            'genre', g.genre,
-            'release_date', g.release_date,
-            'developer', g.developer,
-            'publisher', g.publisher,
-            'platforms', g.platforms,
-            'rating', g.rating,
-            'website', g.website,
-            'trailer_link', g.trailer_link,
-            'multiplayer', g.multiplayer
-          )
-        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
-      FROM users u
-      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
-      GROUP BY u.user_id
-    `;
-
-		const results = await this.databaseService.read<
-			PublicUser & UserExtensions
-		>(query, [user_id, user_id, user_id, user_id]);
-		if (results.length === 0) return null;
-
-		const user = results[0];
-		if (user.inventory) {
-			user.inventory = user.inventory
-				.filter((item: InventoryItem) => item !== null)
-				.map((item: InventoryItem) => ({
-					...item,
-					metadata:
-						typeof item.metadata === "string" && item.metadata
-							? (() => {
-									try {
-										return JSON.parse(item.metadata);
-									} catch {
-										return item.metadata;
-									}
-								})()
-							: item.metadata,
-				}))
-				.sort((a: InventoryItem, b: InventoryItem) => {
-					const nameCompare =
-						a.name?.localeCompare(b.name || "") || 0;
-					if (nameCompare !== 0) return nameCompare;
-					if (!a.metadata && b.metadata) return -1;
-					if (a.metadata && !b.metadata) return 1;
-					return 0;
-				});
-		}
-
-		if (user.beta_user) {
-			user.badges = ["early_user", ...user.badges];
-		}
-
-		return {
+		const user = await this.getUserWithCompleteProfile(user_id);
+		if (!user) return null;
+		// complete profile filtered to keep only public information
+		const publicProfile: PublicUser & UserExtensions = {
 			user_id: user.user_id,
 			username: user.username,
-			verified: !!user.verified,
-			isStudio: !!user.isStudio,
-			admin: !!user.admin,
-			inventory: user.inventory || [],
-			ownedItems: user.ownedItems || [],
-			createdGames: user.createdGames || [],
+			verified: user.verified,
+			isStudio: user.isStudio,
+			admin: user.admin,
 			beta_user: user.beta_user,
-			badges: user.badges || [],
+			badges: user.badges
 		};
+		return publicProfile;
 	}
 
 	async adminGetUserWithProfile(
 		user_id: string,
 	): Promise<(PublicUserAsAdmin & UserExtensions) | null> {
-		const query = `
-      SELECT 
-        u.*,
-        IFNULL(CONCAT('[', GROUP_CONCAT(
-          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            JSON_OBJECT(
-              'user_id', inv.user_id,
-              'item_id', inv.item_id,
-              'itemId', i.itemId,
-              'name', i.name,
-              'description', i.description,
-              'amount', inv.amount,
-              'iconHash', i.iconHash,
-              'sellable', IF(inv.sellable = 1, 1, 0),
-              'purchasePrice', inv.purchasePrice,
-              'rarity', inv.rarity,
-              'custom_url_link', inv.custom_url_link,
-              'metadata', inv.metadata
-            )
-          END
-          ORDER BY i.name SEPARATOR ','
-        ), ']'), '[]') as inventory,
-        (SELECT IFNULL(CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'itemId', oi.itemId,
-            'name', oi.name,
-            'description', oi.description,
-            'owner', oi.owner,
-            'price', oi.price,
-            'iconHash', oi.iconHash,
-            'showInStore', oi.showInStore
-          )
-          ORDER BY oi.name SEPARATOR ','
-        ), ']'), '[]') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1) as ownedItems,
-        (SELECT IFNULL(CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'gameId', g.gameId,
-            'name', g.name,
-            'description', g.description,
-            'price', g.price,
-            'owner_id', g.owner_id,
-            'showInStore', g.showInStore,
-            'iconHash', g.iconHash,
-            'splashHash', g.splashHash,
-            'bannerHash', g.bannerHash,
-            'genre', g.genre,
-            'release_date', g.release_date,
-            'developer', g.developer,
-            'publisher', g.publisher,
-            'platforms', g.platforms,
-            'rating', g.rating,
-            'website', g.website,
-            'trailer_link', g.trailer_link,
-            'multiplayer', g.multiplayer
-          )
-          ORDER BY g.name SEPARATOR ','
-        ), ']'), '[]') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1) as createdGames
-      FROM users u
-      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
-      GROUP BY u.user_id
-    `;
+		const user = await this.getUserWithCompleteProfile(user_id);
+		if (!user) return null;
 
-		const results = await this.databaseService.read<
-			PublicUserAsAdmin & UserExtensions
-		>(query, [user_id, user_id, user_id, user_id]);
-		if (results.length === 0) return null;
-
-		const user = results[0];
-		if (user.beta_user) {
-			user.badges = ["early_user", ...user.badges];
-		}
-		return user;
+		const publicProfile: PublicUserAsAdmin & UserExtensions = {
+			user_id: user.user_id,
+			username: user.username,
+			verified: user.verified,
+			isStudio: user.isStudio,
+			admin: user.admin,
+			beta_user: user.beta_user,
+			badges: user.badges,
+			disabled: user.disabled
+		};
+		return publicProfile;
 	}
 
 	async findByResetToken(reset_token: string): Promise<User | null> {

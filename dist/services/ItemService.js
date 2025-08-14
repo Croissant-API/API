@@ -73,7 +73,7 @@ let ItemService = class ItemService {
         return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
        FROM items 
        WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
-       ORDER BY name`, [searchTerm]);
+       ORDER BY name LIMIT 100`, [searchTerm]);
     }
     async transferOwnership(itemId, newOwnerId) {
         const item = await this.getItem(itemId);

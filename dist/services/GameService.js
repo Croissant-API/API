@@ -104,7 +104,7 @@ let GameService = class GameService {
               trailer_link, multiplayer
        FROM games 
        WHERE showInStore = 1 
-       AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?)`, [searchTerm, searchTerm, searchTerm]);
+       AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?) LIMIT 100`, [searchTerm, searchTerm, searchTerm]);
         return games;
     }
     async createGame(game) {

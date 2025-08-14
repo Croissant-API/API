@@ -105,7 +105,7 @@ export class ItemService implements IItemService {
       `SELECT itemId, name, description, owner, price, iconHash, showInStore
        FROM items 
        WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
-       ORDER BY name`,
+       ORDER BY name LIMIT 100`,
       [searchTerm]
     );
   }
