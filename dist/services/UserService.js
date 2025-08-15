@@ -365,6 +365,15 @@ let UserService = UserService_1 = class UserService {
                 return 0;
             });
         }
+        if (user.ownedItems) {
+            user.ownedItems = user.ownedItems
+                .sort((a, b) => {
+                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
+                if (nameCompare !== 0)
+                    return nameCompare;
+                return 0;
+            });
+        }
         return user;
     }
     async getUserWithPublicProfile(user_id) {
