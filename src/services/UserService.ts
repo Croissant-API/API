@@ -13,6 +13,7 @@ import { genKey, decryptUserId } from "../utils/GenKey";
 import removeDiacritics from "diacritics";
 import { InventoryItem } from "interfaces/Inventory";
 import { verifyUserJwt } from "../utils/Jwt";
+import { Item } from "interfaces/Item";
 
 function slugify(str: string): string {
   str = str.normalize("NFKD");
@@ -552,6 +553,14 @@ export class UserService implements IUserService {
           if (nameCompare !== 0) return nameCompare;
           if (!a.metadata && b.metadata) return -1;
           if (a.metadata && !b.metadata) return 1;
+          return 0;
+        });
+    }
+    if(user.ownedItems) {
+      user.ownedItems = user.ownedItems
+        .sort((a: Item, b: Item) => {
+          const nameCompare = a.name?.localeCompare(b.name || "") || 0;
+          if (nameCompare !== 0) return nameCompare;
           return 0;
         });
     }
