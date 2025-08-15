@@ -39,11 +39,8 @@ function backupDatabase() {
 
   const command = `mysqldump -h ${dbHost} -u ${dbUser} -p'${dbPassword}' ${dbName} > ${backupPath}`;
 
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      // console.error("MySQL database backup failed:", error);
-      // console.error("stderr:", stderr);
-    } else {
+  exec(command, (error) => {
+    if (!error) {
       console.log("MySQL database backup created:", backupPath);
     }
   });
