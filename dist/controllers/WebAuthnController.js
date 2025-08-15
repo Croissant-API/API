@@ -31,8 +31,7 @@ let WebAuthn = class WebAuthn {
             if (metadata)
                 requestBody.metadata = metadata;
             await this.logService.createLog({
-                ip_address: req.headers["x-real-ip"] ||
-                    req.socket.remoteAddress,
+                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
                 controller: `WebAuthnController.${action}`,
                 original_path: req.originalUrl,
@@ -65,9 +64,7 @@ let WebAuthn = class WebAuthn {
         }
         catch (e) {
             await this.createLog(req, "getRegistrationOptions", "users", 500, undefined, { error: e.message });
-            res
-                .status(500)
-                .json({ message: "Error generating registration options" });
+            res.status(500).json({ message: "Error generating registration options" });
         }
     }
     async verifyRegistration(req, res) {
@@ -101,9 +98,7 @@ let WebAuthn = class WebAuthn {
             }
             else {
                 await this.createLog(req, "verifyRegistration", "users", 400, userId);
-                return res
-                    .status(400)
-                    .json({ message: "Registration verification failed" });
+                return res.status(400).json({ message: "Registration verification failed" });
             }
         }
         catch (error) {
@@ -137,9 +132,7 @@ let WebAuthn = class WebAuthn {
         catch (error) {
             console.error("Error generating authentication options:", error);
             await this.createLog(req, "getAuthenticationOptionsHandler", "users", 500, userId, { error: error.message });
-            res
-                .status(500)
-                .json({ message: "Error generating authentication options" });
+            res.status(500).json({ message: "Error generating authentication options" });
         }
     }
     async verifyAuthenticationHandler(req, res) {
@@ -149,10 +142,7 @@ let WebAuthn = class WebAuthn {
             return res.status(400).json({ message: "Credential is required" });
         }
         try {
-            credential.id = credential.id
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=+$/, ""); // Assure que l'ID est en base64url
+            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); // Assure que l'ID est en base64url
             // Si pas d'userId, retrouve l'utilisateur par credential.id
             let user;
             if (userId) {
@@ -168,9 +158,7 @@ let WebAuthn = class WebAuthn {
             const apiKey = (0, GenKey_1.genKey)(user.user_id);
             const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
             await this.createLog(req, "verifyAuthenticationHandler", "users", 200, user.user_id);
-            res
-                .status(200)
-                .json({ message: "Authentication successful", token: jwtToken });
+            res.status(200).json({ message: "Authentication successful", token: jwtToken });
         }
         catch (error) {
             await this.createLog(req, "verifyAuthenticationHandler", "users", 500, userId, { error: error.message });

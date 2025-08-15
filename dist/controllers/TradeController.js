@@ -35,16 +35,16 @@ let Trades = class Trades {
             await this.logService.createLog({
                 ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
                 table_name: tableName,
-                controller: 'TradeController',
+                controller: "TradeController",
                 original_path: req.originalUrl,
                 http_method: req.method,
                 request_body: requestBody,
                 user_id: userId ?? req.user?.user_id,
-                status_code: statusCode
+                status_code: statusCode,
             });
         }
         catch (error) {
-            console.error('Failed to log action:', error);
+            console.error("Failed to log action:", error);
         }
     }
     // --- Démarrage ou récupération de trade ---
@@ -52,26 +52,26 @@ let Trades = class Trades {
         const fromUserId = req.user.user_id;
         const toUserId = req.params.userId;
         if (fromUserId === toUserId) {
-            await this.createLog(req, 'trades', 400, {
-                reason: 'self_trade_attempt',
-                target_user_id: toUserId
+            await this.createLog(req, "trades", 400, {
+                reason: "self_trade_attempt",
+                target_user_id: toUserId,
             });
             return res.status(400).send({ message: "Cannot trade with yourself" });
         }
         try {
             const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId);
-            await this.createLog(req, 'trades', 200, {
+            await this.createLog(req, "trades", 200, {
                 trade_id: trade.id,
                 target_user_id: toUserId,
                 trade_status: trade.status,
-                is_new_trade: trade.createdAt === trade.updatedAt
+                is_new_trade: trade.createdAt === trade.updatedAt,
             });
             res.status(200).send(trade);
         }
         catch (error) {
-            await this.createLog(req, 'trades', 500, {
+            await this.createLog(req, "trades", 500, {
                 target_user_id: toUserId,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error starting or getting trade");
         }
@@ -82,34 +82,34 @@ let Trades = class Trades {
         try {
             const trade = await this.tradeService.getFormattedTradeById(id);
             if (!trade) {
-                await this.createLog(req, 'trades', 404, { trade_id: id });
+                await this.createLog(req, "trades", 404, { trade_id: id });
                 return res.status(404).send({ message: "Trade not found" });
             }
             if (trade.fromUserId !== req.user.user_id && trade.toUserId !== req.user.user_id) {
-                await this.createLog(req, 'trades', 403, {
+                await this.createLog(req, "trades", 403, {
                     trade_id: id,
-                    reason: 'not_participant',
+                    reason: "not_participant",
                     from_user_id: trade.fromUserId,
-                    to_user_id: trade.toUserId
+                    to_user_id: trade.toUserId,
                 });
                 return res.status(403).send({ message: "Forbidden" });
             }
-            await this.createLog(req, 'trades', 200, {
+            await this.createLog(req, "trades", 200, {
                 trade_id: id,
                 trade_status: trade.status,
                 from_user_id: trade.fromUserId,
                 to_user_id: trade.toUserId,
                 items_count: {
                     from_user: trade.fromUserItems.length,
-                    to_user: trade.toUserItems.length
-                }
+                    to_user: trade.toUserItems.length,
+                },
             });
             res.send(trade);
         }
         catch (error) {
-            await this.createLog(req, 'trades', 500, {
+            await this.createLog(req, "trades", 500, {
                 trade_id: id,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error fetching trade");
         }
@@ -117,28 +117,28 @@ let Trades = class Trades {
     async getTradesByUser(req, res) {
         const userId = req.params.userId;
         if (userId !== req.user.user_id) {
-            await this.createLog(req, 'trades', 403, {
-                reason: 'unauthorized_user_access',
-                requested_user_id: userId
+            await this.createLog(req, "trades", 403, {
+                reason: "unauthorized_user_access",
+                requested_user_id: userId,
             });
             return res.status(403).send({ message: "Forbidden" });
         }
         try {
             const trades = await this.tradeService.getFormattedTradesByUser(userId);
-            await this.createLog(req, 'trades', 200, {
+            await this.createLog(req, "trades", 200, {
                 user_id: userId,
                 trades_count: trades.length,
                 trades_by_status: trades.reduce((acc, trade) => {
                     acc[trade.status] = (acc[trade.status] || 0) + 1;
                     return acc;
-                }, {})
+                }, {}),
             });
             res.send(trades);
         }
         catch (error) {
-            await this.createLog(req, 'trades', 500, {
+            await this.createLog(req, "trades", 500, {
                 user_id: userId,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error fetching trades");
         }
@@ -148,33 +148,33 @@ let Trades = class Trades {
         const tradeId = req.params.id;
         const { tradeItem } = req.body;
         if (!tradeItem.itemId || !tradeItem.amount || tradeItem.amount <= 0) {
-            await this.createLog(req, 'trade_items', 400, {
+            await this.createLog(req, "trade_items", 400, {
                 trade_id: tradeId,
-                action: 'add_item',
-                reason: 'invalid_trade_item_format',
-                trade_item: tradeItem
+                action: "add_item",
+                reason: "invalid_trade_item_format",
+                trade_item: tradeItem,
             });
             return res.status(400).send({ message: "Invalid tradeItem format" });
         }
         try {
             await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
-            await this.createLog(req, 'trade_items', 200, {
+            await this.createLog(req, "trade_items", 200, {
                 trade_id: tradeId,
-                action: 'add_item',
+                action: "add_item",
                 item_id: tradeItem.itemId,
                 amount: tradeItem.amount,
                 has_metadata: !!tradeItem.metadata,
-                has_unique_id: !!tradeItem.metadata?._unique_id
+                has_unique_id: !!tradeItem.metadata?._unique_id,
             });
             res.status(200).send({ message: "Item added to trade" });
         }
         catch (error) {
-            await this.createLog(req, 'trade_items', 500, {
+            await this.createLog(req, "trade_items", 500, {
                 trade_id: tradeId,
-                action: 'add_item',
+                action: "add_item",
                 item_id: tradeItem.itemId,
                 amount: tradeItem.amount,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error adding item to trade");
         }
@@ -183,42 +183,42 @@ let Trades = class Trades {
         const tradeId = req.params.id;
         const { tradeItem } = req.body;
         if (!tradeItem.itemId) {
-            await this.createLog(req, 'trade_items', 400, {
+            await this.createLog(req, "trade_items", 400, {
                 trade_id: tradeId,
-                action: 'remove_item',
-                reason: 'missing_item_id'
+                action: "remove_item",
+                reason: "missing_item_id",
             });
             return res.status(400).send({ message: "Invalid tradeItem format" });
         }
         // Pour les items avec _unique_id, l'amount peut être omis
         if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
-            await this.createLog(req, 'trade_items', 400, {
+            await this.createLog(req, "trade_items", 400, {
                 trade_id: tradeId,
-                action: 'remove_item',
-                reason: 'amount_required_for_non_unique_items',
-                item_id: tradeItem.itemId
+                action: "remove_item",
+                reason: "amount_required_for_non_unique_items",
+                item_id: tradeItem.itemId,
             });
             return res.status(400).send({ message: "Amount is required for items without _unique_id" });
         }
         try {
             await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
-            await this.createLog(req, 'trade_items', 200, {
+            await this.createLog(req, "trade_items", 200, {
                 trade_id: tradeId,
-                action: 'remove_item',
+                action: "remove_item",
                 item_id: tradeItem.itemId,
                 amount: tradeItem.amount,
                 has_metadata: !!tradeItem.metadata,
-                has_unique_id: !!tradeItem.metadata?._unique_id
+                has_unique_id: !!tradeItem.metadata?._unique_id,
             });
             res.status(200).send({ message: "Item removed from trade" });
         }
         catch (error) {
-            await this.createLog(req, 'trade_items', 500, {
+            await this.createLog(req, "trade_items", 500, {
                 trade_id: tradeId,
-                action: 'remove_item',
+                action: "remove_item",
                 item_id: tradeItem.itemId,
                 amount: tradeItem.amount,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error removing item from trade");
         }
@@ -227,17 +227,17 @@ let Trades = class Trades {
         const tradeId = req.params.id;
         try {
             await this.tradeService.approveTrade(tradeId, req.user.user_id);
-            await this.createLog(req, 'trades', 200, {
+            await this.createLog(req, "trades", 200, {
                 trade_id: tradeId,
-                action: 'approve'
+                action: "approve",
             });
             res.status(200).send({ message: "Trade approved" });
         }
         catch (error) {
-            await this.createLog(req, 'trades', 500, {
+            await this.createLog(req, "trades", 500, {
                 trade_id: tradeId,
-                action: 'approve',
-                error: error instanceof Error ? error.message : String(error)
+                action: "approve",
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error approving trade");
         }
@@ -246,17 +246,17 @@ let Trades = class Trades {
         const tradeId = req.params.id;
         try {
             await this.tradeService.cancelTrade(tradeId, req.user.user_id);
-            await this.createLog(req, 'trades', 200, {
+            await this.createLog(req, "trades", 200, {
                 trade_id: tradeId,
-                action: 'cancel'
+                action: "cancel",
             });
             res.status(200).send({ message: "Trade canceled" });
         }
         catch (error) {
-            await this.createLog(req, 'trades', 500, {
+            await this.createLog(req, "trades", 500, {
                 trade_id: tradeId,
-                action: 'cancel',
-                error: error instanceof Error ? error.message : String(error)
+                action: "cancel",
+                error: error instanceof Error ? error.message : String(error),
             });
             handleError(res, error, "Error canceling trade");
         }
@@ -279,10 +279,10 @@ __decorate([
             approvedToUser: "boolean",
             status: "string",
             createdAt: "string",
-            updatedAt: "string"
+            updatedAt: "string",
         },
         example: "POST /api/trades/start-or-latest/user123",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/start-or-latest/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -299,28 +299,32 @@ __decorate([
             id: "string",
             fromUserId: "string",
             toUserId: "string",
-            fromUserItems: [{
+            fromUserItems: [
+                {
                     itemId: "string",
                     name: "string",
                     description: "string",
                     iconHash: "string",
-                    amount: "number"
-                }],
-            toUserItems: [{
+                    amount: "number",
+                },
+            ],
+            toUserItems: [
+                {
                     itemId: "string",
                     name: "string",
                     description: "string",
                     iconHash: "string",
-                    amount: "number"
-                }],
+                    amount: "number",
+                },
+            ],
             approvedFromUser: "boolean",
             approvedToUser: "boolean",
             status: "string",
             createdAt: "string",
-            updatedAt: "string"
+            updatedAt: "string",
         },
         example: "GET /api/trades/trade123",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpGet)("/:id", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -333,32 +337,38 @@ __decorate([
         method: "GET",
         description: "Get all trades for a user with enriched item information",
         params: { userId: "The ID of the user" },
-        responseType: [{
+        responseType: [
+            {
                 id: "string",
                 fromUserId: "string",
                 toUserId: "string",
-                fromUserItems: [{
+                fromUserItems: [
+                    {
                         itemId: "string",
                         name: "string",
                         description: "string",
                         iconHash: "string",
-                        amount: "number"
-                    }],
-                toUserItems: [{
+                        amount: "number",
+                    },
+                ],
+                toUserItems: [
+                    {
                         itemId: "string",
                         name: "string",
                         description: "string",
                         iconHash: "string",
-                        amount: "number"
-                    }],
+                        amount: "number",
+                    },
+                ],
                 approvedFromUser: "boolean",
                 approvedToUser: "boolean",
                 status: "string",
                 createdAt: "string",
-                updatedAt: "string"
-            }],
+                updatedAt: "string",
+            },
+        ],
         example: "GET /api/trades/user/user123",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpGet)("/user/:userId", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -375,12 +385,12 @@ __decorate([
             tradeItem: {
                 itemId: "The ID of the item to add",
                 amount: "The amount of the item to add",
-                metadata: "Metadata object including _unique_id for unique items (optional)"
-            }
+                metadata: "Metadata object including _unique_id for unique items (optional)",
+            },
         },
         responseType: { message: "string" },
         example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}} or {"tradeItem": {"itemId": "item456", "amount": 1, "metadata": {"level": 5, "_unique_id": "abc-123"}}}',
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/:id/add-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -397,12 +407,12 @@ __decorate([
             tradeItem: {
                 itemId: "The ID of the item to remove",
                 amount: "The amount of the item to remove",
-                metadata: "Metadata object including _unique_id for unique items (optional)"
-            }
+                metadata: "Metadata object including _unique_id for unique items (optional)",
+            },
         },
         responseType: { message: "string" },
         example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}} or {"tradeItem": {"itemId": "item456", "metadata": {"_unique_id": "abc-123"}}}',
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPost)("/:id/remove-item", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -417,7 +427,7 @@ __decorate([
         params: { id: "The ID of the trade" },
         responseType: { message: "string" },
         example: "PUT /api/trades/trade123/approve",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPut)("/:id/approve", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
@@ -432,7 +442,7 @@ __decorate([
         params: { id: "The ID of the trade" },
         responseType: { message: "string" },
         example: "PUT /api/trades/trade123/cancel",
-        requiresAuth: true
+        requiresAuth: true,
     }),
     (0, inversify_express_utils_1.httpPut)("/:id/cancel", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

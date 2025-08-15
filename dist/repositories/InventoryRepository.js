@@ -75,6 +75,8 @@ class InventoryRepository {
     }
     async removeItem(userId, itemId, amount) {
         const items = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL ORDER BY amount DESC`, [userId, itemId]);
+        console.log(`Removing ${amount} of item ${itemId} from user ${userId}`);
+        console.log(`Found items:`, items);
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)

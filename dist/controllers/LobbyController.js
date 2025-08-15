@@ -54,11 +54,11 @@ let Lobbies = class Lobbies {
                 http_method: req.method,
                 request_body: req.body,
                 user_id: userId,
-                status_code: statusCode
+                status_code: statusCode,
             });
         }
         catch (error) {
-            console.error('Error creating log:', error);
+            console.error("Error creating log:", error);
         }
     }
     // --- Création de lobby ---
@@ -67,11 +67,11 @@ let Lobbies = class Lobbies {
             const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
             await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
             await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
-            await this.createLog(req, 'createLobby', 'lobbies', 201, req.user.user_id);
+            await this.createLog(req, "createLobby", "lobbies", 201, req.user.user_id);
             res.status(201).send({ message: "Lobby created" });
         }
         catch (error) {
-            await this.createLog(req, 'createLobby', 'lobbies', 500, req.user?.user_id);
+            await this.createLog(req, "createLobby", "lobbies", 500, req.user?.user_id);
             const message = error instanceof Error ? error.message : String(error);
             res.status(500).send({ message: "Error creating lobby", error: message });
         }
@@ -79,21 +79,21 @@ let Lobbies = class Lobbies {
     // --- Récupération d’un lobby ---
     async getLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res))) {
-            await this.createLog(req, 'getLobby', 'lobbies', 400);
+            await this.createLog(req, "getLobby", "lobbies", 400);
             return;
         }
         try {
             const lobbyId = req.params.lobbyId;
             const lobby = await this.lobbyService.getLobby(lobbyId);
             if (!lobby) {
-                await this.createLog(req, 'getLobby', 'lobbies', 404);
+                await this.createLog(req, "getLobby", "lobbies", 404);
                 return res.status(404).send({ message: "Lobby not found" });
             }
-            await this.createLog(req, 'getLobby', 'lobbies', 200);
+            await this.createLog(req, "getLobby", "lobbies", 200);
             res.send(lobby);
         }
         catch (error) {
-            await this.createLog(req, 'getLobby', 'lobbies', 500);
+            await this.createLog(req, "getLobby", "lobbies", 500);
             handleError(res, error, "Error fetching lobby");
         }
     }
@@ -102,67 +102,67 @@ let Lobbies = class Lobbies {
             const userId = req.user.user_id;
             const lobby = await this.lobbyService.getUserLobby(userId);
             if (!lobby) {
-                await this.createLog(req, 'getMyLobby', 'lobbies', 200, userId);
+                await this.createLog(req, "getMyLobby", "lobbies", 200, userId);
                 return res.status(200).send({ success: false, message: "User is not in any lobby" });
             }
-            await this.createLog(req, 'getMyLobby', 'lobbies', 200, userId);
+            await this.createLog(req, "getMyLobby", "lobbies", 200, userId);
             res.send({ success: true, ...lobby });
         }
         catch (error) {
-            await this.createLog(req, 'getMyLobby', 'lobbies', 500, req.user?.user_id);
+            await this.createLog(req, "getMyLobby", "lobbies", 500, req.user?.user_id);
             handleError(res, error, "Error fetching user lobby");
         }
     }
     async getUserLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.userIdParamSchema, req.params, res))) {
-            await this.createLog(req, 'getUserLobby', 'lobbies', 400, req.params.userId);
+            await this.createLog(req, "getUserLobby", "lobbies", 400, req.params.userId);
             return;
         }
         try {
             const { userId } = req.params;
             const lobby = await this.lobbyService.getUserLobby(userId);
             if (!lobby) {
-                await this.createLog(req, 'getUserLobby', 'lobbies', 404, userId);
+                await this.createLog(req, "getUserLobby", "lobbies", 404, userId);
                 return res.status(404).send({ message: "User is not in any lobby" });
             }
-            await this.createLog(req, 'getUserLobby', 'lobbies', 200, userId);
+            await this.createLog(req, "getUserLobby", "lobbies", 200, userId);
             res.send(lobby);
         }
         catch (error) {
-            await this.createLog(req, 'getUserLobby', 'lobbies', 500, req.params.userId);
+            await this.createLog(req, "getUserLobby", "lobbies", 500, req.params.userId);
             handleError(res, error, "Error fetching user lobby");
         }
     }
     // --- Actions sur un lobby ---
     async joinLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res))) {
-            await this.createLog(req, 'joinLobby', 'lobbies', 400, req.user.user_id);
+            await this.createLog(req, "joinLobby", "lobbies", 400, req.user.user_id);
             return;
         }
         try {
             // Quitter tous les autres lobbies avant de rejoindre le nouveau
             await this.lobbyService.leaveAllLobbies(req.user.user_id);
             await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
-            await this.createLog(req, 'joinLobby', 'lobbies', 200, req.user.user_id);
+            await this.createLog(req, "joinLobby", "lobbies", 200, req.user.user_id);
             res.status(200).send({ message: "Joined lobby" });
         }
         catch (error) {
-            await this.createLog(req, 'joinLobby', 'lobbies', 500, req.user.user_id);
+            await this.createLog(req, "joinLobby", "lobbies", 500, req.user.user_id);
             handleError(res, error, "Error joining lobby");
         }
     }
     async leaveLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res))) {
-            await this.createLog(req, 'leaveLobby', 'lobbies', 400, req.user.user_id);
+            await this.createLog(req, "leaveLobby", "lobbies", 400, req.user.user_id);
             return;
         }
         try {
             await this.lobbyService.leaveLobby(req.params.lobbyId, req.user.user_id);
-            await this.createLog(req, 'leaveLobby', 'lobbies', 200, req.user.user_id);
+            await this.createLog(req, "leaveLobby", "lobbies", 200, req.user.user_id);
             res.status(200).send({ message: "Left lobby" });
         }
         catch (error) {
-            await this.createLog(req, 'leaveLobby', 'lobbies', 500, req.user.user_id);
+            await this.createLog(req, "leaveLobby", "lobbies", 500, req.user.user_id);
             handleError(res, error, "Error leaving lobby");
         }
     }
@@ -190,14 +190,16 @@ __decorate([
         params: { lobbyId: "The id of the lobby" },
         responseType: {
             lobbyId: "string",
-            users: [{
+            users: [
+                {
                     username: "string",
                     user_id: "string",
                     verified: "boolean",
                     steam_username: "string",
                     steam_avatar_url: "string",
-                    steam_id: "string"
-                }]
+                    steam_id: "string",
+                },
+            ],
         },
         example: "GET /api/lobbies/123",
     }),

@@ -41,8 +41,8 @@ function backupDatabase() {
 
   exec(command, (error, stdout, stderr) => {
     if (error) {
-      console.error("MySQL database backup failed:", error);
-      console.error("stderr:", stderr);
+      // console.error("MySQL database backup failed:", error);
+      // console.error("stderr:", stderr);
     } else {
       console.log("MySQL database backup created:", backupPath);
     }

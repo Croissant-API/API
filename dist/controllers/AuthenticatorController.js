@@ -68,11 +68,11 @@ let Authenticator = class Authenticator {
                 http_method: req.method,
                 request_body: requestBody,
                 user_id: req.user?.user_id,
-                status_code: statusCode
+                status_code: statusCode,
             });
         }
         catch (error) {
-            console.error('Error creating log:', error);
+            console.error("Error creating log:", error);
         }
     }
     async generateKey(req, res) {

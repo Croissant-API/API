@@ -39,17 +39,17 @@ let SearchController = class SearchController {
                 http_method: req.method,
                 request_body: requestBody,
                 user_id: userId ?? req.user?.user_id,
-                status_code: statusCode
+                status_code: statusCode,
             });
         }
         catch (error) {
-            console.error('Failed to log action:', error);
+            console.error("Failed to log action:", error);
         }
     }
     async globalSearch(req, res) {
         const query = req.query.q?.trim();
         if (!query) {
-            await this.createLog(req, 'globalSearch', 'search', 400, undefined, { reason: 'missing_query' });
+            await this.createLog(req, "globalSearch", "search", 400, undefined, { reason: "missing_query" });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
         }
         try {
@@ -60,34 +60,34 @@ let SearchController = class SearchController {
             }));
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
-            const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
-            await this.createLog(req, 'globalSearch', 'search', 200, undefined, {
+            const filteredGames = games.filter((g) => g.showInStore && [g.name, g.description, g.genre].some((v) => v && v.toLowerCase().includes(query.toLowerCase()))).map((g) => (0, helpers_1.filterGame)(g));
+            await this.createLog(req, "globalSearch", "search", 200, undefined, {
                 query,
                 results_count: {
-                    users: detailledUsers.filter(u => u !== null).length,
+                    users: detailledUsers.filter((u) => u !== null).length,
                     items: items.length,
-                    games: filteredGames.length
-                }
+                    games: filteredGames.length,
+                },
             });
-            res.send({ users: detailledUsers.filter(u => u !== null), items, games: filteredGames.filter(g => g !== null) });
+            res.send({ users: detailledUsers.filter((u) => u !== null), items, games: filteredGames.filter((g) => g !== null) });
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.createLog(req, 'globalSearch', 'search', 500, undefined, {
+            await this.createLog(req, "globalSearch", "search", 500, undefined, {
                 query,
-                error: msg
+                error: msg,
             });
             res.status(500).send({ message: "Error searching", error: msg });
         }
     }
     async adminSearch(req, res) {
         if (!req.user?.admin) {
-            await this.createLog(req, 'adminSearch', 'search', 403, req.user?.user_id, { reason: 'not_admin' });
+            await this.createLog(req, "adminSearch", "search", 403, req.user?.user_id, { reason: "not_admin" });
             return (0, helpers_1.sendError)(res, 403, "Forbidden");
         }
         const query = req.query.q?.trim();
         if (!query) {
-            await this.createLog(req, 'adminSearch', 'search', 400, req.user?.user_id, { reason: 'missing_query', admin_search: true });
+            await this.createLog(req, "adminSearch", "search", 400, req.user?.user_id, { reason: "missing_query", admin_search: true });
             return (0, helpers_1.sendError)(res, 400, "Missing search query");
         }
         try {
@@ -98,24 +98,24 @@ let SearchController = class SearchController {
             }));
             const items = await this.itemService.searchItemsByName(query);
             const games = await this.gameService.listGames();
-            const filteredGames = games.filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(g => (0, helpers_1.filterGame)(g));
-            await this.createLog(req, 'adminSearch', 'search', 200, req.user?.user_id, {
+            const filteredGames = games.filter((g) => g.showInStore && [g.name, g.description, g.genre].some((v) => v && v.toLowerCase().includes(query.toLowerCase()))).map((g) => (0, helpers_1.filterGame)(g));
+            await this.createLog(req, "adminSearch", "search", 200, req.user?.user_id, {
                 query,
                 admin_search: true,
                 results_count: {
-                    users: detailledUsers.filter(u => u !== null).length,
+                    users: detailledUsers.filter((u) => u !== null).length,
                     items: items.length,
-                    games: filteredGames.length
-                }
+                    games: filteredGames.length,
+                },
             });
-            res.send({ users: detailledUsers.filter(u => u !== null), items, games: filteredGames.filter(g => g !== null) });
+            res.send({ users: detailledUsers.filter((u) => u !== null), items, games: filteredGames.filter((g) => g !== null) });
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            await this.createLog(req, 'adminSearch', 'search', 500, req.user?.user_id, {
+            await this.createLog(req, "adminSearch", "search", 500, req.user?.user_id, {
                 query,
                 admin_search: true,
-                error: msg
+                error: msg,
             });
             res.status(500).send({ message: "Error searching", error: msg });
         }
