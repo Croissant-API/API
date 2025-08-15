@@ -26,6 +26,7 @@ export interface IGameService {
 }
 export declare class GameService implements IGameService {
     private databaseService;
+    private gameRepository;
     constructor(databaseService: IDatabaseService);
     getGame(gameId: string): Promise<Game | null>;
     /**

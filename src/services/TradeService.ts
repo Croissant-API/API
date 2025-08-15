@@ -1,5 +1,6 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
+import { TradeRepository } from "../repositories/TradeRepository";
 import { Trade, TradeItem } from "../interfaces/Trade";
 import { v4 } from "uuid";
 import { IInventoryService } from "./InventoryService";
@@ -28,29 +29,21 @@ export interface ITradeService {
 
 @injectable()
 export class TradeService implements ITradeService {
+  private tradeRepository: TradeRepository;
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService,
     @inject("InventoryService") private inventoryService: IInventoryService
-  ) {}
+  ) {
+    this.tradeRepository = new TradeRepository(this.databaseService);
+  }
 
   async startOrGetPendingTrade(
     fromUserId: string,
     toUserId: string
   ): Promise<Trade> {
     // Cherche une trade pending entre ces deux users (dans les deux sens)
-    const trades = await this.databaseService.read<Trade>(
-      `SELECT * FROM trades 
-       WHERE status = 'pending' 
-         AND ((fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?)) 
-       ORDER BY createdAt DESC 
-       LIMIT 1`,
-      [fromUserId, toUserId, toUserId, fromUserId]
-    );
-
-    if (trades.length > 0) {
-      return trades[0];
-    }
-
+    const existingTrade = await this.tradeRepository.findPendingTrade(fromUserId, toUserId);
+    if (existingTrade) return existingTrade;
     // Sinon, crée une nouvelle trade
     const now = new Date().toISOString();
     const id = v4();
@@ -66,34 +59,12 @@ export class TradeService implements ITradeService {
       createdAt: now,
       updatedAt: now,
     };
-
-    await this.databaseService.request(
-      `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        newTrade.id,
-        newTrade.fromUserId,
-        newTrade.toUserId,
-        JSON.stringify(newTrade.fromUserItems),
-        JSON.stringify(newTrade.toUserItems),
-        0,
-        0,
-        newTrade.status,
-        newTrade.createdAt,
-        newTrade.updatedAt,
-      ]
-    );
-
+    await this.tradeRepository.createTrade(newTrade);
     return newTrade;
   }
 
   async getTradeById(id: string): Promise<Trade | null> {
-    const trades = await this.databaseService.read<Trade>(
-      "SELECT * FROM trades WHERE id = ?",
-      [id]
-    );
-    if (trades.length === 0) return null;
-    return trades[0];
+    return await this.tradeRepository.getTradeById(id);
   }
 
   async getFormattedTradeById(id: string): Promise<Trade | null> {
@@ -155,11 +126,7 @@ export class TradeService implements ITradeService {
   }
 
   async getTradesByUser(userId: string): Promise<Trade[]> {
-    const trades = await this.databaseService.read<Trade>(
-      "SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC",
-      [userId, userId]
-    );
-    return trades;
+    return await this.tradeRepository.getTradesByUser(userId);
   }
 
   async getFormattedTradesByUser(userId: string): Promise<Trade[]> {
@@ -290,10 +257,12 @@ export class TradeService implements ITradeService {
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
 
-    await this.databaseService.request(
-      `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
-      [JSON.stringify(items), trade.updatedAt, tradeId]
-    );
+    await this.tradeRepository.updateTradeFields(tradeId, {
+      [userKey]: JSON.stringify(items),
+      approvedFromUser: 0,
+      approvedToUser: 0,
+      updatedAt: trade.updatedAt
+    });
   }
 
   async removeItemFromTrade(
@@ -348,10 +317,12 @@ export class TradeService implements ITradeService {
     trade.approvedFromUser = false;
     trade.approvedToUser = false;
 
-    await this.databaseService.request(
-      `UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`,
-      [JSON.stringify(items), trade.updatedAt, tradeId]
-    );
+    await this.tradeRepository.updateTradeFields(tradeId, {
+      [userKey]: JSON.stringify(items),
+      approvedFromUser: 0,
+      approvedToUser: 0,
+      updatedAt: trade.updatedAt
+    });
   }
 
   async approveTrade(tradeId: string, userId: string): Promise<void> {
@@ -369,10 +340,7 @@ export class TradeService implements ITradeService {
 
     const updatedAt = new Date().toISOString();
 
-    await this.databaseService.request(
-      `UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`,
-      [updatedAt, tradeId]
-    );
+  await this.tradeRepository.updateTradeField(tradeId, updateField, 1, updatedAt);
 
     // Récupère la trade mise à jour pour vérifier l'état actuel
     const updatedTrade = await this.getTradeById(tradeId);
@@ -396,10 +364,10 @@ export class TradeService implements ITradeService {
     trade.status = "canceled";
     trade.updatedAt = new Date().toISOString();
 
-    await this.databaseService.request(
-      `UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`,
-      [trade.status, trade.updatedAt, tradeId]
-    );
+    await this.tradeRepository.updateTradeFields(tradeId, {
+      status: trade.status,
+      updatedAt: trade.updatedAt
+    });
   }
 
   // Échange les items et passe la trade à completed
@@ -512,9 +480,9 @@ export class TradeService implements ITradeService {
 
     // Met à jour la trade
     const now = new Date().toISOString();
-    await this.databaseService.request(
-      `UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`,
-      [now, trade.id]
-    );
+    await this.tradeRepository.updateTradeFields(trade.id, {
+      status: 'completed',
+      updatedAt: now
+    });
   }
 }

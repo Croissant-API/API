@@ -14,22 +14,19 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TradeService = void 0;
 const inversify_1 = require("inversify");
+const TradeRepository_1 = require("../repositories/TradeRepository");
 const uuid_1 = require("uuid");
 let TradeService = class TradeService {
     constructor(databaseService, inventoryService) {
         this.databaseService = databaseService;
         this.inventoryService = inventoryService;
+        this.tradeRepository = new TradeRepository_1.TradeRepository(this.databaseService);
     }
     async startOrGetPendingTrade(fromUserId, toUserId) {
         // Cherche une trade pending entre ces deux users (dans les deux sens)
-        const trades = await this.databaseService.read(`SELECT * FROM trades 
-       WHERE status = 'pending' 
-         AND ((fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?)) 
-       ORDER BY createdAt DESC 
-       LIMIT 1`, [fromUserId, toUserId, toUserId, fromUserId]);
-        if (trades.length > 0) {
-            return trades[0];
-        }
+        const existingTrade = await this.tradeRepository.findPendingTrade(fromUserId, toUserId);
+        if (existingTrade)
+            return existingTrade;
         // Sinon, crée une nouvelle trade
         const now = new Date().toISOString();
         const id = (0, uuid_1.v4)();
@@ -45,26 +42,11 @@ let TradeService = class TradeService {
             createdAt: now,
             updatedAt: now,
         };
-        await this.databaseService.request(`INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            newTrade.id,
-            newTrade.fromUserId,
-            newTrade.toUserId,
-            JSON.stringify(newTrade.fromUserItems),
-            JSON.stringify(newTrade.toUserItems),
-            0,
-            0,
-            newTrade.status,
-            newTrade.createdAt,
-            newTrade.updatedAt,
-        ]);
+        await this.tradeRepository.createTrade(newTrade);
         return newTrade;
     }
     async getTradeById(id) {
-        const trades = await this.databaseService.read("SELECT * FROM trades WHERE id = ?", [id]);
-        if (trades.length === 0)
-            return null;
-        return trades[0];
+        return await this.tradeRepository.getTradeById(id);
     }
     async getFormattedTradeById(id) {
         // 1. Récupère la trade brute
@@ -110,8 +92,7 @@ let TradeService = class TradeService {
         };
     }
     async getTradesByUser(userId) {
-        const trades = await this.databaseService.read("SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC", [userId, userId]);
-        return trades;
+        return await this.tradeRepository.getTradesByUser(userId);
     }
     async getFormattedTradesByUser(userId) {
         // On récupère les trades avec les items JSON bruts
@@ -199,7 +180,12 @@ let TradeService = class TradeService {
         trade.updatedAt = new Date().toISOString();
         trade.approvedFromUser = false;
         trade.approvedToUser = false;
-        await this.databaseService.request(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
+        await this.tradeRepository.updateTradeFields(tradeId, {
+            [userKey]: JSON.stringify(items),
+            approvedFromUser: 0,
+            approvedToUser: 0,
+            updatedAt: trade.updatedAt
+        });
     }
     async removeItemFromTrade(tradeId, userId, tradeItem) {
         const trade = await this.getTradeById(tradeId);
@@ -239,7 +225,12 @@ let TradeService = class TradeService {
         trade.updatedAt = new Date().toISOString();
         trade.approvedFromUser = false;
         trade.approvedToUser = false;
-        await this.databaseService.request(`UPDATE trades SET ${userKey} = ?, approvedFromUser = 0, approvedToUser = 0, updatedAt = ? WHERE id = ?`, [JSON.stringify(items), trade.updatedAt, tradeId]);
+        await this.tradeRepository.updateTradeFields(tradeId, {
+            [userKey]: JSON.stringify(items),
+            approvedFromUser: 0,
+            approvedToUser: 0,
+            updatedAt: trade.updatedAt
+        });
     }
     async approveTrade(tradeId, userId) {
         const trade = await this.getTradeById(tradeId);
@@ -254,7 +245,7 @@ let TradeService = class TradeService {
         if (!updateField)
             throw new Error("User not part of this trade");
         const updatedAt = new Date().toISOString();
-        await this.databaseService.request(`UPDATE trades SET ${updateField} = 1, updatedAt = ? WHERE id = ?`, [updatedAt, tradeId]);
+        await this.tradeRepository.updateTradeField(tradeId, updateField, 1, updatedAt);
         // Récupère la trade mise à jour pour vérifier l'état actuel
         const updatedTrade = await this.getTradeById(tradeId);
         if (!updatedTrade)
@@ -274,7 +265,10 @@ let TradeService = class TradeService {
         }
         trade.status = "canceled";
         trade.updatedAt = new Date().toISOString();
-        await this.databaseService.request(`UPDATE trades SET status = ?, updatedAt = ? WHERE id = ?`, [trade.status, trade.updatedAt, tradeId]);
+        await this.tradeRepository.updateTradeFields(tradeId, {
+            status: trade.status,
+            updatedAt: trade.updatedAt
+        });
     }
     // Échange les items et passe la trade à completed
     async exchangeTradeItems(trade) {
@@ -324,7 +318,10 @@ let TradeService = class TradeService {
         }
         // Met à jour la trade
         const now = new Date().toISOString();
-        await this.databaseService.request(`UPDATE trades SET status = 'completed', updatedAt = ? WHERE id = ?`, [now, trade.id]);
+        await this.tradeRepository.updateTradeFields(trade.id, {
+            status: 'completed',
+            updatedAt: now
+        });
     }
 };
 exports.TradeService = TradeService;

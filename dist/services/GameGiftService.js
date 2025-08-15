@@ -17,19 +17,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GameGiftService = void 0;
 const inversify_1 = require("inversify");
+const GameGiftRepository_1 = require("../repositories/GameGiftRepository");
 const uuid_1 = require("uuid");
 const crypto_1 = __importDefault(require("crypto"));
 let GameGiftService = class GameGiftService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+        this.gameGiftRepository = new GameGiftRepository_1.GameGiftRepository(this.databaseService);
     }
     async createGift(gameId, fromUserId, message) {
         const giftId = (0, uuid_1.v4)();
         const giftCode = this.generateGiftCode();
         const createdAt = new Date();
-        await this.databaseService.request(`INSERT INTO game_gifts (id, gameId, fromUserId, giftCode, createdAt, isActive, message)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [giftId, gameId, fromUserId, giftCode, createdAt.toISOString(), 1, message || null]);
-        return {
+        const gift = {
             id: giftId,
             gameId,
             fromUserId,
@@ -38,6 +38,8 @@ let GameGiftService = class GameGiftService {
             isActive: true,
             message
         };
+        await this.gameGiftRepository.insertGift(gift);
+        return gift;
     }
     async claimGift(giftCode, userId) {
         const gift = await this.getGift(giftCode);
@@ -50,7 +52,7 @@ let GameGiftService = class GameGiftService {
         if (gift.fromUserId === userId)
             throw new Error("Cannot claim your own gift");
         const claimedAt = new Date();
-        await this.databaseService.request(`UPDATE game_gifts SET toUserId = ?, claimedAt = ?, isActive = 0 WHERE giftCode = ?`, [userId, claimedAt.toISOString(), giftCode]);
+        await this.gameGiftRepository.updateGiftClaim(giftCode, userId, claimedAt);
         return {
             ...gift,
             toUserId: userId,
@@ -59,59 +61,23 @@ let GameGiftService = class GameGiftService {
         };
     }
     async getGift(giftCode) {
-        const rows = await this.databaseService.read(`SELECT * FROM game_gifts WHERE giftCode = ?`, [giftCode]);
-        if (rows.length === 0)
-            return null;
-        const row = rows[0];
-        return {
-            id: row.id,
-            gameId: row.gameId,
-            fromUserId: row.fromUserId,
-            toUserId: row.toUserId,
-            giftCode: row.giftCode,
-            createdAt: new Date(row.createdAt),
-            claimedAt: row.claimedAt ? new Date(row.claimedAt) : undefined,
-            isActive: Boolean(row.isActive),
-            message: row.message
-        };
+        return await this.gameGiftRepository.getGiftByCode(giftCode);
     }
     async getUserSentGifts(userId) {
-        const rows = await this.databaseService.read(`SELECT * FROM game_gifts WHERE fromUserId = ? ORDER BY createdAt DESC`, [userId]);
-        return rows.map((row) => ({
-            id: row.id,
-            gameId: row.gameId,
-            fromUserId: row.fromUserId,
-            toUserId: row.toUserId,
-            giftCode: row.giftCode,
-            createdAt: new Date(row.createdAt),
-            claimedAt: row.claimedAt ? new Date(row.claimedAt) : undefined,
-            isActive: Boolean(row.isActive),
-            message: row.message
-        }));
+        return await this.gameGiftRepository.getUserSentGifts(userId);
     }
     async getUserReceivedGifts(userId) {
-        const rows = await this.databaseService.read(`SELECT * FROM game_gifts WHERE toUserId = ? ORDER BY claimedAt DESC`, [userId]);
-        return rows.map((row) => ({
-            id: row.id,
-            gameId: row.gameId,
-            fromUserId: row.fromUserId,
-            toUserId: row.toUserId,
-            giftCode: row.giftCode,
-            createdAt: new Date(row.createdAt),
-            claimedAt: row.claimedAt ? new Date(row.claimedAt) : undefined,
-            isActive: Boolean(row.isActive),
-            message: row.message
-        }));
+        return await this.gameGiftRepository.getUserReceivedGifts(userId);
     }
     async revokeGift(giftId, userId) {
-        const gift = await this.databaseService.read(`SELECT * FROM game_gifts WHERE id = ?`, [giftId]);
+        const gift = await this.gameGiftRepository.getGiftById(giftId);
         if (!gift)
             throw new Error("Gift not found");
-        if (gift[0].fromUserId !== userId)
+        if (gift.fromUserId !== userId)
             throw new Error("You can only revoke your own gifts");
-        if (!gift[0].isActive)
+        if (!gift.isActive)
             throw new Error("Gift is no longer active");
-        await this.databaseService.request(`UPDATE game_gifts SET isActive = 0 WHERE id = ?`, [giftId]);
+        await this.gameGiftRepository.revokeGift(giftId);
     }
     generateGiftCode() {
         // Génère un code de 16 caractères alphanumériques

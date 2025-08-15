@@ -10,6 +10,7 @@ export interface IGameGiftService {
 }
 export declare class GameGiftService implements IGameGiftService {
     private databaseService;
+    private gameGiftRepository;
     constructor(databaseService: IDatabaseService);
     createGift(gameId: string, fromUserId: string, message?: string): Promise<GameGift>;
     claimGift(giftCode: string, userId: string): Promise<GameGift>;

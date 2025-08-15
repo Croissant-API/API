@@ -1,6 +1,5 @@
 import { IDatabaseService } from "./DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
-import { IUserService } from "./UserService";
 export interface ILobbyService {
     getLobby(lobbyId: string): Promise<Lobby | null>;
     joinLobby(lobbyId: string, userId: string): Promise<void>;
@@ -13,8 +12,8 @@ export interface ILobbyService {
 }
 export declare class LobbyService implements ILobbyService {
     private databaseService;
-    private userService;
-    constructor(databaseService: IDatabaseService, userService: IUserService);
+    private lobbyRepository;
+    constructor(databaseService: IDatabaseService);
     getLobby(lobbyId: string): Promise<Lobby | null>;
     joinLobby(lobbyId: string, userId: string): Promise<void>;
     leaveLobby(lobbyId: string, userId: string): Promise<void>;

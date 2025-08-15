@@ -14,10 +14,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var UserService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const inversify_1 = require("inversify");
+const UserRepository_1 = require("../repositories/UserRepository");
 const dotenv_1 = require("dotenv");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -27,28 +27,7 @@ const Jwt_1 = require("../utils/Jwt");
 function slugify(str) {
     str = str.normalize("NFKD");
     str = diacritics_1.default.remove(str);
-    const substitutions = {
-        α: "a",
-        β: "b",
-        γ: "g",
-        δ: "d",
-        ε: "e",
-        θ: "o",
-        λ: "l",
-        μ: "m",
-        ν: "v",
-        π: "p",
-        ρ: "r",
-        σ: "s",
-        τ: "t",
-        φ: "f",
-        χ: "x",
-        ψ: "ps",
-        ω: "w",
-        ℓ: "l",
-        "𝓁": "l",
-        "𝔩": "l",
-    };
+    const substitutions = { "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l", "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f", "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l" };
     str = str
         .split("")
         .map((c) => substitutions[c] ?? c)
@@ -57,10 +36,11 @@ function slugify(str) {
     return str.toLowerCase();
 }
 (0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
-let UserService = UserService_1 = class UserService {
+let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
         this.apiKeyUserCache = new Map();
+        this.userRepository = new UserRepository_1.UserRepository(this.databaseService);
         this.getAllUsersWithDisabled().then((users) => {
             for (const user of users) {
                 const key = (0, GenKey_1.genKey)(user.user_id);
@@ -68,69 +48,29 @@ let UserService = UserService_1 = class UserService {
             }
         });
     }
-    static getIdWhereClause(includeDisabled = false) {
-        const base = "(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)";
-        if (includeDisabled)
-            return base;
-        return base + " AND (disabled = 0 OR disabled IS NULL)";
-    }
-    async fetchUserByAnyId(user_id, includeDisabled = false) {
-        // console.log("Fetching user by any ID:", user_id);
-        if (!user_id)
-            return null;
-        const users = await this.databaseService.read(`SELECT * FROM users WHERE ${UserService_1.getIdWhereClause(includeDisabled)}`, [user_id, user_id, user_id, user_id]);
-        return users.length > 0 ? users[0] : null;
-    }
-    async fetchAllUsers(includeDisabled = false) {
-        if (includeDisabled) {
-            return await this.databaseService.read("SELECT * FROM users");
-        }
-        return await this.databaseService.read("SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)");
-    }
-    async updateUserFields(user_id, fields) {
-        const updates = [];
-        const params = [];
-        if (fields.username !== undefined) {
-            updates.push("username = ?");
-            params.push(fields.username);
-        }
-        if (fields.balance !== undefined) {
-            updates.push("balance = ?");
-            params.push(fields.balance);
-        }
-        if (fields.password !== undefined) {
-            updates.push("password = ?");
-            params.push(fields.password);
-        }
-        if (updates.length === 0)
-            return;
-        params.push(user_id);
-        await this.databaseService.request(`UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`, params);
-    }
+    // All DB access is now delegated to UserRepository
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
-        await this.databaseService.request("UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?", [steam_id, steam_username, steam_avatar_url, user_id]);
+        await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
     }
     async findByEmail(email) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE email = ?", [email]);
-        return users.length > 0 ? users[0] : null;
+        return await this.userRepository.findByEmail(email);
     }
     async associateOAuth(user_id, provider, providerId) {
-        const column = provider === "discord" ? "discord_id" : "google_id";
-        await this.databaseService.request(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
+        await this.userRepository.associateOAuth(user_id, provider, providerId);
     }
     async disableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
         }
-        await this.databaseService.request("UPDATE users SET disabled = 1 WHERE user_id = ?", [targetUserId]);
+        await this.userRepository.disableAccount(targetUserId);
     }
     async reenableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
             throw new Error("Unauthorized: not admin");
         }
-        await this.databaseService.request("UPDATE users SET disabled = 0 WHERE user_id = ?", [targetUserId]);
+        await this.userRepository.reenableAccount(targetUserId);
     }
     async searchUsersByUsername(query) {
         const users = await this.adminSearchUsers(query);
@@ -153,28 +93,21 @@ let UserService = UserService_1 = class UserService {
             }
             return existing;
         }
-        await this.databaseService.request("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
-            user_id,
-            username,
-            email,
-            password,
-            provider === "discord" ? providerId : null,
-            provider === "google" ? providerId : null,
-        ]);
+        await this.userRepository.createUser(user_id, username, email, password, provider, providerId);
         return (await this.getUser(user_id));
     }
     async createBrandUser(user_id, username) {
-        await this.databaseService.request("INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)", [user_id, username, ""]);
+        await this.userRepository.createBrandUser(user_id, username);
         return (await this.getUser(user_id));
     }
     async getUser(user_id) {
-        return this.fetchUserByAnyId(user_id, false);
+        return this.userRepository.getUserByAnyId(user_id, false);
     }
     async adminGetUser(user_id) {
-        return this.fetchUserByAnyId(user_id, true);
+        return this.userRepository.getUserByAnyId(user_id, true);
     }
     async adminSearchUsers(query) {
-        const users = await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users LIMIT 100`);
+        const users = await this.userRepository.searchUsers();
         const querySlug = slugify(query);
         const matchedUsers = users.filter((u) => {
             return slugify(u.username).indexOf(querySlug) !== -1;
@@ -191,33 +124,30 @@ let UserService = UserService_1 = class UserService {
         }));
     }
     async getAllUsers() {
-        return this.fetchAllUsers(false);
+        return this.userRepository.getAllUsers(false);
     }
     async getAllUsersWithDisabled() {
-        return this.fetchAllUsers(true);
+        return this.userRepository.getAllUsers(true);
     }
     async updateUser(user_id, username, balance) {
-        await this.updateUserFields(user_id, { username, balance });
+        await this.userRepository.updateUserFields(user_id, { username, balance });
     }
     async updateUserBalance(user_id, balance) {
-        await this.updateUserFields(user_id, { balance });
+        await this.userRepository.updateUserFields(user_id, { balance });
     }
     async updateUserPassword(user_id, hashedPassword) {
-        await this.updateUserFields(user_id, { password: hashedPassword });
+        await this.userRepository.updateUserPassword(user_id, hashedPassword);
     }
     async getUserBySteamId(steamId) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)", [steamId]);
-        return users.length > 0 ? users[0] : null;
+        return await this.userRepository.getUserBySteamId(steamId);
     }
     async generatePasswordResetToken(email) {
         const token = crypto_1.default.randomBytes(32).toString("hex");
-        await this.databaseService.request("UPDATE users SET forgot_password_token = ? WHERE email = ?", [token, email]);
+        await this.userRepository.generatePasswordResetToken(email, token);
         return token;
     }
     async deleteUser(user_id) {
-        await this.databaseService.request("DELETE FROM users WHERE user_id = ?", [
-            user_id,
-        ]);
+        await this.userRepository.deleteUser(user_id);
     }
     async authenticateUser(tokenOrApiKey) {
         const jwtPayload = (0, Jwt_1.verifyUserJwt)(tokenOrApiKey);
@@ -232,7 +162,7 @@ let UserService = UserService_1 = class UserService {
         return this.getUser(userId);
     }
     async updateWebauthnChallenge(user_id, challenge) {
-        await this.databaseService.request("UPDATE users SET webauthn_challenge = ? WHERE user_id = ?", [challenge, user_id]);
+        await this.userRepository.updateWebauthnChallenge(user_id, challenge);
     }
     async addWebauthnCredential(userId, credential) {
         const existing = await this.getUser(userId);
@@ -245,14 +175,13 @@ let UserService = UserService_1 = class UserService {
             name: credential.name,
             created_at: credential.created_at,
         });
-        await this.databaseService.request("UPDATE users SET webauthn_credentials = ? WHERE user_id = ?", [JSON.stringify(credentials), userId]);
+        await this.userRepository.addWebauthnCredential(userId, JSON.stringify(credentials));
     }
     async getUserByCredentialId(credentialId) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)", [`%${credentialId}%`]);
-        return users.length > 0 ? users[0] : null;
+        return await this.userRepository.getUserByCredentialId(credentialId);
     }
     async setAuthenticatorSecret(userId, secret) {
-        return this.databaseService.request("UPDATE users SET authenticator_secret = ? WHERE user_id = ?", [secret, userId]);
+        await this.userRepository.setAuthenticatorSecret(userId, secret);
     }
     async getAuthenticatorSecret(userId) {
         const user = await this.getUser(userId);
@@ -366,8 +295,7 @@ let UserService = UserService_1 = class UserService {
             });
         }
         if (user.ownedItems) {
-            user.ownedItems = user.ownedItems
-                .sort((a, b) => {
+            user.ownedItems = user.ownedItems.sort((a, b) => {
                 const nameCompare = a.name?.localeCompare(b.name || "") || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
@@ -409,8 +337,7 @@ let UserService = UserService_1 = class UserService {
         return publicProfile;
     }
     async findByResetToken(reset_token) {
-        const users = await this.databaseService.read("SELECT * FROM users WHERE forgot_password_token = ?", [reset_token]);
-        return users.length > 0 ? users[0] : null;
+        return await this.userRepository.findByResetToken(reset_token);
     }
     getSteamAuthUrl() {
         const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
@@ -418,7 +345,7 @@ let UserService = UserService_1 = class UserService {
     }
 };
 exports.UserService = UserService;
-exports.UserService = UserService = UserService_1 = __decorate([
+exports.UserService = UserService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])

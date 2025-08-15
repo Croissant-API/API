@@ -15,6 +15,7 @@ export interface ITradeService {
 export declare class TradeService implements ITradeService {
     private databaseService;
     private inventoryService;
+    private tradeRepository;
     constructor(databaseService: IDatabaseService, inventoryService: IInventoryService);
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
     getTradeById(id: string): Promise<Trade | null>;

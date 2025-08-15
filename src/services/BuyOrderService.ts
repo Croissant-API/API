@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { inject, injectable } from "inversify";
 import { BuyOrder } from "../interfaces/BuyOrder";
 import { IDatabaseService } from "./DatabaseService";
+import { BuyOrderRepository } from "../repositories/BuyOrderRepository";
 
 export interface IBuyOrderService {
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
@@ -13,9 +14,12 @@ export interface IBuyOrderService {
 
 @injectable()
 export class BuyOrderService implements IBuyOrderService {
+    private buyOrderRepository: BuyOrderRepository;
     constructor(
         @inject("DatabaseService") private databaseService: IDatabaseService
-    ) {}
+    ) {
+        this.buyOrderRepository = new BuyOrderRepository(this.databaseService);
+    }
 
     async createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder> {
         const now = new Date().toISOString();
@@ -28,52 +32,23 @@ export class BuyOrderService implements IBuyOrderService {
             created_at: now,
             updated_at: now
         };
-
-        await this.databaseService.request(
-            `INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [order.id, order.buyer_id, order.item_id, order.price, order.status, order.created_at, order.updated_at]
-        );
-
+        await this.buyOrderRepository.insertBuyOrder(order);
         return order;
     }
 
     async cancelBuyOrder(orderId: string, buyerId: string): Promise<void> {
-        await this.databaseService.request(
-            `UPDATE buy_orders 
-             SET status = 'cancelled', updated_at = ? 
-             WHERE id = ? AND buyer_id = ? AND status = 'active'`,
-            [new Date().toISOString(), orderId, buyerId]
-        );
+        await this.buyOrderRepository.updateBuyOrderStatusToCancelled(orderId, buyerId, new Date().toISOString());
     }
 
     async getBuyOrdersByUser(userId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE buyer_id = ? 
-             ORDER BY created_at DESC`,
-            [userId]
-        );
+        return await this.buyOrderRepository.getBuyOrdersByUser(userId);
     }
 
     async getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' 
-             ORDER BY price DESC, created_at ASC`,
-            [itemId]
-        );
+        return await this.buyOrderRepository.getActiveBuyOrdersForItem(itemId);
     }
 
     async matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null> {
-        const orders = await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' AND price >= ? 
-             ORDER BY price DESC, created_at ASC 
-             LIMIT 1`,
-            [itemId, sellPrice]
-        );
-
-        return orders.length > 0 ? orders[0] : null;
+        return await this.buyOrderRepository.matchSellOrder(itemId, sellPrice);
     }
 }

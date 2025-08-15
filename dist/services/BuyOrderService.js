@@ -15,9 +15,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuyOrderService = void 0;
 const uuid_1 = require("uuid");
 const inversify_1 = require("inversify");
+const BuyOrderRepository_1 = require("../repositories/BuyOrderRepository");
 let BuyOrderService = class BuyOrderService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+        this.buyOrderRepository = new BuyOrderRepository_1.BuyOrderRepository(this.databaseService);
     }
     async createBuyOrder(buyerId, itemId, price) {
         const now = new Date().toISOString();
@@ -30,31 +32,20 @@ let BuyOrderService = class BuyOrderService {
             created_at: now,
             updated_at: now
         };
-        await this.databaseService.request(`INSERT INTO buy_orders (id, buyer_id, item_id, price, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`, [order.id, order.buyer_id, order.item_id, order.price, order.status, order.created_at, order.updated_at]);
+        await this.buyOrderRepository.insertBuyOrder(order);
         return order;
     }
     async cancelBuyOrder(orderId, buyerId) {
-        await this.databaseService.request(`UPDATE buy_orders 
-             SET status = 'cancelled', updated_at = ? 
-             WHERE id = ? AND buyer_id = ? AND status = 'active'`, [new Date().toISOString(), orderId, buyerId]);
+        await this.buyOrderRepository.updateBuyOrderStatusToCancelled(orderId, buyerId, new Date().toISOString());
     }
     async getBuyOrdersByUser(userId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE buyer_id = ? 
-             ORDER BY created_at DESC`, [userId]);
+        return await this.buyOrderRepository.getBuyOrdersByUser(userId);
     }
     async getActiveBuyOrdersForItem(itemId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' 
-             ORDER BY price DESC, created_at ASC`, [itemId]);
+        return await this.buyOrderRepository.getActiveBuyOrdersForItem(itemId);
     }
     async matchSellOrder(itemId, sellPrice) {
-        const orders = await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' AND price >= ? 
-             ORDER BY price DESC, created_at ASC 
-             LIMIT 1`, [itemId, sellPrice]);
-        return orders.length > 0 ? orders[0] : null;
+        return await this.buyOrderRepository.matchSellOrder(itemId, sellPrice);
     }
 };
 exports.BuyOrderService = BuyOrderService;

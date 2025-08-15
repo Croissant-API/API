@@ -4,8 +4,8 @@ import { getAllDescriptions } from "../decorators/describe";
 
 @controller("/describe")
 export class DescribeController {
-  @httpGet("/")
-  public async getDescriptions(req: Request, res: Response) {
-    res.json(getAllDescriptions());
-  }
+	@httpGet("/")
+	public async getDescriptions(req: Request, res: Response) {
+		res.json(getAllDescriptions());
+	}
 }

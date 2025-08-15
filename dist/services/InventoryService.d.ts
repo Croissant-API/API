@@ -23,6 +23,7 @@ export interface IInventoryService {
 export declare class InventoryService implements IInventoryService {
     private databaseService;
     private userService;
+    private inventoryRepository;
     constructor(databaseService: IDatabaseService, userService: IUserService);
     private getCorrectedUserId;
     getInventory(userId: string): Promise<Inventory>;

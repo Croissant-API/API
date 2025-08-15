@@ -13,6 +13,7 @@ export interface IItemService {
 }
 export declare class ItemService implements IItemService {
     private databaseService;
+    private itemRepository;
     constructor(databaseService: IDatabaseService);
     createItem(item: Omit<Item, "id">): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;

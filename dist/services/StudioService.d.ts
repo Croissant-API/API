@@ -14,6 +14,7 @@ export interface IStudioService {
 export declare class StudioService implements IStudioService {
     private databaseService;
     private userService;
+    private studioRepository;
     constructor(databaseService: IDatabaseService, userService: IUserService);
     getStudio(user_id: string): Promise<Studio | null>;
     setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;

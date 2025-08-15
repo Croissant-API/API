@@ -17,31 +17,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudioService = void 0;
 const inversify_1 = require("inversify");
+const StudioRepository_1 = require("../repositories/StudioRepository");
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
 let StudioService = class StudioService {
     constructor(databaseService, userService) {
         this.databaseService = databaseService;
         this.userService = userService;
+        this.studioRepository = new StudioRepository_1.StudioRepository(this.databaseService);
     }
     async getStudio(user_id) {
-        const studiosResponse = await this.databaseService.read("SELECT * FROM studios WHERE user_id = ?", [user_id]);
-        if (studiosResponse.length === 0)
+        const studioResponse = await this.studioRepository.getStudio(user_id);
+        if (!studioResponse)
             return null;
-        const studioResponse = studiosResponse[0];
         const users = await this.getUsersByIds(studioResponse.users);
         const me = (await this.userService.getUserWithPublicProfile(studioResponse.user_id));
         return { ...studioResponse, users, me };
     }
     async setStudioProperties(user_id, admin_id, users) {
         const userIds = users.map((u) => u.user_id);
-        await this.databaseService.request("UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?", [admin_id, JSON.stringify(userIds), user_id]);
+        await this.studioRepository.setStudioProperties(user_id, admin_id, userIds);
     }
     async getUserStudios(user_id) {
-        const studiosResponse = await this.databaseService.read(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
-            user_id,
-            `%"${user_id}"%`,
-        ]);
+        const studiosResponse = await this.studioRepository.getUserStudios(user_id);
         const studios = await Promise.all(studiosResponse.map(async (studioResponse) => {
             const userIds = [
                 ...studioResponse.users,
@@ -64,7 +62,7 @@ let StudioService = class StudioService {
     async createStudio(studioName, admin_id) {
         const user_id = crypto_1.default.randomUUID();
         await this.userService.createBrandUser(user_id, studioName);
-        await this.databaseService.request("INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)", [user_id, admin_id, JSON.stringify([])]);
+        await this.studioRepository.createStudio(user_id, admin_id);
     }
     async addUserToStudio(studioId, user) {
         const studio = await this.getStudio(studioId);

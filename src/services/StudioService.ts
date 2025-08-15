@@ -1,5 +1,6 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
+import { StudioRepository } from "../repositories/StudioRepository";
 import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
 import { User } from "../interfaces/User";
 import { IUserService } from "./UserService";
@@ -22,23 +23,19 @@ export interface IStudioService {
 
 @injectable()
 export class StudioService implements IStudioService {
+  private studioRepository: StudioRepository;
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService,
     @inject("UserService") private userService: IUserService
-  ) {}
+  ) {
+    this.studioRepository = new StudioRepository(this.databaseService);
+  }
 
   async getStudio(user_id: string): Promise<Studio | null> {
-    const studiosResponse = await this.databaseService.read<{user_id: string, admin_id: string, users: string[]}>("SELECT * FROM studios WHERE user_id = ?", [user_id]);
-
-    if (studiosResponse.length === 0) return null;
-
-    const studioResponse = studiosResponse[0];
-
+    const studioResponse = await this.studioRepository.getStudio(user_id);
+    if (!studioResponse) return null;
     const users = await this.getUsersByIds(studioResponse.users);
-    const me = (await this.userService.getUserWithPublicProfile(
-      studioResponse.user_id
-    )) as StudioUser;
-
+    const me = (await this.userService.getUserWithPublicProfile(studioResponse.user_id)) as StudioUser;
     return { ...studioResponse, users, me };
   }
 
@@ -48,22 +45,11 @@ export class StudioService implements IStudioService {
     users: User[]
   ): Promise<void> {
     const userIds = users.map((u) => u.user_id);
-    await this.databaseService.request(
-      "UPDATE studios SET admin_id = ?, users = ? WHERE user_id = ?",
-      [admin_id, JSON.stringify(userIds), user_id]
-    );
+    await this.studioRepository.setStudioProperties(user_id, admin_id, userIds);
   }
 
   async getUserStudios(user_id: string): Promise<StudioWithApiKey[]> {
-    const studiosResponse = await this.databaseService.read<{
-      user_id: string;
-      admin_id: string;
-      users: string;
-    }>(`SELECT * FROM studios WHERE admin_id = ? OR users LIKE ?`, [
-      user_id,
-      `%"${user_id}"%`,
-    ]);
-
+    const studiosResponse = await this.studioRepository.getUserStudios(user_id);
     const studios = await Promise.all(
       studiosResponse.map(async (studioResponse) => {
         const userIds = [
@@ -74,7 +60,6 @@ export class StudioService implements IStudioService {
         const me = (await this.userService.getUser(
           studioResponse.user_id
         )) as StudioUser;
-
         return {
           user_id: studioResponse.user_id,
           admin_id: studioResponse.admin_id,
@@ -87,18 +72,13 @@ export class StudioService implements IStudioService {
         };
       })
     );
-
     return studios;
   }
 
   async createStudio(studioName: string, admin_id: string): Promise<void> {
     const user_id = crypto.randomUUID();
-
     await this.userService.createBrandUser(user_id, studioName);
-    await this.databaseService.request(
-      "INSERT INTO studios (user_id, admin_id, users) VALUES (?, ?, ?)",
-      [user_id, admin_id, JSON.stringify([])]
-    );
+    await this.studioRepository.createStudio(user_id, admin_id);
   }
 
   async addUserToStudio(studioId: string, user: User): Promise<void> {

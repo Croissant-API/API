@@ -15,6 +15,7 @@ export interface IMarketListingService {
 export declare class MarketListingService implements IMarketListingService {
     private databaseService;
     private buyOrderService;
+    private marketListingRepository;
     constructor(databaseService: DatabaseService, buyOrderService: IBuyOrderService);
     /**
      * Met un item de l'inventaire en vente sur le marketplace
@@ -50,8 +51,4 @@ export declare class MarketListingService implements IMarketListingService {
      * Désérialise une ligne de la base de données en MarketListing
      */
     private deserializeMarketListing;
-    /**
-     * Méthode helper pour ajouter un item à l'inventaire (comme dans TradeService)
-     */
-    private addItemToInventory;
 }

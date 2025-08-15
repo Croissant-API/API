@@ -39,11 +39,8 @@ export interface IUserService {
 export declare class UserService implements IUserService {
     private databaseService;
     private apiKeyUserCache;
+    private userRepository;
     constructor(databaseService: IDatabaseService);
-    private static getIdWhereClause;
-    private fetchUserByAnyId;
-    private fetchAllUsers;
-    private updateUserFields;
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
     associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;

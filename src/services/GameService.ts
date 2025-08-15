@@ -1,5 +1,6 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
+import { GameRepository } from "../repositories/GameRepository";
 import { Game } from "../interfaces/Game";
 
 export interface IGameService {
@@ -29,66 +30,36 @@ export interface IGameService {
 
 @injectable()
 export class GameService implements IGameService {
+  private gameRepository: GameRepository;
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
-  ) { }
+  ) {
+    this.gameRepository = new GameRepository(this.databaseService);
+  }
 
   async getGame(gameId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game>(
-      "SELECT * FROM games WHERE gameId = ?",
-      [gameId]
-    );
-    if (rows.length === 0) return null;
-    return rows[0];
+    return await this.gameRepository.getGame(gameId);
   }
 
   /**
    * Get game with public fields only (no download_link)
    */
   async getGameForPublic(gameId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game>(
-      `SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE gameId = ?`,
-      [gameId]
-    );
-    return rows.length > 0 ? rows[0] : null;
+    return await this.gameRepository.getGameForPublic(gameId);
   }
 
   /**
    * Get game with download_link if user owns it or is the creator
    */
   async getGameForOwner(gameId: string, userId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game>(
-      `SELECT g.*,
-              CASE 
-                WHEN g.owner_id = ? OR go.ownerId IS NOT NULL 
-                THEN 1 ELSE 0 
-              END as can_download
-       FROM games g 
-       LEFT JOIN game_owners go ON g.gameId = go.gameId AND go.ownerId = ?
-       WHERE g.gameId = ?`,
-      [userId, userId, gameId]
-    );
-    if (rows.length === 0) return null;
-    const game = rows[0];
-    // On ne renvoie jamais le vrai download_link
+    const game = await this.gameRepository.getGameForOwner(gameId, userId);
+    if (!game) return null;
     game.download_link = `/api/games/${gameId}/download`;
     return game;
   }
 
   async getUserGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game>(
-      `SELECT g.* 
-       FROM games g 
-       INNER JOIN game_owners go ON g.gameId = go.gameId 
-       WHERE go.ownerId = ?`,
-      [userId]
-    );
-    // On ne renvoie jamais le vrai download_link, mais un lien API sécurisé
+    const games = await this.gameRepository.getUserGames(userId);
     return games.map(game => ({
       ...game,
       download_link: `/api/games/${game.gameId}/download`
@@ -96,44 +67,19 @@ export class GameService implements IGameService {
   }
 
   async listGames(): Promise<Game[]> {
-    const games = await this.databaseService.read<Game>(
-      "SELECT * FROM games"
-    );
-    return games;
+    return await this.gameRepository.listGames();
   }
 
   async getStoreGames(): Promise<Game[]> {
-    const games = await this.databaseService.read<Game>(
-      `SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE showInStore = 1`
-    );
-    return games;
+    return await this.gameRepository.getStoreGames();
   }
 
   async getMyCreatedGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game>(
-      `SELECT g.*, g.download_link
-       FROM games g 
-       WHERE g.owner_id = ?`,
-      [userId]
-    );
-    return games;
+    return await this.gameRepository.getMyCreatedGames(userId);
   }
 
   async getUserOwnedGames(userId: string): Promise<Game[]> {
-    const games = await this.databaseService.read<Game>(
-      `SELECT g.* 
-       FROM games g 
-       INNER JOIN game_owners go ON g.gameId = go.gameId 
-       WHERE go.ownerId = ?`,
-      [userId]
-    );
-
-    // On ne renvoie jamais le vrai download_link, mais un lien API sécurisé
+    const games = await this.gameRepository.getUserOwnedGames(userId);
     return games.map(game => ({
       ...game,
       download_link: `/api/games/${game.gameId}/download`
@@ -141,49 +87,11 @@ export class GameService implements IGameService {
   }
 
   async searchGames(query: string): Promise<Game[]> {
-    const searchTerm = `%${query.toLowerCase()}%`;
-    const games = await this.databaseService.read<Game>(
-      `SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE showInStore = 1 
-       AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?) LIMIT 100`,
-      [searchTerm, searchTerm, searchTerm]
-    );
-    return games;
+    return await this.gameRepository.searchGames(query);
   }
 
   async createGame(game: Omit<Game, "id">): Promise<void> {
-    await this.databaseService.request(
-      `INSERT INTO games (
-                gameId, name, description, price, owner_id, showInStore, download_link,
-                iconHash, splashHash, bannerHash, genre, release_date, developer,
-                publisher, platforms, rating, website, trailer_link, multiplayer
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        game.gameId,
-        game.name,
-        game.description,
-        game.price,
-        game.owner_id,
-        toDbBool(game.showInStore),
-        game.download_link,
-        game.iconHash ?? null,
-        game.splashHash ?? null,
-        game.bannerHash ?? null,
-        game.genre ?? null,
-        game.release_date ?? null,
-        game.developer ?? null,
-        game.publisher ?? null,
-        game.platforms ?? null,
-        game.rating ?? 0,
-        game.website ?? null,
-        game.trailer_link ?? null,
-        toDbBool(game.multiplayer),
-      ]
-    );
+    await this.gameRepository.createGame(game);
   }
 
   async updateGame(
@@ -192,30 +100,19 @@ export class GameService implements IGameService {
   ): Promise<void> {
     const { fields, values } = buildUpdateFields(game, ["owners"]);
     if (!fields.length) return;
-    values.push(gameId);
-    await this.databaseService.request(
-      `UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`,
-      values
-    );
+    await this.gameRepository.updateGame(gameId, fields, values);
   }
 
   async deleteGame(gameId: string): Promise<void> {
-    await this.databaseService.request("DELETE FROM games WHERE gameId = ?", [gameId]);
-    await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
+    await this.gameRepository.deleteGame(gameId);
   }
 
   async addOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.request(
-      "INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)",
-      [gameId, ownerId]
-    );
+    await this.gameRepository.addOwner(gameId, ownerId);
   }
 
   async removeOwner(gameId: string, ownerId: string): Promise<void> {
-    await this.databaseService.request(
-      "DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?",
-      [gameId, ownerId]
-    );
+    await this.gameRepository.removeOwner(gameId, ownerId);
   }
 
   async transferOwnership(

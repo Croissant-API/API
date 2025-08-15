@@ -27,6 +27,7 @@ export interface IOAuth2Service {
 }
 export declare class OAuth2Service implements IOAuth2Service {
     private db;
+    private oauth2Repository;
     constructor(db: IDatabaseService);
     createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App>;
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;

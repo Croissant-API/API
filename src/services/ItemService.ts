@@ -1,6 +1,7 @@
 import { Item } from "interfaces/Item";
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
+import { ItemRepository } from "../repositories/ItemRepository";
 
 export interface IItemService {
   createItem(item: Omit<Item, "id">): Promise<void>;
@@ -19,95 +20,49 @@ export interface IItemService {
 
 @injectable()
 export class ItemService implements IItemService {
+  private itemRepository: ItemRepository;
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {}
+  ) {
+    this.itemRepository = new ItemRepository(this.databaseService);
+  }
 
   async createItem(item: Omit<Item, "id">): Promise<void> {
-    // Check if itemId already exists (even if deleted)
-    const existingItems = await this.databaseService.read<Item>(
-      "SELECT * FROM items WHERE itemId = ?",
-      [item.itemId]
-    );
-    if (existingItems.length > 0) {
-      throw new Error("ItemId already exists");
-    }
-    await this.databaseService.request(
-      `INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        item.itemId,
-        item.name ?? null,
-        item.description ?? null,
-        item.price ?? 0,
-        item.owner,
-        item.iconHash ?? null,
-        item.showInStore ? 1 : 0,
-        item.deleted ? 1 : 0,
-      ]
-    );
+    await this.itemRepository.createItem(item);
   }
 
   async getItem(itemId: string): Promise<Item | null> {
-    const items = await this.databaseService.read<Item>(
-      "SELECT * FROM items WHERE itemId = ?",
-      [itemId]
-    );
-    return items[0] || null;
+    return await this.itemRepository.getItem(itemId);
   }
 
   async getAllItems(): Promise<Item[]> {
-    return this.databaseService.read<Item>("SELECT * FROM items");
+    return await this.itemRepository.getAllItems();
   }
 
   async getStoreItems(): Promise<Item[]> {
-    return this.databaseService.read<Item>(
-      `SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND showInStore = 1
-       ORDER BY name`
-    );
+    return await this.itemRepository.getStoreItems();
   }
 
   async getMyItems(userId: string): Promise<Item[]> {
-    return this.databaseService.read<Item>(
-      `SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND owner = ?
-       ORDER BY name`,
-      [userId]
-    );
+    return await this.itemRepository.getMyItems(userId);
   }
 
   async updateItem(
     itemId: string,
     item: Partial<Omit<Item, "id" | "itemId">>
   ): Promise<void> {
-    const { fields, values } = buildUpdateFields(item);
-    if (!fields.length) return;
-    values.push(itemId);
-    await this.databaseService.request(
-      `UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`,
-      values
-    );
+    await this.itemRepository.updateItem(itemId, item, buildUpdateFields);
   }
 
   async deleteItem(itemId: string): Promise<void> {
-    await this.databaseService.request("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
+    await this.itemRepository.deleteItem(itemId);
   }
 
   /**
    * Search items by name, only those with showInStore = true and not deleted
    */
   async searchItemsByName(query: string): Promise<Item[]> {
-    const searchTerm = `%${query.toLowerCase()}%`;
-    return this.databaseService.read<Item>(
-      `SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
-       ORDER BY name LIMIT 100`,
-      [searchTerm]
-    );
+    return await this.itemRepository.searchItemsByName(query);
   }
 
   async transferOwnership( 

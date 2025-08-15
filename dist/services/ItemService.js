@@ -14,66 +14,38 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemService = void 0;
 const inversify_1 = require("inversify");
+const ItemRepository_1 = require("../repositories/ItemRepository");
 let ItemService = class ItemService {
     constructor(databaseService) {
         this.databaseService = databaseService;
+        this.itemRepository = new ItemRepository_1.ItemRepository(this.databaseService);
     }
     async createItem(item) {
-        // Check if itemId already exists (even if deleted)
-        const existingItems = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [item.itemId]);
-        if (existingItems.length > 0) {
-            throw new Error("ItemId already exists");
-        }
-        await this.databaseService.request(`INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
-            item.itemId,
-            item.name ?? null,
-            item.description ?? null,
-            item.price ?? 0,
-            item.owner,
-            item.iconHash ?? null,
-            item.showInStore ? 1 : 0,
-            item.deleted ? 1 : 0,
-        ]);
+        await this.itemRepository.createItem(item);
     }
     async getItem(itemId) {
-        const items = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [itemId]);
-        return items[0] || null;
+        return await this.itemRepository.getItem(itemId);
     }
     async getAllItems() {
-        return this.databaseService.read("SELECT * FROM items");
+        return await this.itemRepository.getAllItems();
     }
     async getStoreItems() {
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND showInStore = 1
-       ORDER BY name`);
+        return await this.itemRepository.getStoreItems();
     }
     async getMyItems(userId) {
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND owner = ?
-       ORDER BY name`, [userId]);
+        return await this.itemRepository.getMyItems(userId);
     }
     async updateItem(itemId, item) {
-        const { fields, values } = buildUpdateFields(item);
-        if (!fields.length)
-            return;
-        values.push(itemId);
-        await this.databaseService.request(`UPDATE items SET ${fields.join(", ")} WHERE itemId = ?`, values);
+        await this.itemRepository.updateItem(itemId, item, buildUpdateFields);
     }
     async deleteItem(itemId) {
-        await this.databaseService.request("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
+        await this.itemRepository.deleteItem(itemId);
     }
     /**
      * Search items by name, only those with showInStore = true and not deleted
      */
     async searchItemsByName(query) {
-        const searchTerm = `%${query.toLowerCase()}%`;
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
-       ORDER BY name LIMIT 100`, [searchTerm]);
+        return await this.itemRepository.searchItemsByName(query);
     }
     async transferOwnership(itemId, newOwnerId) {
         const item = await this.getItem(itemId);

@@ -9,6 +9,7 @@ export interface IBuyOrderService {
 }
 export declare class BuyOrderService implements IBuyOrderService {
     private databaseService;
+    private buyOrderRepository;
     constructor(databaseService: IDatabaseService);
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
     cancelBuyOrder(orderId: string, buyerId: string): Promise<void>;
