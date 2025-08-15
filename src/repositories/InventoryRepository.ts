@@ -2,7 +2,7 @@ import { InventoryItem } from "../interfaces/Inventory";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class InventoryRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async deleteNonExistingItems(userId: string): Promise<void> {
     await this.databaseService.request(
@@ -16,7 +16,7 @@ export class InventoryRepository {
   }
 
   async getInventoryItems(userId: string): Promise<InventoryItem[]> {
-    return await this.databaseService.read<InventoryItem>(
+    const items = await this.databaseService.read<InventoryItem>(
       `SELECT 
          inv.user_id, 
          inv.item_id, 
@@ -38,6 +38,27 @@ export class InventoryRepository {
        WHERE inv.user_id = ? AND inv.amount > 0`,
       [userId]
     );
+
+    return items.sort((a: InventoryItem, b: InventoryItem) => {
+      const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+      if (nameCompare !== 0) return nameCompare;
+      if (!a.metadata && b.metadata) return -1;
+      if (a.metadata && !b.metadata) return 1;
+      return 0;
+    }).map((item) => ({
+      user_id: item.user_id,
+      item_id: item.item_id,
+      amount: item.amount,
+      metadata: item.metadata,
+      sellable: !!item.sellable,
+      purchasePrice: item.purchasePrice,
+      name: item.name,
+      description: item.description,
+      iconHash: item.iconHash,
+      price: item.purchasePrice,
+      rarity: item.rarity,
+      custom_url_link: item.custom_url_link
+    }));
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
@@ -110,20 +131,36 @@ export class InventoryRepository {
       [metadataJson, userId, itemId, uniqueId]
     );
   }
-
-  async removeItem(userId: string, itemId: string, amount: number): Promise<void> {
+  async removeItem(userId: string, itemId: string, amount: number, dataItemIndex?: number): Promise<void> {
     // On récupère tous les stacks correspondants, triés par amount DESC pour vider les plus gros d'abord
-    const items = await this.databaseService.read<InventoryItem>(
-      `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL ORDER BY amount DESC`,
-      [userId, itemId]
-    );
+    const items = await this.getInventoryItems(userId);
+
+    // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+    if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+      const item = items[dataItemIndex];
+      const toRemoveFromStack = Math.min(amount, item.amount);
+      const newAmount = item.amount - toRemoveFromStack;
+      if (newAmount <= 0) {
+        await this.databaseService.request(
+          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND sellable = ? AND amount = ?  AND purchasePrice = ? LIMIT 1`,
+          [userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]
+        );
+      } else {
+        await this.databaseService.request(
+          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? AND purchasePrice = ? LIMIT 1`,
+          [newAmount, userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]
+        );
+      }
+      return;
+    }
+
+    // Sinon, comportement classique (réparti sur tous les stacks)
     let remainingToRemove = amount;
     for (const item of items) {
       if (remainingToRemove <= 0) break;
       const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
       const newAmount = item.amount - toRemoveFromStack;
       if (newAmount <= 0) {
-        // On supprime uniquement ce stack précis (en utilisant l'id unique du stack si possible)
         await this.databaseService.request(
           `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? LIMIT 1`,
           [userId, itemId, item.sellable ? 1 : 0, item.amount]
@@ -188,11 +225,32 @@ export class InventoryRepository {
     }
   }
 
-  async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void> {
+  async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number, dataItemIndex?: number): Promise<void> {
     const items = await this.databaseService.read<InventoryItem>(
       `SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ? ORDER BY amount DESC`,
       [userId, itemId, purchasePrice]
     );
+
+    // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+    if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+      const item = items[dataItemIndex];
+      const toRemoveFromStack = Math.min(amount, item.amount);
+      const newAmount = item.amount - toRemoveFromStack;
+      if (newAmount <= 0) {
+        await this.databaseService.request(
+          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`,
+          [userId, itemId, item.amount, purchasePrice]
+        );
+      } else {
+        await this.databaseService.request(
+          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`,
+          [newAmount, userId, itemId, item.amount, purchasePrice]
+        );
+      }
+      return;
+    }
+
+    // Sinon, comportement classique (réparti sur tous les stacks)
     let remainingToRemove = amount;
     for (const item of items) {
       if (remainingToRemove <= 0) break;
@@ -200,13 +258,13 @@ export class InventoryRepository {
       const newAmount = item.amount - toRemoveFromStack;
       if (newAmount <= 0) {
         await this.databaseService.request(
-          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
-          [userId, itemId, purchasePrice]
+          `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`,
+          [userId, itemId, item.amount, purchasePrice]
         );
       } else {
         await this.databaseService.request(
-          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`,
-          [newAmount, userId, itemId, purchasePrice]
+          `UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`,
+          [newAmount, userId, itemId, item.amount, purchasePrice]
         );
       }
       remainingToRemove -= toRemoveFromStack;

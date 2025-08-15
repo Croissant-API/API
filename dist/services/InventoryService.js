@@ -30,31 +30,7 @@ let InventoryService = class InventoryService {
         const correctedUserId = await this.getCorrectedUserId(userId);
         await this.inventoryRepository.deleteNonExistingItems(correctedUserId);
         const items = await this.inventoryRepository.getInventoryItems(correctedUserId);
-        items.sort((a, b) => {
-            const nameCompare = a.name?.localeCompare(b.name || '') || 0;
-            if (nameCompare !== 0)
-                return nameCompare;
-            if (!a.metadata && b.metadata)
-                return -1;
-            if (a.metadata && !b.metadata)
-                return 1;
-            return 0;
-        });
-        const processedItems = items.map((item) => ({
-            user_id: item.user_id,
-            item_id: item.item_id,
-            amount: item.amount,
-            metadata: item.metadata,
-            sellable: !!item.sellable,
-            purchasePrice: item.purchasePrice,
-            name: item.name,
-            description: item.description,
-            iconHash: item.iconHash,
-            price: item.purchasePrice,
-            rarity: item.rarity,
-            custom_url_link: item.custom_url_link
-        }));
-        return { user_id: userId, inventory: processedItems };
+        return { user_id: userId, inventory: items };
     }
     async getItemAmount(userId, itemId) {
         const correctedUserId = await this.getCorrectedUserId(userId);
@@ -72,9 +48,9 @@ let InventoryService = class InventoryService {
         const correctedUserId = await this.getCorrectedUserId(userId);
         await this.inventoryRepository.updateItemMetadata(correctedUserId, itemId, uniqueId, metadata);
     }
-    async removeItem(userId, itemId, amount) {
+    async removeItem(userId, itemId, amount, dataItemIndex) {
         const correctedUserId = await this.getCorrectedUserId(userId);
-        await this.inventoryRepository.removeItem(correctedUserId, itemId, amount);
+        await this.inventoryRepository.removeItem(correctedUserId, itemId, amount, dataItemIndex);
     }
     async removeItemByUniqueId(userId, itemId, uniqueId) {
         const correctedUserId = await this.getCorrectedUserId(userId);
@@ -99,9 +75,9 @@ let InventoryService = class InventoryService {
         await this.inventoryRepository.removeSellableItem(correctedUserId, itemId, amount);
     }
     // Nouvelle méthode pour supprimer spécifiquement les items sellable avec un prix donné
-    async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice) {
+    async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice, dataItemIndex) {
         const correctedUserId = await this.getCorrectedUserId(userId);
-        await this.inventoryRepository.removeSellableItemWithPrice(correctedUserId, itemId, amount, purchasePrice);
+        await this.inventoryRepository.removeSellableItemWithPrice(correctedUserId, itemId, amount, purchasePrice, dataItemIndex);
     }
     async transferItem(fromUserId, toUserId, itemId, uniqueId) {
         const correctedFromUserId = await this.getCorrectedUserId(fromUserId);

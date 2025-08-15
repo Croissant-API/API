@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { InventoryRepository } from "../repositories/InventoryRepository";
-import { Inventory, InventoryItem } from "../interfaces/Inventory";
+import { Inventory } from "../interfaces/Inventory";
 import { IUserService } from "./UserService";
 import { v4 as uuidv4 } from "uuid";
 
@@ -9,7 +9,7 @@ export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
   getItemAmount(userId: string, itemId: string): Promise<number>;
   addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable?: boolean, purchasePrice?: number): Promise<void>;
-  removeItem(userId: string, itemId: string, amount: number): Promise<void>;
+  removeItem(userId: string, itemId: string, amount: number, dataItemIndex?: number): Promise<void>;
   removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
   setItemAmount(userId: string, itemId: string, amount: number): Promise<void>;
   updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: { [key: string]: unknown }): Promise<void>;
@@ -18,7 +18,7 @@ export interface IInventoryService {
   transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
   hasItemWithoutMetadataSellable(userId: string, itemId: string, amount?: number): Promise<boolean>;
   removeSellableItem(userId: string, itemId: string, amount: number): Promise<void>;
-  removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void>;
+  removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number, dataItemIndex?: number): Promise<void>;
 }
 
 @injectable()
@@ -40,28 +40,7 @@ export class InventoryService implements IInventoryService {
     const correctedUserId = await this.getCorrectedUserId(userId);
     await this.inventoryRepository.deleteNonExistingItems(correctedUserId);
     const items = await this.inventoryRepository.getInventoryItems(correctedUserId);
-    items.sort((a: InventoryItem, b: InventoryItem) => {
-      const nameCompare = a.name?.localeCompare(b.name || '') || 0;
-      if (nameCompare !== 0) return nameCompare;
-      if (!a.metadata && b.metadata) return -1;
-      if (a.metadata && !b.metadata) return 1;
-      return 0;
-    });
-    const processedItems: InventoryItem[] = items.map((item) => ({
-      user_id: item.user_id,
-      item_id: item.item_id,
-      amount: item.amount,
-      metadata: item.metadata,
-      sellable: !!item.sellable,
-      purchasePrice: item.purchasePrice,
-      name: item.name,
-      description: item.description,
-      iconHash: item.iconHash,
-      price: item.purchasePrice,
-      rarity: item.rarity,
-      custom_url_link: item.custom_url_link
-    }));
-    return { user_id: userId, inventory: processedItems };
+    return { user_id: userId, inventory: items };
   }
 
   async getItemAmount(userId: string, itemId: string): Promise<number> {
@@ -84,9 +63,9 @@ export class InventoryService implements IInventoryService {
     await this.inventoryRepository.updateItemMetadata(correctedUserId, itemId, uniqueId, metadata);
   }
 
-  async removeItem(userId: string, itemId: string, amount: number): Promise<void> {
+  async removeItem(userId: string, itemId: string, amount: number, dataItemIndex?: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    await this.inventoryRepository.removeItem(correctedUserId, itemId, amount);
+    await this.inventoryRepository.removeItem(correctedUserId, itemId, amount, dataItemIndex);
   }
 
   async removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
@@ -117,9 +96,9 @@ export class InventoryService implements IInventoryService {
   }
 
   // Nouvelle méthode pour supprimer spécifiquement les items sellable avec un prix donné
-  async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number): Promise<void> {
+  async removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number, dataItemIndex: number): Promise<void> {
     const correctedUserId = await this.getCorrectedUserId(userId);
-    await this.inventoryRepository.removeSellableItemWithPrice(correctedUserId, itemId, amount, purchasePrice);
+    await this.inventoryRepository.removeSellableItemWithPrice(correctedUserId, itemId, amount, purchasePrice, dataItemIndex);
   }
 
   async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {

@@ -13,7 +13,7 @@ class InventoryRepository {
        )`, [userId]);
     }
     async getInventoryItems(userId) {
-        return await this.databaseService.read(`SELECT 
+        const items = await this.databaseService.read(`SELECT 
          inv.user_id, 
          inv.item_id, 
          inv.amount, 
@@ -32,6 +32,29 @@ class InventoryRepository {
        FROM inventories inv
        INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
        WHERE inv.user_id = ? AND inv.amount > 0`, [userId]);
+        return items.sort((a, b) => {
+            const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+            if (nameCompare !== 0)
+                return nameCompare;
+            if (!a.metadata && b.metadata)
+                return -1;
+            if (a.metadata && !b.metadata)
+                return 1;
+            return 0;
+        }).map((item) => ({
+            user_id: item.user_id,
+            item_id: item.item_id,
+            amount: item.amount,
+            metadata: item.metadata,
+            sellable: !!item.sellable,
+            purchasePrice: item.purchasePrice,
+            name: item.name,
+            description: item.description,
+            iconHash: item.iconHash,
+            price: item.purchasePrice,
+            rarity: item.rarity,
+            custom_url_link: item.custom_url_link
+        }));
     }
     async getItemAmount(userId, itemId) {
         const items = await this.databaseService.read("SELECT SUM(amount) as amount FROM inventories WHERE user_id = ? AND item_id = ?", [userId, itemId]);
@@ -73,10 +96,23 @@ class InventoryRepository {
         const metadataJson = JSON.stringify(metadataWithUniqueId);
         await this.databaseService.request("UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?", [metadataJson, userId, itemId, uniqueId]);
     }
-    async removeItem(userId, itemId, amount) {
-        const items = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL ORDER BY amount DESC`, [userId, itemId]);
-        console.log(`Removing ${amount} of item ${itemId} from user ${userId}`);
-        console.log(`Found items:`, items);
+    async removeItem(userId, itemId, amount, dataItemIndex) {
+        // On récupère tous les stacks correspondants, triés par amount DESC pour vider les plus gros d'abord
+        const items = await this.getInventoryItems(userId);
+        // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+        if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+            const item = items[dataItemIndex];
+            const toRemoveFromStack = Math.min(amount, item.amount);
+            const newAmount = item.amount - toRemoveFromStack;
+            if (newAmount <= 0) {
+                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND sellable = ? AND amount = ?  AND purchasePrice = ? LIMIT 1`, [userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]);
+            }
+            else {
+                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]);
+            }
+            return;
+        }
+        // Sinon, comportement classique (réparti sur tous les stacks)
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -84,10 +120,10 @@ class InventoryRepository {
             const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`, [userId, itemId, item.sellable ? 1 : 0]);
+                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? LIMIT 1`, [userId, itemId, item.sellable ? 1 : 0, item.amount]);
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ?`, [newAmount, userId, itemId, item.sellable ? 1 : 0]);
+                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? LIMIT 1`, [newAmount, userId, itemId, item.sellable ? 1 : 0, item.amount]);
             }
             remainingToRemove -= toRemoveFromStack;
         }
@@ -122,8 +158,22 @@ class InventoryRepository {
             remainingToRemove -= toRemoveFromStack;
         }
     }
-    async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice) {
+    async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice, dataItemIndex) {
         const items = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ? ORDER BY amount DESC`, [userId, itemId, purchasePrice]);
+        // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+        if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+            const item = items[dataItemIndex];
+            const toRemoveFromStack = Math.min(amount, item.amount);
+            const newAmount = item.amount - toRemoveFromStack;
+            if (newAmount <= 0) {
+                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [userId, itemId, item.amount, purchasePrice]);
+            }
+            else {
+                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, itemId, item.amount, purchasePrice]);
+            }
+            return;
+        }
+        // Sinon, comportement classique (réparti sur tous les stacks)
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -131,10 +181,10 @@ class InventoryRepository {
             const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`, [userId, itemId, purchasePrice]);
+                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [userId, itemId, item.amount, purchasePrice]);
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND purchasePrice = ?`, [newAmount, userId, itemId, purchasePrice]);
+                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, itemId, item.amount, purchasePrice]);
             }
             remainingToRemove -= toRemoveFromStack;
         }

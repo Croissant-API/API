@@ -464,7 +464,7 @@ export class Items {
  @httpPost("/sell/:itemId", LoggedCheck.middleware)
  public async sellItem(req: AuthenticatedRequest, res: Response) {
   const { itemId } = req.params;
-  const { amount, purchasePrice } = req.body; // Ajouter purchasePrice
+  const { amount, purchasePrice, dataItemIndex } = req.body; // Ajouter purchasePrice
   if (!itemId || isNaN(amount)) {
    await this.createLog(req, "inventory", 400, req.user?.user_id, {
     reason: "invalid_input",
@@ -513,7 +513,7 @@ export class Items {
     }
 
     // Supprimer les items avec le prix d'achat spécifique
-    await this.inventoryService.removeSellableItemWithPrice(user.user_id, itemId, amount, purchasePrice);
+    await this.inventoryService.removeSellableItemWithPrice(user.user_id, itemId, amount, purchasePrice, dataItemIndex);
 
     const sellValue = purchasePrice * amount * 0.75; // 75% du prix d'achat
     const isOwner = user.user_id === item.owner;
@@ -838,7 +838,7 @@ export class Items {
  @httpPost("/drop/:itemId", LoggedCheck.middleware)
  public async dropItem(req: AuthenticatedRequest, res: Response) {
   const { itemId } = req.params;
-  const { amount, uniqueId } = req.body;
+  const { amount, uniqueId, dataItemIndex } = req.body;
 
   if (!itemId) {
    await this.createLog(req, "inventory", 400, req.user?.user_id, {
@@ -905,7 +905,7 @@ export class Items {
      });
     }
 
-    await this.inventoryService.removeItem(user.user_id, itemId, amount);
+    await this.inventoryService.removeItem(user.user_id, itemId, amount, dataItemIndex);
     await this.createLog(req, "inventory", 200, req.user?.user_id, {
      itemId,
      action: "drop",

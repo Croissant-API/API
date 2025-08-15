@@ -326,7 +326,7 @@ let Items = class Items {
     }
     async sellItem(req, res) {
         const { itemId } = req.params;
-        const { amount, purchasePrice } = req.body; // Ajouter purchasePrice
+        const { amount, purchasePrice, dataItemIndex } = req.body; // Ajouter purchasePrice
         if (!itemId || isNaN(amount)) {
             await this.createLog(req, "inventory", 400, req.user?.user_id, {
                 reason: "invalid_input",
@@ -370,7 +370,7 @@ let Items = class Items {
                     });
                 }
                 // Supprimer les items avec le prix d'achat spécifique
-                await this.inventoryService.removeSellableItemWithPrice(user.user_id, itemId, amount, purchasePrice);
+                await this.inventoryService.removeSellableItemWithPrice(user.user_id, itemId, amount, purchasePrice, dataItemIndex);
                 const sellValue = purchasePrice * amount * 0.75; // 75% du prix d'achat
                 const isOwner = user.user_id === item.owner;
                 // Augmenter le balance seulement si l'utilisateur n'est PAS le propriétaire
@@ -619,7 +619,7 @@ let Items = class Items {
     }
     async dropItem(req, res) {
         const { itemId } = req.params;
-        const { amount, uniqueId } = req.body;
+        const { amount, uniqueId, dataItemIndex } = req.body;
         if (!itemId) {
             await this.createLog(req, "inventory", 400, req.user?.user_id, {
                 reason: "missing_itemId",
@@ -680,7 +680,7 @@ let Items = class Items {
                         message: "You don't have enough items without metadata to drop",
                     });
                 }
-                await this.inventoryService.removeItem(user.user_id, itemId, amount);
+                await this.inventoryService.removeItem(user.user_id, itemId, amount, dataItemIndex);
                 await this.createLog(req, "inventory", 200, req.user?.user_id, {
                     itemId,
                     action: "drop",
