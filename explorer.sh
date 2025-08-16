@@ -1,1 +1,0 @@
-sqlite_web database.db --url-prefix /explorer --password
