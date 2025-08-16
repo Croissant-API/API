@@ -5,7 +5,10 @@ export declare class BuyOrderRepository {
     constructor(databaseService: IDatabaseService);
     insertBuyOrder(order: BuyOrder): Promise<void>;
     updateBuyOrderStatusToCancelled(orderId: string, buyerId: string, updatedAt: string): Promise<void>;
-    getBuyOrdersByUser(userId: string): Promise<BuyOrder[]>;
-    getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]>;
-    matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null>;
+    getBuyOrders(filters?: {
+        userId?: string;
+        itemId?: string;
+        status?: string;
+        minPrice?: number;
+    }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
 }

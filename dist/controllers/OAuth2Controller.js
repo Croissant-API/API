@@ -52,7 +52,7 @@ let OAuth2 = class OAuth2 {
     async getAppByClientId(req, res) {
         const { client_id } = req.params;
         try {
-            const app = await this.oauth2Service.getFormattedAppByClientId(client_id);
+            const app = await this.oauth2Service.getAppByClientId(client_id);
             if (!app) {
                 await this.createLog(req, "oauth2_apps", 404, undefined, { client_id });
                 return res.status(404).send({ message: "App not found" });
@@ -96,7 +96,7 @@ let OAuth2 = class OAuth2 {
     }
     async getMyApps(req, res) {
         try {
-            const apps = await this.oauth2Service.getFormattedAppsByOwner(req.user.user_id);
+            const apps = await this.oauth2Service.getAppsByOwner(req.user.user_id);
             await this.createLog(req, "oauth2_apps", 200, req.user.user_id, { apps_count: apps.length });
             res.send(apps);
         }

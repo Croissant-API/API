@@ -3,10 +3,10 @@ import { MarketListing, EnrichedMarketListing } from '../interfaces/MarketListin
 import { DatabaseService } from './DatabaseService';
 import { IBuyOrderService } from "./BuyOrderService";
 export interface IMarketListingService {
-    createMarketListing(...args: unknown[]): Promise<unknown>;
-    cancelMarketListing(...args: unknown[]): Promise<unknown>;
+    createMarketListing(sellerId: string, inventoryItem: InventoryItem, sellingPrice: number): Promise<MarketListing>;
+    cancelMarketListing(listingId: string, sellerId: string): Promise<void>;
     buyMarketListing(listingId: string, buyerId: string): Promise<MarketListing>;
-    getMarketListingsByUser(userId: string): Promise<MarketListing[]>;
+    getMarketListingsByUser(userId: string): Promise<EnrichedMarketListing[]>;
     getActiveListingsForItem(itemId: string): Promise<MarketListing[]>;
     getMarketListingById(listingId: string): Promise<MarketListing | null>;
     getEnrichedMarketListings(limit?: number, offset?: number): Promise<EnrichedMarketListing[]>;

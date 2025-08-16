@@ -46,84 +46,84 @@ let GameGifts = class GameGifts {
             console.error("Error creating log:", error);
         }
     }
-    async createGift(req, res) {
-        const { gameId, message } = req.body;
+    async handleGiftActions(req, res) {
+        const { action } = req.params;
         const userId = req.user.user_id;
-        if (!gameId) {
-            await this.createLog(req, "createGift", "gifts", 400, userId);
-            return res.status(400).send({ message: "Game ID is required" });
-        }
         try {
-            const game = await this.gameService.getGame(gameId);
-            if (!game) {
-                await this.createLog(req, "createGift", "gifts", 404, userId);
-                return res.status(404).send({ message: "Game not found" });
-            }
-            const user = await this.userService.getUser(userId);
-            if (!user) {
-                await this.createLog(req, "createGift", "gifts", 404, userId);
-                return res.status(404).send({ message: "User not found" });
-            }
-            if (user.balance < game.price) {
-                await this.createLog(req, "createGift", "gifts", 400, userId);
-                return res.status(400).send({
-                    message: `Insufficient balance. Required: ${game.price}, Available: ${user.balance}`,
-                });
-            }
-            if (userId !== game.owner_id) {
-                await this.userService.updateUserBalance(userId, user.balance - game.price);
-                const owner = await this.userService.getUser(game.owner_id);
-                if (owner) {
-                    await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
+            switch (action) {
+                case "create": {
+                    const { gameId, message } = req.body;
+                    if (!gameId) {
+                        await this.createLog(req, "createGift", "gifts", 400, userId);
+                        return res.status(400).send({ message: "Game ID is required" });
+                    }
+                    const game = await this.gameService.getGame(gameId);
+                    if (!game) {
+                        await this.createLog(req, "createGift", "gifts", 404, userId);
+                        return res.status(404).send({ message: "Game not found" });
+                    }
+                    const user = await this.userService.getUser(userId);
+                    if (!user) {
+                        await this.createLog(req, "createGift", "gifts", 404, userId);
+                        return res.status(404).send({ message: "User not found" });
+                    }
+                    if (user.balance < game.price) {
+                        await this.createLog(req, "createGift", "gifts", 400, userId);
+                        return res.status(400).send({
+                            message: `Insufficient balance. Required: ${game.price}, Available: ${user.balance}`,
+                        });
+                    }
+                    if (userId !== game.owner_id) {
+                        await this.userService.updateUserBalance(userId, user.balance - game.price);
+                        const owner = await this.userService.getUser(game.owner_id);
+                        if (owner) {
+                            await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
+                        }
+                    }
+                    const gift = await this.giftService.createGift(gameId, userId, message);
+                    await this.createLog(req, "createGift", "gifts", 201, userId);
+                    return res.status(201).send({
+                        message: "Gift created successfully",
+                        gift: {
+                            id: gift.id,
+                            gameId: gift.gameId,
+                            giftCode: gift.giftCode,
+                            createdAt: gift.createdAt,
+                            message: gift.message,
+                        },
+                    });
                 }
+                case "claim": {
+                    const { giftCode } = req.body;
+                    if (!giftCode) {
+                        await this.createLog(req, "claimGift", "gifts", 400, userId);
+                        return res.status(400).send({ message: "Gift code is required" });
+                    }
+                    const gift = await this.giftService.getGift(giftCode);
+                    if (!gift) {
+                        await this.createLog(req, "claimGift", "gifts", 404, userId);
+                        return res.status(404).send({ message: "Invalid gift code" });
+                    }
+                    const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, userId);
+                    if (userOwnsGame) {
+                        await this.createLog(req, "claimGift", "gifts", 400, userId);
+                        return res.status(400).send({ message: "You already own this game" });
+                    }
+                    const claimedGift = await this.giftService.claimGift(giftCode, userId);
+                    await this.gameService.addOwner(gift.gameId, userId);
+                    await this.createLog(req, "claimGift", "gifts", 200, userId);
+                    return res.status(200).send({
+                        message: "Gift claimed successfully",
+                        gift: claimedGift,
+                    });
+                }
+                default:
+                    return res.status(404).send({ message: "Unknown action" });
             }
-            const gift = await this.giftService.createGift(gameId, userId, message);
-            await this.createLog(req, "createGift", "gifts", 201, userId);
-            res.status(201).send({
-                message: "Gift created successfully",
-                gift: {
-                    id: gift.id,
-                    gameId: gift.gameId,
-                    giftCode: gift.giftCode,
-                    createdAt: gift.createdAt,
-                    message: gift.message,
-                },
-            });
         }
         catch (error) {
-            await this.createLog(req, "createGift", "gifts", 500, userId);
-            handleError(res, error, "Error creating gift");
-        }
-    }
-    async claimGift(req, res) {
-        const { giftCode } = req.body;
-        const userId = req.user.user_id;
-        if (!giftCode) {
-            await this.createLog(req, "claimGift", "gifts", 400, userId);
-            return res.status(400).send({ message: "Gift code is required" });
-        }
-        try {
-            const gift = await this.giftService.getGift(giftCode);
-            if (!gift) {
-                await this.createLog(req, "claimGift", "gifts", 404, userId);
-                return res.status(404).send({ message: "Invalid gift code" });
-            }
-            const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, userId);
-            if (userOwnsGame) {
-                await this.createLog(req, "claimGift", "gifts", 400, userId);
-                return res.status(400).send({ message: "You already own this game" });
-            }
-            const claimedGift = await this.giftService.claimGift(giftCode, userId);
-            await this.gameService.addOwner(gift.gameId, userId);
-            await this.createLog(req, "claimGift", "gifts", 200, userId);
-            res.status(200).send({
-                message: "Gift claimed successfully",
-                gift: claimedGift,
-            });
-        }
-        catch (error) {
-            await this.createLog(req, "claimGift", "gifts", 400, userId);
-            handleError(res, error, "Error claiming gift", 400);
+            await this.createLog(req, action, "gifts", 500, userId);
+            handleError(res, error, `Error in ${action}`);
         }
     }
     async getSentGifts(req, res) {
@@ -232,17 +232,11 @@ let GameGifts = class GameGifts {
 };
 exports.GameGifts = GameGifts;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/create", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], GameGifts.prototype, "createGift", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/claim", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], GameGifts.prototype, "claimGift", null);
+], GameGifts.prototype, "handleGiftActions", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/sent", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),

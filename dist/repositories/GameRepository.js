@@ -5,18 +5,45 @@ class GameRepository {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
+    // Méthode générique pour récupérer des jeux selon des filtres
+    async getGames(filters = {}, select = "*", orderBy = "", limit) {
+        let query = `SELECT ${select} FROM games WHERE 1=1`;
+        const params = [];
+        if (filters.gameId) {
+            query += ` AND gameId = ?`;
+            params.push(filters.gameId);
+        }
+        if (filters.ownerId) {
+            query += ` AND owner_id = ?`;
+            params.push(filters.ownerId);
+        }
+        if (filters.showInStore !== undefined) {
+            query += ` AND showInStore = ?`;
+            params.push(filters.showInStore ? 1 : 0);
+        }
+        if (filters.search) {
+            const searchTerm = `%${filters.search.toLowerCase()}%`;
+            query += ` AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?)`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+        if (orderBy)
+            query += ` ORDER BY ${orderBy}`;
+        if (limit)
+            query += ` LIMIT ${limit}`;
+        return await this.databaseService.read(query, params);
+    }
+    // Surcharges utilisant la méthode générique
     async getGame(gameId) {
-        const rows = await this.databaseService.read("SELECT * FROM games WHERE gameId = ?", [gameId]);
-        return rows.length > 0 ? rows[0] : null;
+        const games = await this.getGames({ gameId });
+        return games[0] || null;
     }
     async getGameForPublic(gameId) {
-        const rows = await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE gameId = ?`, [gameId]);
-        return rows.length > 0 ? rows[0] : null;
+        const select = `gameId, name, description, price, owner_id, showInStore, 
+      iconHash, splashHash, bannerHash, genre, release_date, 
+      developer, publisher, platforms, rating, website, 
+      trailer_link, multiplayer`;
+        const games = await this.getGames({ gameId }, select);
+        return games[0] || null;
     }
     async getGameForOwner(gameId, userId) {
         const rows = await this.databaseService.read(`SELECT g.*,
@@ -36,20 +63,17 @@ class GameRepository {
        WHERE go.ownerId = ?`, [userId]);
     }
     async listGames() {
-        return await this.databaseService.read("SELECT * FROM games");
+        return await this.getGames();
     }
     async getStoreGames() {
-        return await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE showInStore = 1`);
+        const select = `gameId, name, description, price, owner_id, showInStore, 
+      iconHash, splashHash, bannerHash, genre, release_date, 
+      developer, publisher, platforms, rating, website, 
+      trailer_link, multiplayer`;
+        return await this.getGames({ showInStore: true }, select);
     }
     async getMyCreatedGames(userId) {
-        return await this.databaseService.read(`SELECT g.*, g.download_link
-       FROM games g 
-       WHERE g.owner_id = ?`, [userId]);
+        return await this.getGames({ ownerId: userId });
     }
     async getUserOwnedGames(userId) {
         return await this.databaseService.read(`SELECT g.* 
@@ -58,14 +82,11 @@ class GameRepository {
        WHERE go.ownerId = ?`, [userId]);
     }
     async searchGames(query) {
-        const searchTerm = `%${query.toLowerCase()}%`;
-        return await this.databaseService.read(`SELECT gameId, name, description, price, owner_id, showInStore, 
-              iconHash, splashHash, bannerHash, genre, release_date, 
-              developer, publisher, platforms, rating, website, 
-              trailer_link, multiplayer
-       FROM games 
-       WHERE showInStore = 1 
-       AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?) LIMIT 100`, [searchTerm, searchTerm, searchTerm]);
+        const select = `gameId, name, description, price, owner_id, showInStore, 
+      iconHash, splashHash, bannerHash, genre, release_date, 
+      developer, publisher, platforms, rating, website, 
+      trailer_link, multiplayer`;
+        return await this.getGames({ showInStore: true, search: query }, select, "", 100);
     }
     async createGame(game) {
         await this.databaseService.request(`INSERT INTO games (

@@ -7,8 +7,7 @@ import { BuyOrderRepository } from "../repositories/BuyOrderRepository";
 export interface IBuyOrderService {
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
     cancelBuyOrder(orderId: string, buyerId: string): Promise<void>;
-    getBuyOrdersByUser(userId: string): Promise<BuyOrder[]>;
-    getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]>;
+    getBuyOrders(filters?: { userId?: string; itemId?: string; status?: string; minPrice?: number }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
     matchSellOrder(itemId: string, price: number): Promise<BuyOrder | null>;
 }
 
@@ -40,15 +39,20 @@ export class BuyOrderService implements IBuyOrderService {
         await this.buyOrderRepository.updateBuyOrderStatusToCancelled(orderId, buyerId, new Date().toISOString());
     }
 
-    async getBuyOrdersByUser(userId: string): Promise<BuyOrder[]> {
-        return await this.buyOrderRepository.getBuyOrdersByUser(userId);
-    }
-
-    async getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]> {
-        return await this.buyOrderRepository.getActiveBuyOrdersForItem(itemId);
+    async getBuyOrders(
+        filters: { userId?: string; itemId?: string; status?: string; minPrice?: number } = {},
+        orderBy: string = "created_at DESC",
+        limit?: number
+    ): Promise<BuyOrder[]> {
+        return await this.buyOrderRepository.getBuyOrders(filters, orderBy, limit);
     }
 
     async matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null> {
-        return await this.buyOrderRepository.matchSellOrder(itemId, sellPrice);
+        const orders = await this.buyOrderRepository.getBuyOrders(
+            { itemId, status: "active", minPrice: sellPrice },
+            "price DESC, created_at ASC",
+            1
+        );
+        return orders.length > 0 ? orders[0] : null;
     }
 }

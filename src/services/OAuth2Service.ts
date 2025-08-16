@@ -12,18 +12,6 @@ export interface IOAuth2Service {
     deleteApp(client_id: string, owner_id: string): Promise<void>;
     updateApp(client_id: string, owner_id: string, update: { name?: string, redirect_urls?: string[] }): Promise<void>;
     getUserByCode(code: string, client_id: string): Promise<Oauth2User | null>;
-    getFormattedAppsByOwner(owner_id: string): Promise<Array<{
-        client_id: string;
-        client_secret: string;
-        name: string;
-        redirect_urls: string[];
-    }>>;
-    getFormattedAppByClientId(client_id: string): Promise<{
-        client_id: string;
-        client_secret: string;
-        name: string;
-        redirect_urls: string[];
-    } | null>;
 }
 
 @injectable()
@@ -34,37 +22,19 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
-        return await this.oauth2Repository.createApp(owner_id, name, redirect_urls);
+        return this.oauth2Repository.createApp(owner_id, name, redirect_urls);
     }
 
     async getAppsByOwner(owner_id: string): Promise<OAuth2App[]> {
-        return await this.oauth2Repository.getAppsByOwner(owner_id);
-    }
-
-    async getFormattedAppsByOwner(owner_id: string): Promise<Array<{
-        client_id: string;
-        client_secret: string;
-        name: string;
-        redirect_urls: string[];
-    }>> {
-        return await this.oauth2Repository.getFormattedAppsByOwner(owner_id);
+        return this.oauth2Repository.getAppsByOwner(owner_id);
     }
 
     async getAppByClientId(client_id: string): Promise<OAuth2App | null> {
-        return await this.oauth2Repository.getAppByClientId(client_id);
-    }
-
-    async getFormattedAppByClientId(client_id: string): Promise<{
-        client_id: string;
-        client_secret: string;
-        name: string;
-        redirect_urls: string[];
-    } | null> {
-        return await this.oauth2Repository.getFormattedAppByClientId(client_id);
+        return this.oauth2Repository.getAppByClientId(client_id);
     }
 
     async generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string> {
-        return await this.oauth2Repository.generateAuthCode(client_id, redirect_uri, user_id);
+        return this.oauth2Repository.generateAuthCode(client_id, redirect_uri, user_id);
     }
 
     async deleteApp(client_id: string, owner_id: string): Promise<void> {
@@ -76,6 +46,6 @@ export class OAuth2Service implements IOAuth2Service {
     }
 
     async getUserByCode(code: string, client_id: string): Promise<Oauth2User | null> {
-        return await this.oauth2Repository.getUserByCode(code, client_id);
+        return this.oauth2Repository.getUserByCode(code, client_id);
     }
 }

@@ -49,12 +49,10 @@ function handleError(res, error, message, status = 500) {
     res.status(status).send({ message, error: msg });
 }
 let Authenticator = class Authenticator {
-    constructor(userService, logService // décommenté pour logger
-    ) {
+    constructor(userService, logService) {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour les logs (utilise logService maintenant)
     async logAction(req, action, statusCode, metadata) {
         try {
             const requestBody = { ...req.body };
@@ -75,52 +73,63 @@ let Authenticator = class Authenticator {
             console.error("Error creating log:", error);
         }
     }
-    async generateKey(req, res) {
+    async handleAuthenticatorActions(req, res) {
+        const action = req.params.action;
         const user = req.user;
-        if (!user || !user.email) {
-            await this.logAction(req, "generateKey", 400);
-            return res.status(400).send({ message: "User not authenticated or email missing" });
-        }
         try {
-            const key = time2fa_1.Totp.generateKey({ issuer: "Croissant API", user: user.email });
-            qrcode.toDataURL(key.url, async (err, url) => {
-                if (err) {
-                    await this.logAction(req, "generateKey", 500, { error: err });
-                    return res.status(500).send({ message: "Error generating QR code" });
+            switch (action) {
+                case "generateKey": {
+                    if (!user || !user.email) {
+                        await this.logAction(req, "generateKey", 400);
+                        return res.status(400).send({ message: "User not authenticated or email missing" });
+                    }
+                    const key = time2fa_1.Totp.generateKey({ issuer: "Croissant API", user: user.email });
+                    qrcode.toDataURL(key.url, async (err, url) => {
+                        if (err) {
+                            await this.logAction(req, "generateKey", 500, { error: err });
+                            return res.status(500).send({ message: "Error generating QR code" });
+                        }
+                        await this.logAction(req, "generateKey", 200);
+                        res.status(200).send({ key, qrCode: url });
+                    });
+                    break;
                 }
-                await this.logAction(req, "generateKey", 200);
-                res.status(200).send({ key, qrCode: url });
-            });
-        }
-        catch (error) {
-            await this.logAction(req, "generateKey", 500, { error });
-            handleError(res, error, "Error generating key");
-        }
-    }
-    async registerKey(req, res) {
-        const user = req.user;
-        const { key, passcode } = req.body;
-        if (!user || !user.email || !key) {
-            await this.logAction(req, "registerKey", 400);
-            return res.status(400).send({ message: "User not authenticated, email missing, or key missing" });
-        }
-        if (!passcode) {
-            await this.logAction(req, "registerKey", 400);
-            return res.status(400).send({ message: "Passcode is required" });
-        }
-        try {
-            const isValid = time2fa_1.Totp.validate({ secret: key.secret, passcode });
-            if (!isValid) {
-                await this.logAction(req, "registerKey", 400);
-                return res.status(400).send({ message: "Invalid passcode" });
+                case "registerKey": {
+                    const { key: regKey, passcode } = req.body;
+                    if (!user || !user.email || !regKey) {
+                        await this.logAction(req, "registerKey", 400);
+                        return res.status(400).send({ message: "User not authenticated, email missing, or key missing" });
+                    }
+                    if (!passcode) {
+                        await this.logAction(req, "registerKey", 400);
+                        return res.status(400).send({ message: "Passcode is required" });
+                    }
+                    if (!time2fa_1.Totp.validate({ secret: regKey.secret, passcode })) {
+                        await this.logAction(req, "registerKey", 400);
+                        return res.status(400).send({ message: "Invalid passcode" });
+                    }
+                    await this.userService.setAuthenticatorSecret(user.user_id, regKey.secret);
+                    await this.logAction(req, "registerKey", 200);
+                    res.status(200).send({ message: "Key registered successfully" });
+                    break;
+                }
+                case "delete": {
+                    if (!user || !user.email) {
+                        await this.logAction(req, "deleteKey", 400);
+                        return res.status(400).send({ message: "User not authenticated or email missing" });
+                    }
+                    await this.userService.setAuthenticatorSecret(user.user_id, null);
+                    await this.logAction(req, "deleteKey", 200);
+                    res.status(200).send({ message: "Google Authenticator deleted successfully" });
+                    break;
+                }
+                default:
+                    res.status(404).send({ message: "Unknown action" });
             }
-            await this.userService.setAuthenticatorSecret(user.user_id, key.secret);
-            await this.logAction(req, "registerKey", 200);
-            res.status(200).send({ message: "Key registered successfully" });
         }
         catch (error) {
-            await this.logAction(req, "registerKey", 500, { error });
-            handleError(res, error, "Error registering key");
+            await this.logAction(req, action, 500, { error });
+            handleError(res, error, `Error in ${action}`);
         }
     }
     async verifyKey(req, res) {
@@ -143,7 +152,6 @@ let Authenticator = class Authenticator {
             const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
             if (isValid) {
                 await this.logAction(req, "verifyKey", 200);
-                // Génère la clé API puis le JWT
                 const apiKey = (0, GenKey_1.genKey)(user.user_id);
                 const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
                 return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
@@ -158,48 +166,20 @@ let Authenticator = class Authenticator {
             handleError(res, error, "Error verifying key");
         }
     }
-    async deleteKey(req, res) {
-        const user = req.user;
-        if (!user || !user.email) {
-            await this.logAction(req, "deleteKey", 400);
-            return res.status(400).send({ message: "User not authenticated or email missing" });
-        }
-        try {
-            await this.userService.setAuthenticatorSecret(user.user_id, null);
-            await this.logAction(req, "deleteKey", 200);
-            res.status(200).send({ message: "Google Authenticator deleted successfully" });
-        }
-        catch (error) {
-            await this.logAction(req, "deleteKey", 500, { error });
-            handleError(res, error, "Error deleting authenticator");
-        }
-    }
 };
 exports.Authenticator = Authenticator;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/generateKey", LoggedCheck_1.LoggedCheck.middleware),
+    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], Authenticator.prototype, "generateKey", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/registerKey", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Authenticator.prototype, "registerKey", null);
+], Authenticator.prototype, "handleAuthenticatorActions", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/verifyKey"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Authenticator.prototype, "verifyKey", null);
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/delete", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Authenticator.prototype, "deleteKey", null);
 exports.Authenticator = Authenticator = __decorate([
     (0, inversify_express_utils_1.controller)("/authenticator"),
     __param(0, (0, inversify_1.inject)("UserService")),

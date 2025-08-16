@@ -21,22 +21,16 @@ let OAuth2Service = class OAuth2Service {
         this.oauth2Repository = new OAuth2Repository_1.OAuth2Repository(this.db);
     }
     async createApp(owner_id, name, redirect_urls) {
-        return await this.oauth2Repository.createApp(owner_id, name, redirect_urls);
+        return this.oauth2Repository.createApp(owner_id, name, redirect_urls);
     }
     async getAppsByOwner(owner_id) {
-        return await this.oauth2Repository.getAppsByOwner(owner_id);
-    }
-    async getFormattedAppsByOwner(owner_id) {
-        return await this.oauth2Repository.getFormattedAppsByOwner(owner_id);
+        return this.oauth2Repository.getAppsByOwner(owner_id);
     }
     async getAppByClientId(client_id) {
-        return await this.oauth2Repository.getAppByClientId(client_id);
-    }
-    async getFormattedAppByClientId(client_id) {
-        return await this.oauth2Repository.getFormattedAppByClientId(client_id);
+        return this.oauth2Repository.getAppByClientId(client_id);
     }
     async generateAuthCode(client_id, redirect_uri, user_id) {
-        return await this.oauth2Repository.generateAuthCode(client_id, redirect_uri, user_id);
+        return this.oauth2Repository.generateAuthCode(client_id, redirect_uri, user_id);
     }
     async deleteApp(client_id, owner_id) {
         await this.oauth2Repository.deleteApp(client_id, owner_id);
@@ -45,7 +39,7 @@ let OAuth2Service = class OAuth2Service {
         await this.oauth2Repository.updateApp(client_id, owner_id, update);
     }
     async getUserByCode(code, client_id) {
-        return await this.oauth2Repository.getUserByCode(code, client_id);
+        return this.oauth2Repository.getUserByCode(code, client_id);
     }
 };
 exports.OAuth2Service = OAuth2Service;

@@ -24,23 +24,20 @@ let MarketListingService = class MarketListingService {
         /**
          * Désérialise une ligne de la base de données en MarketListing
          */
-        this.deserializeMarketListing = (row) => {
-            const listing = {
-                id: row.id,
-                seller_id: row.seller_id,
-                item_id: row.item_id,
-                price: row.price,
-                status: row.status,
-                metadata: row.metadata,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                sold_at: row.sold_at || undefined,
-                buyer_id: row.buyer_id || undefined,
-                rarity: row.rarity || 'common',
-                custom_url_link: row.custom_url_link || undefined
-            };
-            return listing;
-        };
+        this.deserializeMarketListing = (row) => ({
+            id: row.id,
+            seller_id: row.seller_id,
+            item_id: row.item_id,
+            price: row.price,
+            status: row.status,
+            metadata: row.metadata,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            sold_at: row.sold_at || undefined,
+            buyer_id: row.buyer_id || undefined,
+            rarity: row.rarity || 'common',
+            custom_url_link: row.custom_url_link || undefined
+        });
         this.marketListingRepository = new MarketListingRepository_1.MarketListingRepository(this.databaseService);
     }
     /**
@@ -76,78 +73,53 @@ let MarketListingService = class MarketListingService {
             rarity: inventoryItem.rarity || 'common',
             custom_url_link: inventoryItem.custom_url_link || undefined
         };
-        try {
-            await this.marketListingRepository.insertMarketListing(marketListing);
-            if (inventoryItem.metadata && inventoryItem.metadata._unique_id && typeof inventoryItem.metadata._unique_id === 'string') {
-                await this.marketListingRepository.removeInventoryItemByUniqueId(sellerId, inventoryItem.item_id, inventoryItem.metadata._unique_id);
-            }
-            else if (inventoryItem.purchasePrice) {
-                await this.marketListingRepository.updateInventoryAmountOrDelete(sellerId, inventoryItem.item_id, inventoryItem.purchasePrice);
-            }
-            else {
-                await this.marketListingRepository.decrementOrDeleteInventory(sellerId, inventoryItem.item_id);
-            }
-            const matchedBuyOrder = await this.buyOrderService.matchSellOrder(marketListing.item_id, marketListing.price);
-            if (matchedBuyOrder) {
-                await this.marketListingRepository.updateBuyOrderToFulfilled(matchedBuyOrder.id, now);
-                await this.buyMarketListing(marketListing.id, matchedBuyOrder.buyer_id);
-            }
-            return marketListing;
+        await this.marketListingRepository.insertMarketListing(marketListing);
+        if (inventoryItem.metadata && inventoryItem.metadata._unique_id && typeof inventoryItem.metadata._unique_id === 'string') {
+            await this.marketListingRepository.removeInventoryItemByUniqueId(sellerId, inventoryItem.item_id, inventoryItem.metadata._unique_id);
         }
-        catch (error) {
-            if (error instanceof Error) {
-                throw new Error(`Error while creating the market listing: ${error.message}`);
-            }
-            else {
-                throw new Error(`Error while creating the market listing: ${String(error)}`);
-            }
+        else if (inventoryItem.purchasePrice) {
+            await this.marketListingRepository.updateInventoryAmountOrDelete(sellerId, inventoryItem.item_id, inventoryItem.purchasePrice);
         }
+        else {
+            await this.marketListingRepository.decrementOrDeleteInventory(sellerId, inventoryItem.item_id);
+        }
+        const matchedBuyOrder = await this.buyOrderService.matchSellOrder(marketListing.item_id, marketListing.price);
+        if (matchedBuyOrder) {
+            await this.marketListingRepository.updateBuyOrderToFulfilled(matchedBuyOrder.id, now);
+            await this.buyMarketListing(marketListing.id, matchedBuyOrder.buyer_id);
+        }
+        return marketListing;
     }
     /**
      * Annule un ordre de vente et remet l'item dans l'inventaire du vendeur
      */
     async cancelMarketListing(listingId, sellerId) {
-        try {
-            // 1. Récupérer l'ordre de vente
-            const listing = await this.marketListingRepository.getMarketListingById(listingId, sellerId);
-            if (!listing) {
-                throw new Error('Market listing not found or already processed');
-            }
-            const metadata = JSON.parse(typeof listing.metadata === 'string' ? listing.metadata : JSON.stringify(listing.metadata || {}));
-            await this.marketListingRepository.updateMarketListingStatus(listingId, 'cancelled', new Date().toISOString());
-            const inventoryItem = {
-                user_id: sellerId,
-                item_id: listing.item_id,
-                amount: 1,
-                metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-                sellable: true,
-                purchasePrice: listing.purchasePrice || undefined,
-                rarity: listing.rarity,
-                custom_url_link: listing.custom_url_link || undefined
-            };
-            await this.marketListingRepository.addItemToInventory(inventoryItem);
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                throw new Error(`Error while cancelling the market listing: ${error.message}`);
-            }
-            else {
-                throw new Error(`Error while cancelling the market listing: ${String(error)}`);
-            }
-        }
+        const listing = await this.marketListingRepository.getMarketListingById(listingId, sellerId);
+        if (!listing)
+            throw new Error('Market listing not found or already processed');
+        const metadata = typeof listing.metadata === 'string'
+            ? JSON.parse(listing.metadata)
+            : (listing.metadata || {});
+        await this.marketListingRepository.updateMarketListingStatus(listingId, 'cancelled', new Date().toISOString());
+        const inventoryItem = {
+            user_id: sellerId,
+            item_id: listing.item_id,
+            amount: 1,
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+            sellable: true,
+            purchasePrice: listing.purchasePrice || undefined,
+            rarity: listing.rarity,
+            custom_url_link: listing.custom_url_link || undefined
+        };
+        await this.marketListingRepository.addItemToInventory(inventoryItem);
     }
     async buyMarketListing(listingId, buyerId) {
         const now = new Date().toISOString();
-        // 1. Récupérer l'ordre de vente
         const listing = await this.marketListingRepository.getMarketListingById(listingId);
-        if (!listing) {
+        if (!listing)
             throw new Error('Market listing not found or already sold');
-        }
-        // 2. Vérifier si l'acheteur a assez de crédits
-        // ...existing code for credits and validation...
-        // 4. Marquer l'ordre de vente comme vendu
+        // (Vérification crédits à faire côté controller/service appelant)
         await this.marketListingRepository.updateMarketListingSold(listingId, buyerId, now);
-        // 5. Ajouter l'item à l'inventaire de l'acheteur
         const inventoryItem = {
             user_id: buyerId,
             item_id: listing.item_id,
@@ -185,9 +157,7 @@ let MarketListingService = class MarketListingService {
      */
     async getMarketListingById(listingId) {
         const listing = await this.marketListingRepository.getMarketListingByIdAnyStatus(listingId);
-        if (!listing)
-            return null;
-        return this.deserializeMarketListing(listing);
+        return listing ? this.deserializeMarketListing(listing) : null;
     }
     /**
      * Récupère les ordres de vente enrichis avec les détails des items

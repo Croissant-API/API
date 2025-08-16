@@ -61,23 +61,28 @@ let GameGiftService = class GameGiftService {
         };
     }
     async getGift(giftCode) {
-        return await this.gameGiftRepository.getGiftByCode(giftCode);
+        // Utilise la surcharge générique
+        const gifts = await this.gameGiftRepository.getGifts({ giftCode });
+        return gifts[0] || null;
     }
     async getUserSentGifts(userId) {
-        return await this.gameGiftRepository.getUserSentGifts(userId);
+        // Utilise la surcharge générique
+        return await this.gameGiftRepository.getGifts({ fromUserId: userId }, "createdAt DESC");
     }
     async getUserReceivedGifts(userId) {
-        return await this.gameGiftRepository.getUserReceivedGifts(userId);
+        // Utilise la surcharge générique
+        return await this.gameGiftRepository.getGifts({ toUserId: userId }, "claimedAt DESC");
     }
     async revokeGift(giftId, userId) {
-        const gift = await this.gameGiftRepository.getGiftById(giftId);
+        const gifts = await this.gameGiftRepository.getGifts({ giftId });
+        const gift = gifts[0];
         if (!gift)
             throw new Error("Gift not found");
         if (gift.fromUserId !== userId)
             throw new Error("You can only revoke your own gifts");
         if (!gift.isActive)
             throw new Error("Gift is no longer active");
-        await this.gameGiftRepository.revokeGift(giftId);
+        await this.gameGiftRepository.updateGiftStatus(giftId, false);
     }
     generateGiftCode() {
         // Génère un code de 16 caractères alphanumériques

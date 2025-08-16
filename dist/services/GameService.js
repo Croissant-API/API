@@ -21,58 +21,42 @@ let GameService = class GameService {
         this.gameRepository = new GameRepository_1.GameRepository(this.databaseService);
     }
     async getGame(gameId) {
-        return await this.gameRepository.getGame(gameId);
+        return this.gameRepository.getGame(gameId);
     }
-    /**
-     * Get game with public fields only (no download_link)
-     */
     async getGameForPublic(gameId) {
-        return await this.gameRepository.getGameForPublic(gameId);
+        return this.gameRepository.getGameForPublic(gameId);
     }
-    /**
-     * Get game with download_link if user owns it or is the creator
-     */
     async getGameForOwner(gameId, userId) {
         const game = await this.gameRepository.getGameForOwner(gameId, userId);
-        if (!game)
-            return null;
-        game.download_link = `/api/games/${gameId}/download`;
-        return game;
+        return game ? { ...game, download_link: `/api/games/${gameId}/download` } : null;
     }
     async getUserGames(userId) {
         const games = await this.gameRepository.getUserGames(userId);
-        return games.map(game => ({
-            ...game,
-            download_link: `/api/games/${game.gameId}/download`
-        }));
+        return games.map(game => ({ ...game, download_link: `/api/games/${game.gameId}/download` }));
     }
     async listGames() {
-        return await this.gameRepository.listGames();
+        return this.gameRepository.listGames();
     }
     async getStoreGames() {
-        return await this.gameRepository.getStoreGames();
+        return this.gameRepository.getStoreGames();
     }
     async getMyCreatedGames(userId) {
-        return await this.gameRepository.getMyCreatedGames(userId);
+        return this.gameRepository.getMyCreatedGames(userId);
     }
     async getUserOwnedGames(userId) {
         const games = await this.gameRepository.getUserOwnedGames(userId);
-        return games.map(game => ({
-            ...game,
-            download_link: `/api/games/${game.gameId}/download`
-        }));
+        return games.map(game => ({ ...game, download_link: `/api/games/${game.gameId}/download` }));
     }
     async searchGames(query) {
-        return await this.gameRepository.searchGames(query);
+        return this.gameRepository.searchGames(query);
     }
     async createGame(game) {
         await this.gameRepository.createGame(game);
     }
     async updateGame(gameId, game) {
         const { fields, values } = buildUpdateFields(game, ["owners"]);
-        if (!fields.length)
-            return;
-        await this.gameRepository.updateGame(gameId, fields, values);
+        if (fields.length)
+            await this.gameRepository.updateGame(gameId, fields, values);
     }
     async deleteGame(gameId) {
         await this.gameRepository.deleteGame(gameId);
@@ -90,56 +74,43 @@ let GameService = class GameService {
         await this.updateGame(gameId, { owner_id: newOwnerId });
     }
     async canUserGiftGame() {
-        // Pour créer un gift, l'utilisateur doit juste avoir assez de crédits
-        // Il n'a pas besoin de posséder le jeu
         return true;
     }
     async userOwnsGame(gameId, userId) {
-        const userGames = await this.getUserGames(userId);
-        return userGames.some(game => game.gameId === gameId);
+        const games = await this.getUserGames(userId);
+        return games.some(game => game.gameId === gameId);
     }
     async transferGameCopy(gameId, fromUserId, toUserId) {
-        // Vérifier que l'expéditeur possède le jeu
-        const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
-        if (!fromUserOwns) {
+        const [fromOwns, toOwns, game] = await Promise.all([
+            this.userOwnsGame(gameId, fromUserId),
+            this.userOwnsGame(gameId, toUserId),
+            this.getGame(gameId)
+        ]);
+        if (!fromOwns)
             throw new Error("You don't own this game");
-        }
-        // Vérifier que le destinataire ne possède pas déjà le jeu
-        const toUserOwns = await this.userOwnsGame(gameId, toUserId);
-        if (toUserOwns) {
+        if (toOwns)
             throw new Error("Recipient already owns this game");
-        }
-        // Vérifier que l'expéditeur n'est pas le créateur du jeu
-        const game = await this.getGame(gameId);
-        if (!game) {
+        if (!game)
             throw new Error("Game not found");
-        }
-        if (game.owner_id === fromUserId) {
+        if (game.owner_id === fromUserId)
             throw new Error("Game creator cannot transfer their copy");
-        }
-        // Effectuer le transfert
         await this.removeOwner(gameId, fromUserId);
         await this.addOwner(gameId, toUserId);
     }
     async canTransferGame(gameId, fromUserId, toUserId) {
-        // Vérifier que l'expéditeur possède le jeu
-        const fromUserOwns = await this.userOwnsGame(gameId, fromUserId);
-        if (!fromUserOwns) {
+        const [fromOwns, toOwns, game] = await Promise.all([
+            this.userOwnsGame(gameId, fromUserId),
+            this.userOwnsGame(gameId, toUserId),
+            this.getGame(gameId)
+        ]);
+        if (!fromOwns)
             return { canTransfer: false, reason: "You don't own this game" };
-        }
-        // Vérifier que le destinataire ne possède pas déjà le jeu
-        const toUserOwns = await this.userOwnsGame(gameId, toUserId);
-        if (toUserOwns) {
+        if (toOwns)
             return { canTransfer: false, reason: "Recipient already owns this game" };
-        }
-        // Vérifier que l'expéditeur n'est pas le créateur du jeu
-        const game = await this.getGame(gameId);
-        if (!game) {
+        if (!game)
             return { canTransfer: false, reason: "Game not found" };
-        }
-        if (game.owner_id === fromUserId) {
+        if (game.owner_id === fromUserId)
             return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
-        }
         return { canTransfer: true };
     }
 };

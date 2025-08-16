@@ -14,22 +14,30 @@ class BuyOrderRepository {
              SET status = 'cancelled', updated_at = ? 
              WHERE id = ? AND buyer_id = ? AND status = 'active'`, [updatedAt, orderId, buyerId]);
     }
-    async getBuyOrdersByUser(userId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE buyer_id = ? 
-             ORDER BY created_at DESC`, [userId]);
-    }
-    async getActiveBuyOrdersForItem(itemId) {
-        return await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' 
-             ORDER BY price DESC, created_at ASC`, [itemId]);
-    }
-    async matchSellOrder(itemId, sellPrice) {
-        const orders = await this.databaseService.read(`SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' AND price >= ? 
-             ORDER BY price DESC, created_at ASC 
-             LIMIT 1`, [itemId, sellPrice]);
-        return orders.length > 0 ? orders[0] : null;
+    async getBuyOrders(filters = {}, orderBy = "created_at DESC", limit) {
+        let query = `SELECT * FROM buy_orders WHERE 1=1`;
+        const params = [];
+        if (filters.userId) {
+            query += ` AND buyer_id = ?`;
+            params.push(filters.userId);
+        }
+        if (filters.itemId) {
+            query += ` AND item_id = ?`;
+            params.push(filters.itemId);
+        }
+        if (filters.status) {
+            query += ` AND status = ?`;
+            params.push(filters.status);
+        }
+        if (filters.minPrice !== undefined) {
+            query += ` AND price >= ?`;
+            params.push(filters.minPrice);
+        }
+        query += ` ORDER BY ${orderBy}`;
+        if (limit) {
+            query += ` LIMIT ${limit}`;
+        }
+        return await this.databaseService.read(query, params);
     }
 }
 exports.BuyOrderRepository = BuyOrderRepository;

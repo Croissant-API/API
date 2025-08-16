@@ -11,13 +11,11 @@ export class Studios {
     constructor(
         @inject("StudioService") private studioService: IStudioService,
         @inject("LogService") private logService: ILogService
-    ) { }
+    ) {}
 
-    // Helper pour les logs (uniformisé)
     private async createLog(req: Request, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
         try {
-            const requestBody = { ...req.body };
-            if (metadata) requestBody.metadata = metadata;
+            const requestBody = { ...req.body, ...(metadata && { metadata }) };
             await this.logService.createLog({
                 ip_address: (req.headers["x-real-ip"] as string) || (req.socket.remoteAddress as string),
                 table_name: tableName,
@@ -33,6 +31,21 @@ export class Studios {
         }
     }
 
+    private async handleError(res: Response, req: Request, table: string, status: number, error: unknown, msg: string) {
+        await this.createLog(req, table, status);
+        res.status(status).send({ message: msg, error: error instanceof Error ? error.message : String(error) });
+    }
+
+    private async getStudioOrError(studioId: string, req: Request, res: Response) {
+        const studio = await this.studioService.getStudio(studioId);
+        if (!studio) {
+            await this.createLog(req, "studios", 404);
+            res.status(404).send({ message: "Studio not found" });
+            return null;
+        }
+        return studio;
+    }
+
     // --- Création de studio ---
     @describe({
         endpoint: "/studios",
@@ -45,22 +58,15 @@ export class Studios {
     })
     @httpPost("/", LoggedCheck.middleware)
     async createStudio(req: AuthenticatedRequest, res: Response) {
-        if (req.user.isStudio) {
-            await this.createLog(req, "studios", 403);
-            return res.status(403).send({ message: "A studio can't create another studio" });
-        }
+        if (req.user.isStudio) return res.status(403).send({ message: "A studio can't create another studio" });
         const { studioName } = req.body;
-        if (!studioName) {
-            await this.createLog(req, "studios", 400);
-            return res.status(400).send({ message: "Missing required fields" });
-        }
+        if (!studioName) return res.status(400).send({ message: "Missing required fields" });
         try {
             await this.studioService.createStudio(studioName, req.user.user_id);
             await this.createLog(req, "studios", 201);
             res.status(201).send({ message: "Studio created" });
         } catch (error) {
-            await this.createLog(req, "studios", 500);
-            handleError(res, error, "Error creating studio");
+            await this.handleError(res, req, "studios", 500, error, "Error creating studio");
         }
     }
 
@@ -88,18 +94,13 @@ export class Studios {
     })
     @httpGet("/:studioId")
     async getStudio(req: Request, res: Response) {
-        const { studioId } = req.params;
         try {
-            const studio = await this.studioService.getStudio(studioId);
-            if (!studio) {
-                await this.createLog(req, "studios", 404);
-                return res.status(404).send({ message: "Studio not found" });
-            }
+            const studio = await this.getStudioOrError(req.params.studioId, req, res);
+            if (!studio) return;
             await this.createLog(req, "studios", 200);
             res.send(studio);
         } catch (error) {
-            await this.createLog(req, "studios", 500);
-            handleError(res, error, "Error fetching studio");
+            await this.handleError(res, req, "studios", 500, error, "Error fetching studio");
         }
     }
 
@@ -136,12 +137,22 @@ export class Studios {
             await this.createLog(req, "studios", 200);
             res.send(studios);
         } catch (error) {
-            await this.createLog(req, "studios", 500);
-            handleError(res, error, "Error fetching user studios");
+            await this.handleError(res, req, "studios", 500, error, "Error fetching user studios");
         }
     }
 
-    // --- Gestion des membres ---
+    // --- Gestion des membres (add/remove) ---
+    private async checkStudioAdmin(req: AuthenticatedRequest, res: Response, studioId: string) {
+        const studio = await this.getStudioOrError(studioId, req, res);
+        if (!studio) return null;
+        if (studio.admin_id !== req.user.user_id) {
+            await this.createLog(req, "studio_users", 403);
+            res.status(403).send({ message: "Only the studio admin can modify users" });
+            return null;
+        }
+        return studio;
+    }
+
     @describe({
         endpoint: "/studios/:studioId/add-user",
         method: "POST",
@@ -156,34 +167,17 @@ export class Studios {
     async addUserToStudio(req: AuthenticatedRequest, res: Response) {
         const { studioId } = req.params;
         const { userId } = req.body;
-        if (!userId) {
-            await this.createLog(req, "studio_users", 400);
-            return res.status(400).send({ message: "Missing userId" });
-        }
+        if (!userId) return res.status(400).send({ message: "Missing userId" });
         try {
             const user = await this.studioService.getUser(userId);
-            if (!user) {
-                await this.createLog(req, "studio_users", 404);
-                return res.status(404).send({ message: "User not found" });
-            }
-
-            // Vérifier que l'utilisateur connecté est admin du studio
-            const studio = await this.studioService.getStudio(studioId);
-            if (!studio) {
-                await this.createLog(req, "studio_users", 404);
-                return res.status(404).send({ message: "Studio not found" });
-            }
-            if (studio.admin_id !== req.user.user_id) {
-                await this.createLog(req, "studio_users", 403);
-                return res.status(403).send({ message: "Only the studio admin can add users" });
-            }
-
+            if (!user) return res.status(404).send({ message: "User not found" });
+            const studio = await this.checkStudioAdmin(req, res, studioId);
+            if (!studio) return;
             await this.studioService.addUserToStudio(studioId, user);
             await this.createLog(req, "studio_users", 200);
             res.send({ message: "User added to studio" });
         } catch (error) {
-            await this.createLog(req, "studio_users", 500);
-            handleError(res, error, "Error adding user to studio");
+            await this.handleError(res, req, "studio_users", 500, error, "Error adding user to studio");
         }
     }
 
@@ -201,36 +195,17 @@ export class Studios {
     async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
         const { studioId } = req.params;
         const { userId } = req.body;
-        if (!userId) {
-            await this.createLog(req, "studio_users", 400);
-            return res.status(400).send({ message: "Missing userId" });
-        }
+        if (!userId) return res.status(400).send({ message: "Missing userId" });
         try {
-            const studio = await this.studioService.getStudio(studioId);
-            if (!studio) {
-                await this.createLog(req, "studio_users", 404);
-                return res.status(404).send({ message: "Studio not found" });
-            }
-            if (studio.admin_id === userId) {
-                await this.createLog(req, "studio_users", 403);
+            const studio = await this.checkStudioAdmin(req, res, studioId);
+            if (!studio) return;
+            if (studio.admin_id === userId)
                 return res.status(403).send({ message: "Cannot remove the studio admin" });
-            }
-            if (req.user.user_id !== studio.admin_id) {
-                await this.createLog(req, "studio_users", 403);
-                return res.status(403).send({ message: "Only the studio admin can remove users" });
-            }
             await this.studioService.removeUserFromStudio(studioId, userId);
             await this.createLog(req, "studio_users", 200);
             res.send({ message: "User removed from studio" });
         } catch (error) {
-            await this.createLog(req, "studio_users", 500);
-            handleError(res, error, "Error removing user from studio");
+            await this.handleError(res, req, "studio_users", 500, error, "Error removing user from studio");
         }
     }
-}
-
-// --- UTILS ---
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-    const msg = error instanceof Error ? error.message : String(error);
-    res.status(status).send({ message, error: msg });
 }

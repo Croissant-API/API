@@ -5,6 +5,10 @@ export declare class OAuth2Repository {
     private db;
     constructor(db: IDatabaseService);
     createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App>;
+    getApps(filters?: {
+        owner_id?: string;
+        client_id?: string;
+    }, select?: string): Promise<OAuth2App[]>;
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;
     getFormattedAppsByOwner(owner_id: string): Promise<Array<{
         client_id: string;

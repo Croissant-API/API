@@ -21,43 +21,36 @@ const StudioRepository_1 = require("../repositories/StudioRepository");
 const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
 let StudioService = class StudioService {
-    constructor(databaseService, userService) {
-        this.databaseService = databaseService;
+    constructor(db, userService) {
+        this.db = db;
         this.userService = userService;
-        this.studioRepository = new StudioRepository_1.StudioRepository(this.databaseService);
+        this.studioRepository = new StudioRepository_1.StudioRepository(this.db);
     }
     async getStudio(user_id) {
-        const studioResponse = await this.studioRepository.getStudio(user_id);
-        if (!studioResponse)
+        const studio = await this.studioRepository.getStudio(user_id);
+        if (!studio)
             return null;
-        const users = await this.getUsersByIds(studioResponse.users);
-        const me = (await this.userService.getUserWithPublicProfile(studioResponse.user_id));
-        return { ...studioResponse, users, me };
+        const users = await this.getUsersByIds(studio.users);
+        const me = (await this.userService.getUserWithPublicProfile(studio.user_id));
+        return { ...studio, users, me };
     }
     async setStudioProperties(user_id, admin_id, users) {
-        const userIds = users.map((u) => u.user_id);
-        await this.studioRepository.setStudioProperties(user_id, admin_id, userIds);
+        await this.studioRepository.setStudioProperties(user_id, admin_id, users.map(u => u.user_id));
     }
     async getUserStudios(user_id) {
-        const studiosResponse = await this.studioRepository.getUserStudios(user_id);
-        const studios = await Promise.all(studiosResponse.map(async (studioResponse) => {
-            const userIds = [
-                ...studioResponse.users,
-                studioResponse.admin_id,
-            ];
+        const studios = await this.studioRepository.getUserStudios(user_id);
+        return Promise.all(studios.map(async (s) => {
+            const userIds = [...s.users, s.admin_id];
             const users = await this.getUsersByIds(userIds);
-            const me = (await this.userService.getUser(studioResponse.user_id));
+            const me = await this.userService.getUser(s.user_id);
             return {
-                user_id: studioResponse.user_id,
-                admin_id: studioResponse.admin_id,
+                user_id: s.user_id,
+                admin_id: s.admin_id,
                 users,
                 me,
-                apiKey: studioResponse.admin_id === user_id
-                    ? (0, GenKey_1.genKey)(studioResponse.user_id)
-                    : undefined,
+                apiKey: s.admin_id === user_id ? (0, GenKey_1.genKey)(s.user_id) : undefined,
             };
         }));
-        return studios;
     }
     async createStudio(studioName, admin_id) {
         const user_id = crypto_1.default.randomUUID();
@@ -68,27 +61,23 @@ let StudioService = class StudioService {
         const studio = await this.getStudio(studioId);
         if (!studio)
             throw new Error("Studio not found");
-        const userIds = studio.users.map((u) => u.user_id);
-        if (!userIds.includes(user.user_id)) {
-            await this.setStudioProperties(studioId, studio.admin_id, [
-                ...studio.users,
-                user,
-            ]);
+        if (!studio.users.some(u => u.user_id === user.user_id)) {
+            await this.setStudioProperties(studioId, studio.admin_id, [...studio.users, user]);
         }
     }
     async removeUserFromStudio(studioId, userId) {
         const studio = await this.getStudio(studioId);
         if (!studio)
             throw new Error("Studio not found");
-        await this.setStudioProperties(studioId, studio.admin_id, studio.users.filter((u) => u.user_id !== userId));
+        await this.setStudioProperties(studioId, studio.admin_id, studio.users.filter(u => u.user_id !== userId));
     }
     async getUser(user_id) {
-        return await this.userService.getUser(user_id);
+        return this.userService.getUser(user_id);
     }
     async getUsersByIds(userIds) {
-        if (userIds.length === 0)
+        if (!userIds.length)
             return [];
-        return await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
+        return this.db.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
     }
 };
 exports.StudioService = StudioService;

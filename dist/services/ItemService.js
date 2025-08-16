@@ -24,16 +24,16 @@ let ItemService = class ItemService {
         await this.itemRepository.createItem(item);
     }
     async getItem(itemId) {
-        return await this.itemRepository.getItem(itemId);
+        return this.itemRepository.getItem(itemId);
     }
     async getAllItems() {
-        return await this.itemRepository.getAllItems();
+        return this.itemRepository.getAllItems();
     }
     async getStoreItems() {
-        return await this.itemRepository.getStoreItems();
+        return this.itemRepository.getStoreItems();
     }
     async getMyItems(userId) {
-        return await this.itemRepository.getMyItems(userId);
+        return this.itemRepository.getMyItems(userId);
     }
     async updateItem(itemId, item) {
         await this.itemRepository.updateItem(itemId, item, buildUpdateFields);
@@ -41,11 +41,8 @@ let ItemService = class ItemService {
     async deleteItem(itemId) {
         await this.itemRepository.deleteItem(itemId);
     }
-    /**
-     * Search items by name, only those with showInStore = true and not deleted
-     */
     async searchItemsByName(query) {
-        return await this.itemRepository.searchItemsByName(query);
+        return this.itemRepository.searchItemsByName(query);
     }
     async transferOwnership(itemId, newOwnerId) {
         const item = await this.getItem(itemId);

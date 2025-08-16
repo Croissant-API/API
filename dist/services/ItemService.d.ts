@@ -22,9 +22,6 @@ export declare class ItemService implements IItemService {
     getMyItems(userId: string): Promise<Item[]>;
     updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId">>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
-    /**
-     * Search items by name, only those with showInStore = true and not deleted
-     */
     searchItemsByName(query: string): Promise<Item[]>;
     transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
 }

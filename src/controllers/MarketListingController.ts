@@ -11,6 +11,15 @@ function handleError(res: Response, error: unknown, message: string, status = 50
     res.status(status).send({ message, error: msg });
 }
 
+// Helper for pagination/search
+function getPagination(req: AuthenticatedRequest) {
+    return {
+        limit: req.query.limit ? Number(req.query.limit) : 50,
+        offset: req.query.offset ? Number(req.query.offset) : 0,
+        search: req.query.q as string
+    };
+}
+
 @controller("/market-listings")
 export class MarketListingController {
     constructor(
@@ -120,8 +129,7 @@ export class MarketListingController {
 
     @httpGet("/")
     public async getEnrichedMarketListings(req: AuthenticatedRequest, res: Response) {
-        const limit = req.query.limit ? Number(req.query.limit) : 50;
-        const offset = req.query.offset ? Number(req.query.offset) : 0;
+        const { limit, offset } = getPagination(req);
         try {
             const listings = await this.marketListingService.getEnrichedMarketListings(limit, offset);
             await this.createLog(req, "getEnrichedMarketListings", "market_listings", 200, req.user?.user_id);
@@ -134,14 +142,13 @@ export class MarketListingController {
 
     @httpGet("/search")
     public async searchMarketListings(req: AuthenticatedRequest, res: Response) {
-        const searchTerm = req.query.q as string;
-        const limit = req.query.limit ? Number(req.query.limit) : 50;
-        if (!searchTerm) {
+        const { search, limit } = getPagination(req);
+        if (!search) {
             await this.createLog(req, "searchMarketListings", "market_listings", 400, req.user?.user_id);
             return res.status(400).send({ message: "Parameter q is required" });
         }
         try {
-            const listings = await this.marketListingService.searchMarketListings(searchTerm, limit);
+            const listings = await this.marketListingService.searchMarketListings(search, limit);
             await this.createLog(req, "searchMarketListings", "market_listings", 200, req.user?.user_id);
             res.send(listings);
         } catch (error) {

@@ -15,24 +15,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LobbyService = void 0;
 const inversify_1 = require("inversify");
 const LobbyRepository_1 = require("../repositories/LobbyRepository");
+const UserService_1 = require("./UserService");
 let LobbyService = class LobbyService {
-    constructor(databaseService) {
+    constructor(databaseService, userService) {
         this.databaseService = databaseService;
+        this.userService = userService;
         this.lobbyRepository = new LobbyRepository_1.LobbyRepository(this.databaseService);
     }
     async getLobby(lobbyId) {
         const lobby = await this.lobbyRepository.getLobby(lobbyId);
         if (!lobby)
             return null;
-        const userIds = lobby.users;
-        const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
-        return { lobbyId: lobby.lobbyId, users };
+        return lobby;
     }
     async joinLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
+        const user = await this.userService.getUser(userId);
         if (!lobby)
             throw new Error("Lobby not found");
-        const users = [...new Set([...lobby.users.map((u) => u.user_id), userId])];
+        if (!user)
+            throw new Error("User not found");
+        const users = [...new Set([...lobby.users, user])];
         await this.lobbyRepository.updateLobbyUsers(lobbyId, users);
     }
     async leaveLobby(lobbyId, userId) {
@@ -44,16 +47,14 @@ let LobbyService = class LobbyService {
             // await this.deleteLobby(lobbyId);
         }
         else {
-            await this.lobbyRepository.updateLobbyUsers(lobbyId, newUsers.map((u) => u.user_id));
+            await this.lobbyRepository.updateLobbyUsers(lobbyId, newUsers);
         }
     }
     async getUserLobby(userId) {
         const lobby = await this.lobbyRepository.getUserLobby(userId);
         if (!lobby)
             return null;
-        const userIds = lobby.users;
-        const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
-        return { lobbyId: lobby.lobbyId, users };
+        return lobby;
     }
     async createLobby(lobbyId, users = []) {
         await this.lobbyRepository.createLobby(lobbyId, users);
@@ -64,9 +65,7 @@ let LobbyService = class LobbyService {
     async getUserLobbies(userId) {
         const lobbies = await this.lobbyRepository.getUserLobbies(userId);
         return Promise.all(lobbies.map(async (lobby) => {
-            const userIds = lobby.users;
-            const users = (await this.getUsersByIds(userIds)).filter((u) => !u.disabled);
-            return { lobbyId: lobby.lobbyId, users };
+            return lobby;
         }));
     }
     async leaveAllLobbies(userId) {
@@ -75,17 +74,11 @@ let LobbyService = class LobbyService {
             await this.leaveLobby(lobby.lobbyId, userId);
         }
     }
-    async getUsersByIds(userIds) {
-        if (userIds.length === 0)
-            return [];
-        return await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds
-            .map(() => "?")
-            .join(",")}) AND disabled = 0`, userIds);
-    }
 };
 exports.LobbyService = LobbyService;
 exports.LobbyService = LobbyService = __decorate([
     (0, inversify_1.injectable)(),
     __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, inversify_1.inject)("UserService")),
+    __metadata("design:paramtypes", [Object, UserService_1.UserService])
 ], LobbyService);

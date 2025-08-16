@@ -32,19 +32,19 @@ export class ItemService implements IItemService {
   }
 
   async getItem(itemId: string): Promise<Item | null> {
-    return await this.itemRepository.getItem(itemId);
+    return this.itemRepository.getItem(itemId);
   }
 
   async getAllItems(): Promise<Item[]> {
-    return await this.itemRepository.getAllItems();
+    return this.itemRepository.getAllItems();
   }
 
   async getStoreItems(): Promise<Item[]> {
-    return await this.itemRepository.getStoreItems();
+    return this.itemRepository.getStoreItems();
   }
 
   async getMyItems(userId: string): Promise<Item[]> {
-    return await this.itemRepository.getMyItems(userId);
+    return this.itemRepository.getMyItems(userId);
   }
 
   async updateItem(
@@ -58,17 +58,11 @@ export class ItemService implements IItemService {
     await this.itemRepository.deleteItem(itemId);
   }
 
-  /**
-   * Search items by name, only those with showInStore = true and not deleted
-   */
   async searchItemsByName(query: string): Promise<Item[]> {
-    return await this.itemRepository.searchItemsByName(query);
+    return this.itemRepository.searchItemsByName(query);
   }
 
-  async transferOwnership( 
-    itemId: string,
-    newOwnerId: string
-  ): Promise<void> {
+  async transferOwnership(itemId: string, newOwnerId: string): Promise<void> {
     const item = await this.getItem(itemId);
     if (!item) throw new Error("Item not found");
     if (item.deleted) throw new Error("Cannot transfer deleted item");

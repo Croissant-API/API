@@ -3,7 +3,6 @@ import { IDatabaseService } from "../services/DatabaseService";
 import { Oauth2User } from "../interfaces/User";
 import { v4 } from "uuid";
 
-
 export class OAuth2Repository {
   constructor(private db: IDatabaseService) { }
 
@@ -17,11 +16,33 @@ export class OAuth2Repository {
     return { owner_id, client_id, client_secret, name, redirect_urls };
   }
 
+  // Méthode générique pour récupérer les apps selon des filtres
+  async getApps(
+    filters: { owner_id?: string; client_id?: string } = {},
+    select: string = "*"
+  ): Promise<OAuth2App[]> {
+    let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
+    const params = [];
+    if (filters.owner_id) {
+      query += " AND owner_id = ?";
+      params.push(filters.owner_id);
+    }
+    if (filters.client_id) {
+      query += " AND client_id = ?";
+      params.push(filters.client_id);
+    }
+    const apps = await this.db.read<OAuth2App>(query, params);
+    // Always parse redirect_urls if present
+    return apps.map(app => ({
+      ...app,
+      redirect_urls: typeof app.redirect_urls === "string"
+        ? JSON.parse(app.redirect_urls)
+        : app.redirect_urls
+    }));
+  }
+
   async getAppsByOwner(owner_id: string): Promise<OAuth2App[]> {
-    return await this.db.read<OAuth2App>(
-      "SELECT * FROM oauth2_apps WHERE owner_id = ?",
-      [owner_id]
-    );
+    return this.getApps({ owner_id });
   }
 
   async getFormattedAppsByOwner(owner_id: string): Promise<Array<{
@@ -43,11 +64,8 @@ export class OAuth2Repository {
   }
 
   async getAppByClientId(client_id: string): Promise<OAuth2App | null> {
-    const rows = await this.db.read<OAuth2App>(
-      "SELECT * FROM oauth2_apps WHERE client_id = ?",
-      [client_id]
-    );
-    return rows.length ? rows[0] : null;
+    const apps = await this.getApps({ client_id });
+    return apps[0] || null;
   }
 
   async getFormattedAppByClientId(client_id: string): Promise<{

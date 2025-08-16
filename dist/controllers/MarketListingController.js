@@ -20,6 +20,14 @@ function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
 }
+// Helper for pagination/search
+function getPagination(req) {
+    return {
+        limit: req.query.limit ? Number(req.query.limit) : 50,
+        offset: req.query.offset ? Number(req.query.offset) : 0,
+        search: req.query.q
+    };
+}
 let MarketListingController = class MarketListingController {
     constructor(marketListingService, logService) {
         this.marketListingService = marketListingService;
@@ -118,8 +126,7 @@ let MarketListingController = class MarketListingController {
         }
     }
     async getEnrichedMarketListings(req, res) {
-        const limit = req.query.limit ? Number(req.query.limit) : 50;
-        const offset = req.query.offset ? Number(req.query.offset) : 0;
+        const { limit, offset } = getPagination(req);
         try {
             const listings = await this.marketListingService.getEnrichedMarketListings(limit, offset);
             await this.createLog(req, "getEnrichedMarketListings", "market_listings", 200, req.user?.user_id);
@@ -131,14 +138,13 @@ let MarketListingController = class MarketListingController {
         }
     }
     async searchMarketListings(req, res) {
-        const searchTerm = req.query.q;
-        const limit = req.query.limit ? Number(req.query.limit) : 50;
-        if (!searchTerm) {
+        const { search, limit } = getPagination(req);
+        if (!search) {
             await this.createLog(req, "searchMarketListings", "market_listings", 400, req.user?.user_id);
             return res.status(400).send({ message: "Parameter q is required" });
         }
         try {
-            const listings = await this.marketListingService.searchMarketListings(searchTerm, limit);
+            const listings = await this.marketListingService.searchMarketListings(search, limit);
             await this.createLog(req, "searchMarketListings", "market_listings", 200, req.user?.user_id);
             res.send(listings);
         }

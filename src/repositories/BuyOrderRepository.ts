@@ -21,32 +21,36 @@ export class BuyOrderRepository {
         );
     }
 
-    async getBuyOrdersByUser(userId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE buyer_id = ? 
-             ORDER BY created_at DESC`,
-            [userId]
-        );
-    }
+    async getBuyOrders(
+        filters: { userId?: string; itemId?: string; status?: string; minPrice?: number } = {},
+        orderBy: string = "created_at DESC",
+        limit?: number
+    ): Promise<BuyOrder[]> {
+        let query = `SELECT * FROM buy_orders WHERE 1=1`;
+        const params = [];
 
-    async getActiveBuyOrdersForItem(itemId: string): Promise<BuyOrder[]> {
-        return await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' 
-             ORDER BY price DESC, created_at ASC`,
-            [itemId]
-        );
-    }
+        if (filters.userId) {
+            query += ` AND buyer_id = ?`;
+            params.push(filters.userId);
+        }
+        if (filters.itemId) {
+            query += ` AND item_id = ?`;
+            params.push(filters.itemId);
+        }
+        if (filters.status) {
+            query += ` AND status = ?`;
+            params.push(filters.status);
+        }
+        if (filters.minPrice !== undefined) {
+            query += ` AND price >= ?`;
+            params.push(filters.minPrice);
+        }
 
-    async matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null> {
-        const orders = await this.databaseService.read<BuyOrder>(
-            `SELECT * FROM buy_orders 
-             WHERE item_id = ? AND status = 'active' AND price >= ? 
-             ORDER BY price DESC, created_at ASC 
-             LIMIT 1`,
-            [itemId, sellPrice]
-        );
-        return orders.length > 0 ? orders[0] : null;
+        query += ` ORDER BY ${orderBy}`;
+        if (limit) {
+            query += ` LIMIT ${limit}`;
+        }
+
+        return await this.databaseService.read<BuyOrder>(query, params);
     }
 }

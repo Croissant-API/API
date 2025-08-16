@@ -38,14 +38,12 @@ let BuyOrderService = class BuyOrderService {
     async cancelBuyOrder(orderId, buyerId) {
         await this.buyOrderRepository.updateBuyOrderStatusToCancelled(orderId, buyerId, new Date().toISOString());
     }
-    async getBuyOrdersByUser(userId) {
-        return await this.buyOrderRepository.getBuyOrdersByUser(userId);
-    }
-    async getActiveBuyOrdersForItem(itemId) {
-        return await this.buyOrderRepository.getActiveBuyOrdersForItem(itemId);
+    async getBuyOrders(filters = {}, orderBy = "created_at DESC", limit) {
+        return await this.buyOrderRepository.getBuyOrders(filters, orderBy, limit);
     }
     async matchSellOrder(itemId, sellPrice) {
-        return await this.buyOrderRepository.matchSellOrder(itemId, sellPrice);
+        const orders = await this.buyOrderRepository.getBuyOrders({ itemId, status: "active", minPrice: sellPrice }, "price DESC, created_at ASC", 1);
+        return orders.length > 0 ? orders[0] : null;
     }
 };
 exports.BuyOrderService = BuyOrderService;

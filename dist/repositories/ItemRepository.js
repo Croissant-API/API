@@ -6,10 +6,9 @@ class ItemRepository {
         this.databaseService = databaseService;
     }
     async createItem(item) {
-        const existingItems = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [item.itemId]);
-        if (existingItems.length > 0) {
+        const existing = await this.getItem(item.itemId);
+        if (existing)
             throw new Error("ItemId already exists");
-        }
         await this.databaseService.request(`INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
             item.itemId,
@@ -22,24 +21,49 @@ class ItemRepository {
             item.deleted ? 1 : 0,
         ]);
     }
+    // Méthode générique pour récupérer les items selon des filtres
+    async getItems(filters = {}, select = "*", orderBy = "name", limit) {
+        let query = `SELECT ${select} FROM items WHERE 1=1`;
+        const params = [];
+        if (filters.itemId) {
+            query += " AND itemId = ?";
+            params.push(filters.itemId);
+        }
+        if (filters.owner) {
+            query += " AND owner = ?";
+            params.push(filters.owner);
+        }
+        if (filters.showInStore !== undefined) {
+            query += " AND showInStore = ?";
+            params.push(filters.showInStore ? 1 : 0);
+        }
+        if (filters.deleted !== undefined) {
+            query += " AND deleted = ?";
+            params.push(filters.deleted ? 1 : 0);
+        }
+        if (filters.search) {
+            const searchTerm = `%${filters.search.toLowerCase()}%`;
+            query += " AND LOWER(name) LIKE ?";
+            params.push(searchTerm);
+        }
+        query += ` ORDER BY ${orderBy}`;
+        if (limit)
+            query += ` LIMIT ${limit}`;
+        return this.databaseService.read(query, params);
+    }
+    // Surcharges utilisant la méthode générique
     async getItem(itemId) {
-        const items = await this.databaseService.read("SELECT * FROM items WHERE itemId = ?", [itemId]);
+        const items = await this.getItems({ itemId });
         return items[0] || null;
     }
     async getAllItems() {
-        return this.databaseService.read("SELECT * FROM items");
+        return this.getItems();
     }
     async getStoreItems() {
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND showInStore = 1
-       ORDER BY name`);
+        return this.getItems({ showInStore: true, deleted: false }, "itemId, name, description, owner, price, iconHash, showInStore");
     }
     async getMyItems(userId) {
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE deleted = 0 AND owner = ?
-       ORDER BY name`, [userId]);
+        return this.getItems({ owner: userId, deleted: false }, "itemId, name, description, owner, price, iconHash, showInStore");
     }
     async updateItem(itemId, item, buildUpdateFields) {
         const { fields, values } = buildUpdateFields(item);
@@ -52,11 +76,7 @@ class ItemRepository {
         await this.databaseService.request("UPDATE items SET deleted = 1 WHERE itemId = ?", [itemId]);
     }
     async searchItemsByName(query) {
-        const searchTerm = `%${query.toLowerCase()}%`;
-        return this.databaseService.read(`SELECT itemId, name, description, owner, price, iconHash, showInStore
-       FROM items 
-       WHERE LOWER(name) LIKE ? AND showInStore = 1 AND deleted = 0
-       ORDER BY name LIMIT 100`, [searchTerm]);
+        return this.getItems({ search: query, showInStore: true, deleted: false }, "itemId, name, description, owner, price, iconHash, showInStore", "name", 100);
     }
 }
 exports.ItemRepository = ItemRepository;

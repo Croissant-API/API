@@ -12,8 +12,29 @@ class OAuth2Repository {
         await this.db.request("INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)", [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
         return { owner_id, client_id, client_secret, name, redirect_urls };
     }
+    // Méthode générique pour récupérer les apps selon des filtres
+    async getApps(filters = {}, select = "*") {
+        let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
+        const params = [];
+        if (filters.owner_id) {
+            query += " AND owner_id = ?";
+            params.push(filters.owner_id);
+        }
+        if (filters.client_id) {
+            query += " AND client_id = ?";
+            params.push(filters.client_id);
+        }
+        const apps = await this.db.read(query, params);
+        // Always parse redirect_urls if present
+        return apps.map(app => ({
+            ...app,
+            redirect_urls: typeof app.redirect_urls === "string"
+                ? JSON.parse(app.redirect_urls)
+                : app.redirect_urls
+        }));
+    }
     async getAppsByOwner(owner_id) {
-        return await this.db.read("SELECT * FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
+        return this.getApps({ owner_id });
     }
     async getFormattedAppsByOwner(owner_id) {
         const apps = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?", [owner_id]);
@@ -25,8 +46,8 @@ class OAuth2Repository {
         }));
     }
     async getAppByClientId(client_id) {
-        const rows = await this.db.read("SELECT * FROM oauth2_apps WHERE client_id = ?", [client_id]);
-        return rows.length ? rows[0] : null;
+        const apps = await this.getApps({ client_id });
+        return apps[0] || null;
     }
     async getFormattedAppByClientId(client_id) {
         const rows = await this.db.read("SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?", [client_id]);

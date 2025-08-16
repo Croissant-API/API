@@ -24,6 +24,7 @@ export declare class TradeService implements ITradeService {
     getFormattedTradesByUser(userId: string): Promise<Trade[]>;
     private getUserKey;
     private assertPending;
+    private parseTradeItems;
     addItemToTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     removeItemFromTrade(tradeId: string, userId: string, tradeItem: TradeItem): Promise<void>;
     approveTrade(tradeId: string, userId: string): Promise<void>;

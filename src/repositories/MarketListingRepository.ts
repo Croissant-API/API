@@ -23,20 +23,20 @@ export class MarketListingRepository {
         );
     }
 
+    // --- INVENTORY HELPERS ---
     async removeInventoryItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
         await this.databaseService.request(
-            `DELETE FROM inventories 
-             WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+            `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
             [userId, itemId, uniqueId]
         );
     }
 
     async updateInventoryAmountOrDelete(userId: string, itemId: string, purchasePrice: number): Promise<void> {
-        const result = await this.databaseService.read<{ amount: number }>(
+        const [row] = await this.databaseService.read<{ amount: number }>(
             `SELECT amount FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`,
             [userId, itemId, purchasePrice]
         );
-        if (result.length > 0 && result[0].amount > 1) {
+        if (row && row.amount > 1) {
             await this.databaseService.request(
                 `UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`,
                 [userId, itemId, purchasePrice]
@@ -51,51 +51,58 @@ export class MarketListingRepository {
 
     async decrementOrDeleteInventory(userId: string, itemId: string): Promise<void> {
         await this.databaseService.request(
-            `UPDATE inventories 
-             SET amount = amount - 1 
-             WHERE user_id = ? AND item_id = ? AND amount > 0`,
+            `UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND amount > 0`,
             [userId, itemId]
         );
         await this.databaseService.request(
-            `DELETE FROM inventories 
-             WHERE user_id = ? AND item_id = ? AND amount = 0`,
+            `DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND amount = 0`,
             [userId, itemId]
         );
     }
 
-    async updateBuyOrderToFulfilled(buyOrderId: string, now: string): Promise<void> {
-        await this.databaseService.request(
-            `UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`,
-            [now, now, buyOrderId]
-        );
+    // --- MARKET LISTING GENERIC GETTER ---
+    async getMarketListings(
+        filters: { id?: string; sellerId?: string; itemId?: string; status?: string } = {},
+        select: string = "*",
+        orderBy: string = "created_at DESC",
+        limit?: number
+    ): Promise<MarketListing[]> {
+        let query = `SELECT ${select} FROM market_listings WHERE 1=1`;
+        const params = [];
+        if (filters.id) {
+            query += " AND id = ?";
+            params.push(filters.id);
+        }
+        if (filters.sellerId) {
+            query += " AND seller_id = ?";
+            params.push(filters.sellerId);
+        }
+        if (filters.itemId) {
+            query += " AND item_id = ?";
+            params.push(filters.itemId);
+        }
+        if (filters.status) {
+            query += " AND status = ?";
+            params.push(filters.status);
+        }
+        query += ` ORDER BY ${orderBy}`;
+        if (limit) query += ` LIMIT ${limit}`;
+        return this.databaseService.read<MarketListing>(query, params);
     }
 
+    // --- Surcharges utilisant la méthode générique ---
     async getMarketListingById(listingId: string, sellerId?: string): Promise<MarketListing | null> {
-        const listings = await this.databaseService.read<MarketListing>(
-            sellerId
-                ? `SELECT * FROM market_listings WHERE id = ? AND seller_id = ? AND status = 'active'`
-                : `SELECT * FROM market_listings WHERE id = ? AND status = 'active'`,
-            sellerId ? [listingId, sellerId] : [listingId]
-        );
-        return listings.length > 0 ? listings[0] : null;
+        const listings = await this.getMarketListings({ id: listingId, sellerId, status: "active" });
+        return listings[0] || null;
     }
 
-    async updateMarketListingStatus(listingId: string, status: string, updatedAt: string): Promise<void> {
-        await this.databaseService.request(
-            `UPDATE market_listings SET status = ?, updated_at = ? WHERE id = ?`,
-            [status, updatedAt, listingId]
-        );
-    }
-
-    async updateMarketListingSold(listingId: string, buyerId: string, now: string): Promise<void> {
-        await this.databaseService.request(
-            `UPDATE market_listings SET status = 'sold', buyer_id = ?, sold_at = ?, updated_at = ? WHERE id = ?`,
-            [buyerId, now, now, listingId]
-        );
+    async getMarketListingByIdAnyStatus(listingId: string): Promise<MarketListing | null> {
+        const listings = await this.getMarketListings({ id: listingId });
+        return listings[0] || null;
     }
 
     async getMarketListingsByUser(userId: string): Promise<EnrichedMarketListing[]> {
-        return await this.databaseService.read<EnrichedMarketListing>(
+        return this.databaseService.read<EnrichedMarketListing>(
             `SELECT 
                 ml.*,
                 i.name as item_name,
@@ -110,22 +117,11 @@ export class MarketListingRepository {
     }
 
     async getActiveListingsForItem(itemId: string): Promise<MarketListing[]> {
-        return await this.databaseService.read<MarketListing>(
-            `SELECT * FROM market_listings WHERE item_id = ? AND status = 'active' ORDER BY price ASC, created_at ASC`,
-            [itemId]
-        );
-    }
-
-    async getMarketListingByIdAnyStatus(listingId: string): Promise<MarketListing | null> {
-        const listings = await this.databaseService.read<MarketListing>(
-            `SELECT * FROM market_listings WHERE id = ?`,
-            [listingId]
-        );
-        return listings.length > 0 ? listings[0] : null;
+        return this.getMarketListings({ itemId, status: "active" }, "*", "price ASC, created_at ASC");
     }
 
     async getEnrichedMarketListings(limit: number, offset: number): Promise<EnrichedMarketListing[]> {
-        return await this.databaseService.read<EnrichedMarketListing>(
+        return this.databaseService.read<EnrichedMarketListing>(
             `SELECT 
                 ml.*,
                 i.name as item_name,
@@ -141,7 +137,7 @@ export class MarketListingRepository {
     }
 
     async searchMarketListings(searchTerm: string, limit: number): Promise<EnrichedMarketListing[]> {
-        return await this.databaseService.read<EnrichedMarketListing>(
+        return this.databaseService.read<EnrichedMarketListing>(
             `SELECT 
                 ml.*,
                 i.name as item_name,
@@ -158,7 +154,29 @@ export class MarketListingRepository {
         );
     }
 
-    // Méthodes pour l'ajout d'item à l'inventaire (utilisées lors d'un achat ou annulation)
+    // --- UPDATE STATUS ---
+    async updateMarketListingStatus(listingId: string, status: string, updatedAt: string): Promise<void> {
+        await this.databaseService.request(
+            `UPDATE market_listings SET status = ?, updated_at = ? WHERE id = ?`,
+            [status, updatedAt, listingId]
+        );
+    }
+
+    async updateMarketListingSold(listingId: string, buyerId: string, now: string): Promise<void> {
+        await this.databaseService.request(
+            `UPDATE market_listings SET status = 'sold', buyer_id = ?, sold_at = ?, updated_at = ? WHERE id = ?`,
+            [buyerId, now, now, listingId]
+        );
+    }
+
+    async updateBuyOrderToFulfilled(buyOrderId: string, now: string): Promise<void> {
+        await this.databaseService.request(
+            `UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`,
+            [now, now, buyOrderId]
+        );
+    }
+
+    // --- INVENTORY ADD ---
     async addItemToInventory(inventoryItem: InventoryItem): Promise<void> {
         if (inventoryItem.metadata && inventoryItem.metadata._unique_id) {
             await this.databaseService.request(

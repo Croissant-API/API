@@ -282,17 +282,7 @@ let UserService = class UserService {
                         }
                     })()
                     : item.metadata,
-            }))
-                .sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
-                if (nameCompare !== 0)
-                    return nameCompare;
-                if (!a.metadata && b.metadata)
-                    return -1;
-                if (a.metadata && !b.metadata)
-                    return 1;
-                return 0;
-            });
+            }));
         }
         if (user.ownedItems) {
             user.ownedItems = user.ownedItems.sort((a, b) => {

@@ -3,6 +3,12 @@ import { IDatabaseService } from "../services/DatabaseService";
 export declare class GameRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
+    getGames(filters?: {
+        gameId?: string;
+        ownerId?: string;
+        showInStore?: boolean;
+        search?: string;
+    }, select?: string, orderBy?: string, limit?: number): Promise<Game[]>;
     getGame(gameId: string): Promise<Game | null>;
     getGameForPublic(gameId: string): Promise<Game | null>;
     getGameForOwner(gameId: string, userId: string): Promise<Game | null>;

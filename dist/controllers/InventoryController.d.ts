@@ -9,5 +9,6 @@ export declare class Inventories {
     private createLog;
     getMyInventory(req: AuthenticatedRequest, res: Response): Promise<void>;
     getInventory(req: Request, res: Response): Promise<void>;
+    getItemAmount(req: Request, res: Response): Promise<void>;
     getAllInventories(req: Request, res: Response): Promise<void>;
 }

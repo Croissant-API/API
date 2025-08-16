@@ -22,13 +22,11 @@ function handleError(res, error, message, status = 500) {
     res.status(status).send({ message, error: msg });
 }
 let BuyOrderController = class BuyOrderController {
-    constructor(buyOrderService, itemService, logService // Ajouté pour logger
-    ) {
+    constructor(buyOrderService, itemService, logService) {
         this.buyOrderService = buyOrderService;
         this.itemService = itemService;
         this.logService = logService;
     }
-    // Helper pour les logs (utilise logService maintenant)
     async logAction(req, action, statusCode, metadata) {
         try {
             const requestBody = { ...req.body };
@@ -56,7 +54,6 @@ let BuyOrderController = class BuyOrderController {
             await this.logAction(req, "createBuyOrder", 400);
             return res.status(400).send({ message: "itemId and price are required" });
         }
-        // S'assurer que l'item existe
         const itemExists = await this.itemService.getItem(itemId);
         if (!itemExists) {
             await this.logAction(req, "createBuyOrder", 404);
@@ -92,7 +89,7 @@ let BuyOrderController = class BuyOrderController {
             return res.status(403).send({ message: "Forbidden" });
         }
         try {
-            const orders = await this.buyOrderService.getBuyOrdersByUser(userId);
+            const orders = await this.buyOrderService.getBuyOrders({ userId });
             await this.logAction(req, "getBuyOrdersByUser", 200);
             res.send(orders);
         }
@@ -104,7 +101,7 @@ let BuyOrderController = class BuyOrderController {
     async getActiveBuyOrdersForItem(req, res) {
         const itemId = req.params.itemId;
         try {
-            const orders = await this.buyOrderService.getActiveBuyOrdersForItem(itemId);
+            const orders = await this.buyOrderService.getBuyOrders({ itemId, status: "active" }, "price DESC, created_at ASC");
             await this.logAction(req, "getActiveBuyOrdersForItem", 200);
             res.send(orders);
         }

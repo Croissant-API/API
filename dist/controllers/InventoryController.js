@@ -45,7 +45,6 @@ let Inventories = class Inventories {
         this.inventoryService = inventoryService;
         this.logService = logService;
     }
-    // Helper pour créer des logs (signature uniforme)
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
@@ -63,7 +62,6 @@ let Inventories = class Inventories {
             console.error("Error creating log:", error);
         }
     }
-    // --- Inventaire de l'utilisateur courant ---
     async getMyInventory(req, res) {
         const userId = req.user.user_id;
         try {
@@ -76,7 +74,6 @@ let Inventories = class Inventories {
             handleError(res, error, "Error fetching inventory");
         }
     }
-    // --- Inventaire d'un utilisateur spécifique ---
     async getInventory(req, res) {
         if (!(await validateOr400(InventoryValidator_1.userIdParamSchema, { userId: req.params.userId }, res))) {
             await this.createLog(req, "getInventory", "inventory", 400, req.params.userId);
@@ -93,7 +90,18 @@ let Inventories = class Inventories {
             handleError(res, error, "Error fetching inventory");
         }
     }
-    // --- Route générique (prompt) ---
+    async getItemAmount(req, res) {
+        const { userId, itemId } = req.params;
+        try {
+            const correctedUserId = await this.inventoryService.getCorrectedUserId(userId);
+            const repo = this.inventoryService.getInventoryRepository();
+            const amount = await repo.getItemAmount(correctedUserId, itemId);
+            res.send({ userId, itemId, amount });
+        }
+        catch (error) {
+            handleError(res, error, "Error fetching item amount");
+        }
+    }
     async getAllInventories(req, res) {
         await this.createLog(req, "getAllInventories", "inventory", 400);
         res.send({ message: "Please specify /api/inventory/<userId>" });
@@ -166,6 +174,27 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Inventories.prototype, "getInventory", null);
+__decorate([
+    (0, describe_1.describe)({
+        endpoint: "/inventory/:userId/item/:itemId/amount",
+        method: "GET",
+        description: "Get the amount of a specific item for a user",
+        params: {
+            userId: "The id of the user",
+            itemId: "The id of the item"
+        },
+        responseType: {
+            userId: "string",
+            itemId: "string",
+            amount: "number"
+        },
+        example: "GET /api/inventory/123/item/456/amount"
+    }),
+    (0, inversify_express_utils_1.httpGet)("/:userId/item/:itemId/amount"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Inventories.prototype, "getItemAmount", null);
 __decorate([
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),

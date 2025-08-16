@@ -11,8 +11,7 @@ export declare class GameGifts {
     private logService;
     constructor(giftService: IGameGiftService, gameService: IGameService, userService: IUserService, logService: ILogService);
     private createLog;
-    createGift(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    claimGift(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    handleGiftActions(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getSentGifts(req: AuthenticatedRequest, res: Response): Promise<void>;
     getReceivedGifts(req: AuthenticatedRequest, res: Response): Promise<void>;
     getGiftInfo(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

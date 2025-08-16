@@ -4,7 +4,6 @@ import { IItemService } from "../services/ItemService";
 import { IGameService } from "../services/GameService";
 import { IInventoryService } from "../services/InventoryService";
 import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 export declare class SearchController {
     private userService;
     private itemService;
@@ -13,6 +12,6 @@ export declare class SearchController {
     private logService;
     constructor(userService: IUserService, itemService: IItemService, gameService: IGameService, inventoryService: IInventoryService, logService: ILogService);
     private createLog;
+    private handleSearch;
     globalSearch(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    adminSearch(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

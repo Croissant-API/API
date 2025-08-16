@@ -1,17 +1,18 @@
 import { IDatabaseService } from "../services/DatabaseService";
 export declare class StudioRepository {
-    private databaseService;
-    constructor(databaseService: IDatabaseService);
+    private db;
+    constructor(db: IDatabaseService);
+    private parseUsers;
     getStudio(user_id: string): Promise<{
         user_id: string;
         admin_id: string;
         users: string[];
-    } | null>;
+    }>;
     setStudioProperties(user_id: string, admin_id: string, userIds: string[]): Promise<void>;
-    getUserStudios(user_id: string): Promise<Array<{
+    getUserStudios(user_id: string): Promise<{
+        users: string[];
         user_id: string;
         admin_id: string;
-        users: string[];
-    }>>;
+    }[]>;
     createStudio(user_id: string, admin_id: string): Promise<void>;
 }

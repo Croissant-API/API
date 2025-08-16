@@ -29,13 +29,7 @@ export declare class GameService implements IGameService {
     private gameRepository;
     constructor(databaseService: IDatabaseService);
     getGame(gameId: string): Promise<Game | null>;
-    /**
-     * Get game with public fields only (no download_link)
-     */
     getGameForPublic(gameId: string): Promise<Game | null>;
-    /**
-     * Get game with download_link if user owns it or is the creator
-     */
     getGameForOwner(gameId: string, userId: string): Promise<Game | null>;
     getUserGames(userId: string): Promise<Game[]>;
     listGames(): Promise<Game[]>;

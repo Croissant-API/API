@@ -18,36 +18,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Games = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
-const yup_1 = require("yup");
 const GameValidator_1 = require("../validators/GameValidator");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const uuid_1 = require("uuid");
-const describe_1 = require("../decorators/describe");
-const node_fetch_1 = __importDefault(require("node-fetch")); // npm install node-fetch@2
+const node_fetch_1 = __importDefault(require("node-fetch"));
 const stream_1 = require("stream");
 const util_1 = require("util");
 const streamPipeline = (0, util_1.promisify)(stream_1.pipeline);
 // --- UTILS ---
-const gameResponseFields = {
-    gameId: "string",
-    name: "string",
-    description: "string",
-    price: "number",
-    owner_id: "string",
-    showInStore: "boolean",
-    iconHash: "string",
-    splashHash: "string",
-    bannerHash: "string",
-    genre: "string",
-    release_date: "string",
-    developer: "string",
-    publisher: "string",
-    platforms: ["string"],
-    rating: "number",
-    website: "string",
-    trailer_link: "string",
-    multiplayer: "boolean",
-};
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -58,11 +36,8 @@ async function validateOr400(schema, data, res) {
         return true;
     }
     catch (error) {
-        if (error instanceof yup_1.ValidationError) {
-            res.status(400).send({ message: "Validation failed", errors: error.errors });
-            return false;
-        }
-        throw error;
+        res.status(400).send({ message: "Validation failed", errors: error.errors });
+        return false;
     }
 }
 let Games = class Games {
@@ -71,7 +46,6 @@ let Games = class Games {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs (signature uniforme)
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
@@ -188,30 +162,9 @@ let Games = class Games {
             return;
         }
         try {
-            const { name, description, price, download_link, showInStore, iconHash, splashHash, bannerHash, genre, release_date, developer, publisher, platforms, rating, website, trailer_link, multiplayer } = req.body;
-            const gameId = (0, uuid_1.v4)();
             const ownerId = req.user.user_id;
-            await this.gameService.createGame({
-                gameId,
-                name,
-                description,
-                price,
-                download_link: download_link ?? null,
-                showInStore: showInStore ?? false,
-                owner_id: ownerId,
-                iconHash: iconHash ?? null,
-                splashHash: splashHash ?? null,
-                bannerHash: bannerHash ?? null,
-                genre: genre ?? null,
-                release_date: release_date ?? null,
-                developer: developer ?? null,
-                publisher: publisher ?? null,
-                platforms: platforms ?? null,
-                rating: rating ?? 0,
-                website: website ?? null,
-                trailer_link: trailer_link ?? null,
-                multiplayer: multiplayer ?? false,
-            });
+            const gameId = (0, uuid_1.v4)();
+            await this.gameService.createGame({ ...req.body, gameId, owner_id: ownerId });
             await this.gameService.addOwner(gameId, ownerId);
             await this.createLog(req, "createGame", "games", 201, ownerId);
             res.status(201).send({ message: "Game created", game: await this.gameService.getGame(gameId) });
@@ -297,10 +250,6 @@ let Games = class Games {
     }
     // --- PROPRIÉTÉ ---
     async transferOwnership(req, res) {
-        if (!req.user) {
-            await this.createLog(req, "transferOwnership", "games", 401);
-            return res.status(401).send({ message: "Unauthorized" });
-        }
         const { gameId } = req.params;
         const { newOwnerId } = req.body;
         const userId = req.user.user_id;
@@ -326,10 +275,7 @@ let Games = class Games {
             await this.gameService.transferOwnership(gameId, newOwnerId);
             const updatedGame = await this.gameService.getGame(gameId);
             await this.createLog(req, "transferOwnership", "games", 200, userId);
-            res.status(200).send({
-                message: "Ownership transferred",
-                game: updatedGame,
-            });
+            res.status(200).send({ message: "Ownership transferred", game: updatedGame });
         }
         catch (error) {
             await this.createLog(req, "transferOwnership", "games", 500, userId);
@@ -344,13 +290,9 @@ let Games = class Games {
         const { gameId } = req.params;
         const { targetUserId } = req.body;
         const fromUserId = req.user.user_id;
-        if (!targetUserId) {
+        if (!targetUserId || fromUserId === targetUserId) {
             await this.createLog(req, "transferGame", "games", 400, fromUserId);
-            return res.status(400).send({ message: "Target user ID is required" });
-        }
-        if (fromUserId === targetUserId) {
-            await this.createLog(req, "transferGame", "games", 400, fromUserId);
-            return res.status(400).send({ message: "Cannot transfer game to yourself" });
+            return res.status(400).send({ message: "Invalid target user" });
         }
         try {
             const targetUser = await this.userService.getUser(targetUserId);
@@ -365,9 +307,7 @@ let Games = class Games {
             }
             await this.gameService.transferGameCopy(gameId, fromUserId, targetUserId);
             await this.createLog(req, "transferGame", "games", 200, fromUserId);
-            res.status(200).send({
-                message: `Game successfully transferred to ${targetUser.username}`,
-            });
+            res.status(200).send({ message: `Game successfully transferred to ${targetUser.username}` });
         }
         catch (error) {
             await this.createLog(req, "transferGame", "games", 500, fromUserId);
@@ -403,14 +343,12 @@ let Games = class Games {
             const game = await this.gameService.getGame(gameId);
             if (!game)
                 return res.status(404).send({ message: "Game not found" });
-            // Vérifie la possession
             const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
             if (!owns)
                 return res.status(403).send({ message: "You do not own this game" });
             const link = game.download_link;
             if (!link)
                 return res.status(404).send({ message: "No download link available" });
-            // Si c'est un repo GitHub
             const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
             if (githubMatch) {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -418,23 +356,20 @@ let Games = class Games {
                 const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
                 return res.redirect(zipUrl);
             }
-            // Proxy le fichier (zip, etc.)
             const fileRes = await (0, node_fetch_1.default)(link);
             if (!fileRes.ok)
                 return res.status(502).send({ message: "Failed to fetch game file" });
             res.setHeader("Content-Disposition", `attachment; filename="${game.name}.zip"`);
             res.setHeader("Content-Type", fileRes.headers.get("content-type") || "application/octet-stream");
             const contentLength = fileRes.headers.get("content-length");
-            if (contentLength) {
+            if (contentLength)
                 res.setHeader("Content-Length", contentLength);
-            }
             if (fileRes.body) {
                 try {
                     await streamPipeline(fileRes.body, res);
-                    console.log(`User ${userId} downloaded game ${gameId}: ${game.name}`);
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 }
                 catch (err) {
-                    console.error("Pipeline failed.", err);
                     res.status(500).send({ message: "Error streaming the file." });
                 }
             }
@@ -449,69 +384,30 @@ let Games = class Games {
 };
 exports.Games = Games;
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games",
-        method: "GET",
-        description: "List all games visible in the store.",
-        responseType: [gameResponseFields],
-        example: "GET /api/games",
-    }),
     (0, inversify_express_utils_1.httpGet)("/"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "listGames", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/search",
-        method: "GET",
-        description: "Search for games by name, genre, or description.",
-        query: { q: "The search query" },
-        responseType: [gameResponseFields],
-        example: "GET /api/games/search?q=Minecraft",
-    }),
     (0, inversify_express_utils_1.httpGet)("/search"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "searchGames", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/@mine",
-        method: "GET",
-        description: "Get all games created by the authenticated user.",
-        responseType: [{ ...gameResponseFields, download_link: "string" }],
-        example: "GET /api/games/@mine",
-        requiresAuth: true,
-    }),
     (0, inversify_express_utils_1.httpGet)("/@mine", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getMyCreatedGames", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/list/@me",
-        method: "GET",
-        description: 'Get all games owned by the authenticated user. Requires authentication via header "Authorization: Bearer <token>".',
-        responseType: [{ ...gameResponseFields, download_link: "string" }],
-        example: "GET /api/games/list/@me",
-        requiresAuth: true,
-    }),
     (0, inversify_express_utils_1.httpGet)("/list/@me", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "getUserGames", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/:gameId",
-        method: "GET",
-        description: "Get a game by gameId.",
-        params: { gameId: "The id of the game" },
-        responseType: gameResponseFields,
-        example: "GET /api/games/123",
-    }),
     (0, inversify_express_utils_1.httpGet)(":gameId"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -548,32 +444,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], Games.prototype, "transferOwnership", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/:gameId/transfer",
-        method: "POST",
-        description: "Transfer your copy of a game to another user",
-        params: { gameId: "The id of the game" },
-        body: { targetUserId: "The id of the recipient user" },
-        responseType: { message: "string" },
-        example: "POST /api/games/123/transfer { targetUserId: '456' }",
-        requiresAuth: true,
-    }),
     (0, inversify_express_utils_1.httpPost)(":gameId/transfer", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Games.prototype, "transferGame", null);
 __decorate([
-    (0, describe_1.describe)({
-        endpoint: "/games/:gameId/can-transfer",
-        method: "GET",
-        description: "Check if you can transfer your copy of a game to another user",
-        params: { gameId: "The id of the game" },
-        query: { targetUserId: "The id of the recipient user" },
-        responseType: { canTransfer: "boolean", reason: "string" },
-        example: "GET /api/games/123/can-transfer?targetUserId=456",
-        requiresAuth: true,
-    }),
     (0, inversify_express_utils_1.httpGet)(":gameId/can-transfer", LoggedCheck_1.LoggedCheck.middleware),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
