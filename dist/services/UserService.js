@@ -307,6 +307,9 @@ let UserService = class UserService {
             admin: user.admin,
             beta_user: user.beta_user,
             badges: user.badges,
+            inventory: user.inventory || [],
+            ownedItems: user.ownedItems || [],
+            createdGames: user.createdGames || [],
         };
         return publicProfile;
     }
@@ -323,6 +326,9 @@ let UserService = class UserService {
             beta_user: user.beta_user,
             badges: user.badges,
             disabled: user.disabled,
+            inventory: user.inventory,
+            ownedItems: user.ownedItems,
+            createdGames: user.createdGames,
         };
         return publicProfile;
     }

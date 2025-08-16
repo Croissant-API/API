@@ -363,6 +363,9 @@ export class UserService implements IUserService {
       admin: user.admin,
       beta_user: user.beta_user,
       badges: user.badges,
+      inventory: user.inventory || [],
+      ownedItems: user.ownedItems || [],
+      createdGames: user.createdGames || [],
     };
     return publicProfile;
   }
@@ -380,6 +383,9 @@ export class UserService implements IUserService {
       beta_user: user.beta_user,
       badges: user.badges,
       disabled: user.disabled,
+      inventory: user.inventory,
+      ownedItems: user.ownedItems,
+      createdGames: user.createdGames,
     };
     return publicProfile;
   }
