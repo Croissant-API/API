@@ -7,7 +7,7 @@ export declare class LobbyRepository {
     getLobbies(filters?: {
         lobbyId?: string;
         userId?: string;
-    }, orderBy?: string): Promise<Lobby[]>;
+    }): Promise<Lobby[]>;
     getLobby(lobbyId: string): Promise<Lobby | null>;
     getUserLobby(userId: string): Promise<Lobby | null>;
     getUserLobbies(userId: string): Promise<Lobby[]>;

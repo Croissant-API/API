@@ -7,29 +7,27 @@ export class LobbyRepository {
 
   // Méthode générique pour récupérer les lobbies selon des filtres
   async getLobbies(
-    filters: { lobbyId?: string; userId?: string } = {},
-    orderBy: string = "lobbyId ASC"
+    filters: { lobbyId?: string; userId?: string } = {}
   ): Promise<Lobby[]> {
-    let query = "SELECT lobbyId, users FROM lobbies WHERE 1=1";
-    const params = [];
-    if (filters.lobbyId) {
-      query += " AND lobbyId = ?";
-      params.push(filters.lobbyId);
-    }
-    if (filters.userId) {
-      query += " AND JSON_EXTRACT(users, '$') LIKE ?";
-      params.push(`%"${filters.userId}%"`);
-    }
-    query += ` ORDER BY ${orderBy}`;
-    const rows = await this.databaseService.read<{ lobbyId: string; users: string }>(query, params);
+    const query = "SELECT lobbyId, users FROM lobbies WHERE 1=1";
+    const rows = await this.databaseService.read<{ lobbyId: string; users: string[] }>(query);
     // Parse users JSON for all lobbies
     const lobbies: Lobby[] = [];
     for (const row of rows) {
-      const users = await this.getUsersByIds(JSON.parse(row.users));
-      lobbies.push({
-        lobbyId: row.lobbyId,
-        users
-      });
+      if(filters.userId && row.users.indexOf(filters.userId) !== -1 && filters.userId) {
+        const users = await this.getUsersByIds(row.users);
+        lobbies.push({
+          lobbyId: row.lobbyId,
+          users
+        });
+      }
+      else if (filters.lobbyId && row.lobbyId === filters.lobbyId) {
+        const users = await this.getUsersByIds(row.users);
+        lobbies.push({
+          lobbyId: row.lobbyId,
+          users
+        });
+      }
     }
     return lobbies;
   }
@@ -42,6 +40,7 @@ export class LobbyRepository {
 
   async getUserLobby(userId: string): Promise<Lobby | null> {
     const lobbies = await this.getLobbies({ userId });
+    if (lobbies.length === 0) return null;
     return lobbies ? { lobbyId: lobbies[0].lobbyId, users: lobbies[0].users } : null;
   }
 
