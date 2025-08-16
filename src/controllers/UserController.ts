@@ -25,7 +25,7 @@ export class Users {
 		@inject("MailService") private mailService: MailService,
 		@inject("StudioService") private studioService: StudioService,
 		@inject("SteamOAuthService") private steamOAuthService: SteamOAuthService
-	) {}
+	) { }
 
 	// --- HELPERS ---
 

@@ -20,7 +20,7 @@ export class GameGifts {
 		@inject("GameService") private gameService: IGameService,
 		@inject("UserService") private userService: IUserService,
 		@inject("LogService") private logService: ILogService
-	) {}
+	) { }
 
 	// Helper pour créer des logs (signature uniforme)
 	private async createLog(req: AuthenticatedRequest, action: string, tableName?: string, statusCode?: number, userId?: string) {

@@ -17,7 +17,7 @@ export class Trades {
 	constructor(
 		@inject("TradeService") private tradeService: ITradeService,
 		@inject("LogService") private logService: ILogService
-	) {}
+	) { }
 
 	// Helper pour les logs (uniformisé)
 	private async createLog(req: AuthenticatedRequest, tableName?: string, statusCode?: number, metadata?: object, userId?: string) {

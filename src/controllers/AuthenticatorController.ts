@@ -20,7 +20,7 @@ export class Authenticator {
 	constructor(
 		@inject("UserService") private userService: IUserService,
 		@inject("LogService") private logService: ILogService // décommenté pour logger
-	) {}
+	) { }
 
 	// Helper pour les logs (utilise logService maintenant)
 	private async logAction(req: Request, action: string, statusCode: number, metadata?: object) {

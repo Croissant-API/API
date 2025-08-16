@@ -35,7 +35,7 @@ export class Inventories {
 	constructor(
 		@inject("InventoryService") private inventoryService: IInventoryService,
 		@inject("LogService") private logService: ILogService
-	) {}
+	) { }
 
 	// Helper pour créer des logs (signature uniforme)
 	private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string) {

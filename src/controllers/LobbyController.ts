@@ -32,7 +32,7 @@ export class Lobbies {
 	constructor(
 		@inject("LobbyService") private lobbyService: ILobbyService,
 		@inject("LogService") private logService: ILogService // Ajout injection LogService
-	) {}
+	) { }
 
 	// Helper pour créer des logs
 	private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string) {

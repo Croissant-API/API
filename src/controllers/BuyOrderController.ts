@@ -18,7 +18,7 @@ export class BuyOrderController {
 		@inject("BuyOrderService") private buyOrderService: IBuyOrderService,
 		@inject("ItemService") private itemService: IItemService,
 		@inject("LogService") private logService: ILogService // Ajouté pour logger
-	) {}
+	) { }
 
 	// Helper pour les logs (utilise logService maintenant)
 	private async logAction(req: AuthenticatedRequest, action: string, statusCode: number, metadata?: object) {
