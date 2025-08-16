@@ -2,7 +2,7 @@ import { GameGift } from "../interfaces/GameGift";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class GameGiftRepository {
-    constructor(private databaseService: IDatabaseService) {}
+    constructor(private databaseService: IDatabaseService) { }
 
     async insertGift(gift: GameGift): Promise<void> {
         await this.databaseService.request(

@@ -2,7 +2,7 @@ import { Game } from "../interfaces/Game";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class GameRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async getGame(gameId: string): Promise<Game | null> {
     const rows = await this.databaseService.read<Game>(

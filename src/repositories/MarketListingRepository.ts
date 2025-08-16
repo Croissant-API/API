@@ -3,7 +3,7 @@ import { InventoryItem } from '../interfaces/Inventory';
 import { IDatabaseService } from '../services/DatabaseService';
 
 export class MarketListingRepository {
-    constructor(private databaseService: IDatabaseService) {}
+    constructor(private databaseService: IDatabaseService) { }
 
     async insertMarketListing(listing: MarketListing): Promise<void> {
         await this.databaseService.request(

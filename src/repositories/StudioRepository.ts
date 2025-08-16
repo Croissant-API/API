@@ -2,10 +2,10 @@
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class StudioRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
-  async getStudio(user_id: string): Promise<{user_id: string, admin_id: string, users: string[]}|null> {
-    const studiosResponse = await this.databaseService.read<{user_id: string, admin_id: string, users: string[]}>("SELECT * FROM studios WHERE user_id = ?", [user_id]);
+  async getStudio(user_id: string): Promise<{ user_id: string, admin_id: string, users: string[] } | null> {
+    const studiosResponse = await this.databaseService.read<{ user_id: string, admin_id: string, users: string[] }>("SELECT * FROM studios WHERE user_id = ?", [user_id]);
     return studiosResponse.length === 0 ? null : studiosResponse[0];
   }
 
@@ -16,7 +16,7 @@ export class StudioRepository {
     );
   }
 
-  async getUserStudios(user_id: string): Promise<Array<{user_id: string, admin_id: string, users: string[]}>> {
+  async getUserStudios(user_id: string): Promise<Array<{ user_id: string, admin_id: string, users: string[] }>> {
     const studios = await this.databaseService.read<{
       user_id: string;
       admin_id: string;

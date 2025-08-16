@@ -2,7 +2,7 @@ import { BuyOrder } from "../interfaces/BuyOrder";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class BuyOrderRepository {
-    constructor(private databaseService: IDatabaseService) {}
+    constructor(private databaseService: IDatabaseService) { }
 
     async insertBuyOrder(order: BuyOrder): Promise<void> {
         await this.databaseService.request(

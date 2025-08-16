@@ -1,7 +1,7 @@
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class LobbyRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async getLobby(lobbyId: string): Promise<{ lobbyId: string; users: string[] } | null> {
     const lobby = await this.databaseService.read<{

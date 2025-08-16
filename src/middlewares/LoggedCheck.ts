@@ -12,7 +12,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export class LoggedCheck {
-  constructor(@inject("StudioService") private studioService: IStudioService) {}
+  constructor(@inject("StudioService") private studioService: IStudioService) { }
   static middleware = async (
     req: Request,
     res: Response,
@@ -21,7 +21,7 @@ export class LoggedCheck {
     const authHeader =
       req.headers["authorization"] ||
       "Bearer " +
-        req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+      req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
     const roleCookie = req.headers["cookie"]?.toString().split("role=")[1]?.split(";")[0];
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).send({ message: "Unauthorized" });

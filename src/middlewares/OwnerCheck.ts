@@ -21,7 +21,7 @@ export class OwnerCheck {
     const authHeader =
       req.headers["authorization"] ||
       "Bearer " +
-        req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+      req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
     const token =
       authHeader && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7)

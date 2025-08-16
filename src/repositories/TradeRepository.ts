@@ -2,7 +2,7 @@ import { Trade } from "../interfaces/Trade";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class TradeRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async findPendingTrade(fromUserId: string, toUserId: string): Promise<Trade | null> {
     const trades = await this.databaseService.read<Trade>(

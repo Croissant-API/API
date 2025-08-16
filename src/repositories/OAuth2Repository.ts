@@ -5,7 +5,7 @@ import { v4 } from "uuid";
 
 
 export class OAuth2Repository {
-  constructor(private db: IDatabaseService) {}
+  constructor(private db: IDatabaseService) { }
 
   async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
     const client_id = v4();

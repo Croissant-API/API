@@ -2,7 +2,7 @@ import { Item } from "../interfaces/Item";
 import { IDatabaseService } from "../services/DatabaseService";
 
 export class ItemRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async createItem(item: Omit<Item, "id">): Promise<void> {
     const existingItems = await this.databaseService.read<Item>(
