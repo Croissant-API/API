@@ -348,6 +348,11 @@ export class UserService implements IUserService {
         return 0;
       });
     }
+    if(user.badges) {
+      const badgeOrder = ["early_user", "staff", "bug_hunter", "contributor", "moderator", "community_manager"];
+      user.badges = user.badges.filter(badge => badgeOrder.includes(badge));
+      user.badges.sort((a,b)=> badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
+    }
     return user;
   }
 
