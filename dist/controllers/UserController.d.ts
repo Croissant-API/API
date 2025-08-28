@@ -37,4 +37,6 @@ export declare class Users {
     transferCredits(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     checkVerificationKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     changeRole(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    private verifyDiscordToken;
+    private verifyGoogleToken;
 }

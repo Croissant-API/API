@@ -92,27 +92,43 @@ let Users = class Users {
     }
     // --- AUTHENTIFICATION & INSCRIPTION ---
     async loginOAuth(req, res) {
-        const { email, provider, providerId, username } = req.body;
-        if (!email || !provider || !providerId) {
+        const { email, provider, providerId, username, accessToken } = req.body;
+        if (!email || !provider || !providerId || !accessToken) {
             await this.createLog(req, "loginOAuth", "users", 400);
-            return this.sendError(res, 400, "Missing email, provider or providerId");
+            return this.sendError(res, 400, "Missing email, provider, providerId or accessToken");
+        }
+        // Vérifier le token OAuth avec le provider
+        let verifiedUser;
+        try {
+            if (provider === "discord") {
+                verifiedUser = await this.verifyDiscordToken(accessToken, providerId);
+            }
+            else if (provider === "google") {
+                verifiedUser = await this.verifyGoogleToken(accessToken, providerId);
+            }
+            else {
+                await this.createLog(req, "loginOAuth", "users", 400);
+                return this.sendError(res, 400, "Unsupported OAuth provider");
+            }
+        }
+        catch (error) {
+            await this.createLog(req, "loginOAuth", "users", 401);
+            return this.sendError(res, 401, "Invalid OAuth token");
+        }
+        // Vérifier que l'email et l'ID correspondent aux données du provider
+        if (verifiedUser.email !== email || verifiedUser.id !== providerId) {
+            await this.createLog(req, "loginOAuth", "users", 401);
+            return this.sendError(res, 401, "OAuth data mismatch");
         }
         const users = await this.userService.getAllUsersWithDisabled();
-        // console.log(users);
         const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-        // const authHeader =
-        //   req.headers["authorization"] ||
-        //   "Bearer " +
-        //   req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-        // const token = authHeader.split("Bearer ")[1];
         let user = await this.userService.authenticateUser(token);
         if (!user) {
             user = users.find((u) => u.discord_id == providerId || u.google_id == providerId) || null;
         }
         if (!user) {
             const userId = crypto_1.default.randomUUID();
-            user = await this.userService.createUser(userId, username || "", email, null, provider, providerId);
-            // await this.mailService.sendAccountConfirmationMail(user.email);
+            user = await this.userService.createUser(userId, username || verifiedUser.username || "", email, null, provider, providerId);
             await this.createLog(req, "loginOAuth", "users", 201, userId);
         }
         else {
@@ -629,6 +645,45 @@ let Users = class Users {
         catch (error) {
             await this.createLog(req, "changeRole", "users", 500, userId);
             this.sendError(res, 500, "Error setting role cookie");
+        }
+    }
+    // Ajouter ces méthodes de vérification OAuth
+    async verifyDiscordToken(accessToken, expectedUserId) {
+        try {
+            const response = await fetch("https://discord.com/api/users/@me", {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            if (!response.ok) {
+                throw new Error("Invalid Discord token");
+            }
+            const userData = await response.json();
+            return {
+                id: userData.id,
+                email: userData.email,
+                username: userData.username,
+            };
+        }
+        catch (error) {
+            throw new Error("Failed to verify Discord token");
+        }
+    }
+    async verifyGoogleToken(accessToken, expectedUserId) {
+        try {
+            const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
+            if (!response.ok) {
+                throw new Error("Invalid Google token");
+            }
+            const userData = await response.json();
+            return {
+                id: userData.id,
+                email: userData.email,
+                username: userData.name,
+            };
+        }
+        catch (error) {
+            throw new Error("Failed to verify Google token");
         }
     }
 };
