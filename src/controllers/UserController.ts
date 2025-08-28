@@ -182,6 +182,10 @@ export class Users {
 		}
 		let hashedPassword = null;
 		if (req.body.password) {
+			if(typeof req.body.password !== "string") {
+				await this.createLog(req, "register", "users", 400);
+				return this.sendError(res, 400, "Invalid password");
+			}
 			hashedPassword = await bcrypt.hash(req.body.password, 10);
 		}
 		try {
