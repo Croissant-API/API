@@ -155,6 +155,10 @@ export class StripeController {
   // --- CHECKOUT ---
   @httpGet("/checkout", LoggedCheck.middleware)
   public async checkoutEndpoint(req: AuthenticatedRequest, res: Response) {
+    // TEMP DISABLING
+    //res.send("This endpoint is temporarly disabled, please retry later")
+    //return;
+
     if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
       await this.createLog(req, "stripe_sessions", 400);
       return;
