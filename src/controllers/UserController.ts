@@ -87,52 +87,84 @@ export class Users {
 
 	@httpPost("/login-oauth")
 	public async loginOAuth(req: Request, res: Response) {
-		const { email, provider, providerId, username, accessToken } = req.body;
-		if (!email || !provider || !providerId || !accessToken) {
+		const { provider, code } = req.body;
+		if (!provider || !code) {
 			await this.createLog(req, "loginOAuth", "users", 400);
-			return this.sendError(res, 400, "Missing email, provider, providerId or accessToken");
+			return this.sendError(res, 400, "Missing provider or code");
 		}
 
-		// Vérifier le token OAuth avec le provider
-		let verifiedUser;
-		try {
-			if (provider === "discord") {
-				verifiedUser = await this.verifyDiscordToken(accessToken, providerId);
-			} else if (provider === "google") {
-				verifiedUser = await this.verifyGoogleToken(accessToken, providerId);
-			} else {
-				await this.createLog(req, "loginOAuth", "users", 400);
-				return this.sendError(res, 400, "Unsupported OAuth provider");
-			}
-		} catch (error) {
-			await this.createLog(req, "loginOAuth", "users", 401);
-			return this.sendError(res, 401, "Invalid OAuth token");
+		let accessToken: string | undefined;
+		let verifiedUser: { id: string; email: string; username: string };
+
+		// Échange le code contre un access_token
+		if (provider === "discord") {
+			// Échange code contre access_token
+			const params = new URLSearchParams({
+				client_id: process.env.DISCORD_CLIENT_ID!,
+				client_secret: process.env.DISCORD_CLIENT_SECRET!,
+				grant_type: "authorization_code",
+				code,
+				redirect_uri: process.env.DISCORD_CALLBACK_URL!,
+			});
+			const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: params.toString(),
+			});
+			if (!tokenRes.ok) return this.sendError(res, 500, "Failed to fetch Discord access token");
+			const tokenData = await tokenRes.json();
+			accessToken = tokenData.access_token;
+		} else if (provider === "google") {
+			const params = new URLSearchParams({
+				client_id: process.env.GOOGLE_CLIENT_ID!,
+				client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+				grant_type: "authorization_code",
+				code,
+				redirect_uri: process.env.GOOGLE_CALLBACK_URL!,
+			});
+			const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: params.toString(),
+			});
+			if (!tokenRes.ok) return this.sendError(res, 500, "Failed to fetch Google access token");
+			const tokenData = await tokenRes.json();
+			accessToken = tokenData.access_token;
+		} else {
+			return this.sendError(res, 400, "Unsupported OAuth provider");
 		}
 
-		// Vérifier que l'email et l'ID correspondent aux données du provider
-		if (verifiedUser.email !== email || verifiedUser.id !== providerId) {
-			await this.createLog(req, "loginOAuth", "users", 401);
-			return this.sendError(res, 401, "OAuth data mismatch");
+		// Récupère les infos utilisateur depuis le provider
+		if (provider === "discord") {
+			verifiedUser = await this.verifyDiscordToken(accessToken!);
+		} else /*if (provider === "google")*/ {
+			verifiedUser = await this.verifyGoogleToken(accessToken!);
 		}
 
+		// Utilise verifiedUser.id, verifiedUser.email, verifiedUser.username pour la suite
 		const users = await this.userService.getAllUsersWithDisabled();
 		const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
 
 		let user = await this.userService.authenticateUser(token as string);
 
+		if (typeof verifiedUser === "undefined") {
+			await this.createLog(req, "loginOAuth", "users", 500);
+			return this.sendError(res, 500, "Failed to verify OAuth user");
+		}
+
 		if (!user) {
-			user = users.find((u) => u.discord_id == providerId || u.google_id == providerId) || null;
+			user = users.find((u) => u.discord_id == verifiedUser.id || u.google_id == verifiedUser.id) || null;
 		}
 
 		if (!user) {
 			const userId = crypto.randomUUID();
-			user = await this.userService.createUser(userId, username || verifiedUser.username || "", email, null, provider, providerId);
+			user = await this.userService.createUser(userId, verifiedUser.username, verifiedUser.email, null, provider, verifiedUser.id);
 			await this.createLog(req, "loginOAuth", "users", 201, userId);
 		} else {
 			if ((provider === "discord" && !user.discord_id) || (provider === "google" && !user.google_id)) {
-				await this.userService.associateOAuth(user.user_id, provider, providerId);
+				await this.userService.associateOAuth(user.user_id, provider, verifiedUser.id);
 			}
-			if ((provider === "discord" && user.discord_id && user.discord_id != providerId) || (provider === "google" && user.google_id && user.google_id != providerId)) {
+			if ((provider === "discord" && user.discord_id && user.discord_id != verifiedUser.id) || (provider === "google" && user.google_id && user.google_id != verifiedUser.id)) {
 				await this.createLog(req, "loginOAuth", "users", 401, user.user_id);
 				return this.sendError(res, 401, "OAuth providerId mismatch");
 			}
@@ -769,7 +801,7 @@ export class Users {
 	}
 
 	// Ajouter ces méthodes de vérification OAuth
-	private async verifyDiscordToken(accessToken: string, expectedUserId: string) {
+	private async verifyDiscordToken(accessToken: string) {
 		try {
 			const response = await fetch("https://discord.com/api/users/@me", {
 				headers: {
@@ -792,7 +824,7 @@ export class Users {
 		}
 	}
 
-	private async verifyGoogleToken(accessToken: string, expectedUserId: string) {
+	private async verifyGoogleToken(accessToken: string) {
 		try {
 			const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
 			
