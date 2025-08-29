@@ -100,20 +100,30 @@ let Users = class Users {
         let accessToken;
         let verifiedUser;
         if (provider === "discord") {
+            const redirectUri = process.env.DISCORD_CALLBACK_URL;
+            if (!redirectUri) {
+                await this.createLog(req, "loginOAuth", "users", 500);
+                return this.sendError(res, 500, "Discord redirect_uri is not set in environment variables");
+            }
             const params = new URLSearchParams({
                 client_id: process.env.DISCORD_CLIENT_ID,
                 client_secret: process.env.DISCORD_CLIENT_SECRET,
                 grant_type: "authorization_code",
-                code,
-                redirect_uri: process.env.DISCORD_CALLBACK_URL,
+                code: code,
+                redirect_uri: redirectUri,
             });
             const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: params.toString(),
             });
-            if (!tokenRes.ok)
-                return this.sendError(res, 500, "Failed to fetch Discord access token");
+            if (!tokenRes.ok) {
+                const errorText = await tokenRes.text();
+                console.error("Discord token error:", errorText);
+                console.error("Params sent to Discord:", params.toString());
+                await this.createLog(req, "loginOAuth", "users", 500);
+                return this.sendError(res, 500, "Failed to fetch Discord access token: " + errorText);
+            }
             const tokenData = await tokenRes.json();
             accessToken = tokenData.access_token;
             verifiedUser = await this.verifyDiscordToken(accessToken);
