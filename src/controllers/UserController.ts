@@ -67,6 +67,7 @@ export class Users {
 			admin: !!user.admin,
 			disabled: !!user.disabled,
 			badges: user.badges || [],
+			created_at: user.created_at, // <-- Ajout ici
 		};
 	}
 
@@ -80,6 +81,7 @@ export class Users {
 			admin: !!user.admin,
 			badges: user.badges || [],
 			disabled: !!user.disabled,
+			created_at: user.created_at, // <-- Ajout ici
 		};
 	}
 

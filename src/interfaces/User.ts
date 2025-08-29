@@ -10,6 +10,8 @@ export interface PublicUser {
   admin?: boolean;
   badges: ('staff' | 'moderator' | 'community_manager' | 'early_user' | 'bug_hunter' | 'contributor' | 'partner')[];
   beta_user: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface User extends PublicUser {
@@ -27,6 +29,8 @@ export interface User extends PublicUser {
   webauthn_challenge: string;
   webauthn_credentials?: string;
   authenticator_secret?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PublicUserAsAdmin extends PublicUser {

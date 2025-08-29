@@ -57,14 +57,15 @@ class UserRepository {
     async searchUsers() {
         return await this.databaseService.read(`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users LIMIT 100`);
     }
-    async createUser(user_id, username, email, password, provider, providerId) {
-        await this.databaseService.request("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id) VALUES (?, ?, ?, ?, 0, ?, ?)", [
+    async createUser(user_id, username, email, password, provider, providerId, created_at) {
+        await this.databaseService.request("INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)", [
             user_id,
             username,
             email,
             password,
             provider === "discord" ? providerId : null,
             provider === "google" ? providerId : null,
+            created_at || new Date().toISOString().slice(0, 19).replace('T', ' '),
         ]);
     }
     async createBrandUser(user_id, username) {

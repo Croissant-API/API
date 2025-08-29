@@ -12,7 +12,7 @@ export declare class UserRepository {
     disableAccount(targetUserId: string): Promise<void>;
     reenableAccount(targetUserId: string): Promise<void>;
     searchUsers(): Promise<User[]>;
-    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<void>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string, created_at?: string): Promise<void>;
     createBrandUser(user_id: string, username: string): Promise<void>;
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;
