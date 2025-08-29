@@ -99,9 +99,7 @@ let Users = class Users {
         }
         let accessToken;
         let verifiedUser;
-        // Échange le code contre un access_token
         if (provider === "discord") {
-            // Échange code contre access_token
             const params = new URLSearchParams({
                 client_id: process.env.DISCORD_CLIENT_ID,
                 client_secret: process.env.DISCORD_CLIENT_SECRET,
@@ -118,6 +116,7 @@ let Users = class Users {
                 return this.sendError(res, 500, "Failed to fetch Discord access token");
             const tokenData = await tokenRes.json();
             accessToken = tokenData.access_token;
+            verifiedUser = await this.verifyDiscordToken(accessToken);
         }
         else if (provider === "google") {
             const params = new URLSearchParams({
@@ -136,27 +135,21 @@ let Users = class Users {
                 return this.sendError(res, 500, "Failed to fetch Google access token");
             const tokenData = await tokenRes.json();
             accessToken = tokenData.access_token;
+            verifiedUser = await this.verifyGoogleToken(accessToken);
         }
         else {
             return this.sendError(res, 400, "Unsupported OAuth provider");
         }
-        // Récupère les infos utilisateur depuis le provider
-        if (provider === "discord") {
-            verifiedUser = await this.verifyDiscordToken(accessToken);
-        }
-        else /*if (provider === "google")*/ {
-            verifiedUser = await this.verifyGoogleToken(accessToken);
-        }
-        // Utilise verifiedUser.id, verifiedUser.email, verifiedUser.username pour la suite
         const users = await this.userService.getAllUsersWithDisabled();
         const token = req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
         let user = await this.userService.authenticateUser(token);
-        if (typeof verifiedUser === "undefined") {
+        if (!verifiedUser) {
             await this.createLog(req, "loginOAuth", "users", 500);
             return this.sendError(res, 500, "Failed to verify OAuth user");
         }
         if (!user) {
-            user = users.find((u) => u.discord_id == verifiedUser.id || u.google_id == verifiedUser.id) || null;
+            user = users.find((u) => (provider === "discord" && u.discord_id == verifiedUser.id) ||
+                (provider === "google" && u.google_id == verifiedUser.id)) || null;
         }
         if (!user) {
             const userId = crypto_1.default.randomUUID();
@@ -167,7 +160,8 @@ let Users = class Users {
             if ((provider === "discord" && !user.discord_id) || (provider === "google" && !user.google_id)) {
                 await this.userService.associateOAuth(user.user_id, provider, verifiedUser.id);
             }
-            if ((provider === "discord" && user.discord_id && user.discord_id != verifiedUser.id) || (provider === "google" && user.google_id && user.google_id != verifiedUser.id)) {
+            if ((provider === "discord" && user.discord_id && user.discord_id != verifiedUser.id) ||
+                (provider === "google" && user.google_id && user.google_id != verifiedUser.id)) {
                 await this.createLog(req, "loginOAuth", "users", 401, user.user_id);
                 return this.sendError(res, 401, "OAuth providerId mismatch");
             }
