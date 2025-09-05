@@ -12,6 +12,7 @@ export interface PublicUser {
   beta_user: boolean;
   created_at?: string;
   updated_at?: string;
+  disabled?: boolean; // <-- Ajout ici
 }
 
 export interface User extends PublicUser {

@@ -75,7 +75,7 @@ let UserService = class UserService {
     async searchUsersByUsername(query) {
         const users = await this.adminSearchUsers(query);
         // we return users as PublicUser[]
-        return users.map((u) => ({
+        return users.filter((u) => !u.disabled).map((u) => ({
             user_id: u.user_id,
             username: u.username,
             verified: !!u.verified,
@@ -83,6 +83,7 @@ let UserService = class UserService {
             admin: !!u.admin,
             beta_user: !!u.beta_user,
             badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+            disabled: !!u.disabled, // <-- Ajout ici
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {

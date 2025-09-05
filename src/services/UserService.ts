@@ -106,7 +106,7 @@ export class UserService implements IUserService {
   async searchUsersByUsername(query: string): Promise<PublicUser[]> {
     const users = await this.adminSearchUsers(query);
     // we return users as PublicUser[]
-    return users.map((u: PublicUser) => ({
+    return users.filter((u: PublicUser) => !u.disabled).map((u: PublicUser) => ({
       user_id: u.user_id,
       username: u.username,
       verified: !!u.verified,
@@ -114,6 +114,7 @@ export class UserService implements IUserService {
       admin: !!u.admin,
       beta_user: !!u.beta_user,
       badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+      disabled: !!u.disabled, // <-- Ajout ici
     }));
   }
 
