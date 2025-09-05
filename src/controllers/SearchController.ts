@@ -59,7 +59,7 @@ export class SearchController {
 
             const detailledUsers = await Promise.all(
                 users.map(async (user: PublicUser & UserExtensions) => {
-                    const publicProfile = admin ? 
+                    const publicProfile = !admin ? 
                         await this.userService.getUserWithPublicProfile(user.user_id):
                         await this.userService.adminGetUserWithProfile(user.user_id);
                     return { id: user.user_id, ...publicProfile };
