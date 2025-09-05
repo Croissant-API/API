@@ -299,7 +299,7 @@ export class UserService implements IUserService {
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?) AND (u.disabled = 0 OR u.disabled IS NULL)
+      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
       GROUP BY u.user_id
     `;
 

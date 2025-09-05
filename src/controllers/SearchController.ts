@@ -53,15 +53,18 @@ export class SearchController {
         }
 
         try {
+            console.log("Searching for:", query, "as", admin ? "admin" : "user");
             const users = admin
                 ? await this.userService.adminSearchUsers(query)
                 : await this.userService.searchUsersByUsername(query);
 
             const detailledUsers = await Promise.all(
                 users.map(async (user: PublicUser & UserExtensions) => {
-                    const publicProfile = !admin ? 
-                        await this.userService.getUserWithPublicProfile(user.user_id):
-                        await this.userService.adminGetUserWithProfile(user.user_id);
+                    console.log("Processing user:", user.user_id);
+                    const publicProfile = admin ? 
+                        await this.userService.getUserWithCompleteProfile(user.user_id):
+                        await this.userService.getUserWithPublicProfile(user.user_id);
+                    console.log(publicProfile);
                     return { id: user.user_id, ...publicProfile };
                 })
             );
