@@ -53,7 +53,9 @@ let SearchController = class SearchController {
                 ? await this.userService.adminSearchUsers(query)
                 : await this.userService.searchUsersByUsername(query);
             const detailledUsers = await Promise.all(users.map(async (user) => {
-                const publicProfile = await this.userService.getUserWithPublicProfile(user.user_id);
+                const publicProfile = admin ?
+                    await this.userService.getUserWithPublicProfile(user.user_id) :
+                    await this.userService.adminGetUserWithProfile(user.user_id);
                 return { id: user.user_id, ...publicProfile };
             }));
             const items = await this.itemService.searchItemsByName(query);
