@@ -316,6 +316,7 @@ let UserService = class UserService {
             inventory: user.inventory || [],
             ownedItems: user.ownedItems || [],
             createdGames: user.createdGames || [],
+            disabled: user.disabled,
         };
         return publicProfile;
     }

@@ -372,6 +372,7 @@ export class UserService implements IUserService {
       inventory: user.inventory || [],
       ownedItems: user.ownedItems || [],
       createdGames: user.createdGames || [],
+      disabled: user.disabled,
     };
     return publicProfile;
   }
