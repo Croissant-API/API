@@ -542,7 +542,12 @@ export class Users {
 			return this.sendError(res, 400, "Missing search query");
 		}
 		try {
-			const users: PublicUser[] = await this.userService.searchUsersByUsername(query);
+			// Only return non-disabled users (assume disabled is present if returned from service)
+			const usersRaw = await this.userService.searchUsersByUsername(query);
+			const users = usersRaw.filter(user => {
+				// Accept if disabled is not present or is falsy
+				return !("disabled" in user) || !user["disabled"];
+			});
 			await this.createLog(req, "searchUsers", "users", 200);
 			res.send(users.map((user) => this.mapUserSearch(user)));
 		} catch (error) {
@@ -571,7 +576,7 @@ export class Users {
 		},
 		example: "GET /api/users/123",
 	})
-	@httpGet("/:userId")
+	@httpGet(":userId")
 	public async getUser(req: Request, res: Response) {
 		try {
 			await userIdParamValidator.validate(req.params);
@@ -581,7 +586,8 @@ export class Users {
 		}
 		const { userId } = req.params;
 		const userWithData = await this.userService.getUserWithPublicProfile(userId);
-		if (!userWithData) {
+		// Only allow non-disabled users
+		if (!userWithData || ("disabled" in userWithData && userWithData["disabled"])) {
 			await this.createLog(req, "getUser", "users", 404);
 			return this.sendError(res, 404, "User not found");
 		}

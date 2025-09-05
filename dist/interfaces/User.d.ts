@@ -50,3 +50,9 @@ export interface Oauth2User {
     discord_id?: string;
     google_id?: string;
 }
+export interface Friend {
+    user_1: string;
+    user_2: string;
+    datetime?: string;
+    status: 'pending' | 'approved';
+}
