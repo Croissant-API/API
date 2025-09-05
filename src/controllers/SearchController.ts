@@ -8,7 +8,7 @@ import { IInventoryService } from "../services/InventoryService";
 import { ILogService } from "../services/LogService";
 import { sendError, filterGame } from "../utils/helpers";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { PublicUser, UserExtensions } from "interfaces/User";
+import { PublicUser, User, UserExtensions } from "../interfaces/User";
 
 @controller("/search")
 export class SearchController {
@@ -18,7 +18,7 @@ export class SearchController {
         @inject("GameService") private gameService: IGameService,
         @inject("InventoryService") private inventoryService: IInventoryService,
         @inject("LogService") private logService: ILogService
-    ) {}
+    ) { }
 
     private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
         try {
@@ -93,6 +93,26 @@ export class SearchController {
 
     @httpGet("/")
     public async globalSearch(req: Request, res: Response) {
-        return this.handleSearch(req, res);
+        const authHeader =
+            req.headers["authorization"] ||
+            "Bearer " +
+            req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+
+        const token = authHeader.split("Bearer ")[1];
+        if (!token) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+
+        const user: User | null = await this.userService.authenticateUser(token);
+        if(!user || !user.admin) {
+            return this.handleSearch(req, res);
+        }
+        else {
+            return this.handleSearch(req, res, { admin: true, userId: user.user_id });
+        }
     }
 }

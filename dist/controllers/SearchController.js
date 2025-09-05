@@ -82,7 +82,23 @@ let SearchController = class SearchController {
         }
     }
     async globalSearch(req, res) {
-        return this.handleSearch(req, res);
+        const authHeader = req.headers["authorization"] ||
+            "Bearer " +
+                req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const token = authHeader.split("Bearer ")[1];
+        if (!token) {
+            return res.status(401).send({ message: "Unauthorized" });
+        }
+        const user = await this.userService.authenticateUser(token);
+        if (!user || !user.admin) {
+            return this.handleSearch(req, res);
+        }
+        else {
+            return this.handleSearch(req, res, { admin: true, userId: user.user_id });
+        }
     }
 };
 exports.SearchController = SearchController;
