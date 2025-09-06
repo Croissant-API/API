@@ -1,6 +1,6 @@
 # Croissant API
 
-## You can use this icon to search and travel through endpoints
+You can use this icon to search and travel through endpoints
 <img width="127" height="84" alt="image" src="https://github.com/user-attachments/assets/57ab5e79-dc48-42c6-86d7-88ac5838da12" />
 
 This API provides endpoints for inventories, items, lobbies, trades, users, OAuth2, and studios.
@@ -1112,4 +1112,5 @@ All responses are JSON.
 ---
 
 For full details, see the [API documentation](https://croissant-api.fr/api-docs) or source code.
+
 
