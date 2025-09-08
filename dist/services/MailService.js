@@ -10,7 +10,7 @@ const path_1 = __importDefault(require("path"));
 class MailService {
     constructor() {
         this.transporter = nodemailer_1.default.createTransport({
-            host: process.env.SMTP_HOST || "ssl0.ovh.net",
+            host: process.env.SMTP_HOST || "mail.croissant-api.fr",
             port: Number(process.env.SMTP_PORT) || 465,
             secure: true, // true for 465, false for other ports
             auth: {
