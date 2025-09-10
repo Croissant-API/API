@@ -14,7 +14,7 @@ class MailService {
             port: Number(process.env.SMTP_PORT) || 587,
             secure: false, // true for 465, false for other ports
             auth: {
-                user: process.env.SMTP_USER || "noreply@croissant-api.fr",
+                user: process.env.SMTP_USER || "contact@croissant-api.fr",
                 pass: process.env.SMTP_PASS,
             },
         });
