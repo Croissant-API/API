@@ -19,7 +19,7 @@ export class MailService implements IMailService {
       port: Number(process.env.SMTP_PORT) || 587,
       secure: false, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER || "contact@croissant-api.fr",
+        user: process.env.SMTP_USER || "noreply@croissant-api.fr",
         pass: process.env.SMTP_PASS,
       },
     });
@@ -34,7 +34,7 @@ export class MailService implements IMailService {
     const templatePath = path.join(process.cwd(), "mailTemplates", template);
     const html = await ejs.renderFile(templatePath, data || {});
     const mailOptions = {
-      from: process.env.SMTP_FROM || "Croissant API <contact@croissant-api.fr>",
+      from: process.env.SMTP_FROM || "Croissant API <noreply@croissant-api.fr>",
       to,
       subject,
       html,
