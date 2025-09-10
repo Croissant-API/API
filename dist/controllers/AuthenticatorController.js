@@ -73,6 +73,40 @@ let Authenticator = class Authenticator {
             console.error("Error creating log:", error);
         }
     }
+    async verifyKey(req, res) {
+        const { code, userId } = req.body;
+        if (!userId) {
+            await this.logAction(req, "verifyKey", 400);
+            return res.status(400).send({ message: "User ID is required" });
+        }
+        try {
+            const user = await this.userService.getUser(userId);
+            if (!user) {
+                await this.logAction(req, "verifyKey", 404);
+                return res.status(404).send({ message: "User not found" });
+            }
+            const key = user.authenticator_secret;
+            if (!key || !code) {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Key and code are required" });
+            }
+            const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
+            if (isValid) {
+                await this.logAction(req, "verifyKey", 200);
+                const apiKey = (0, GenKey_1.genKey)(user.user_id);
+                const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
+                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
+            }
+            else {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Invalid key or code" });
+            }
+        }
+        catch (error) {
+            await this.logAction(req, "verifyKey", 500, { error });
+            handleError(res, error, "Error verifying key");
+        }
+    }
     async handleAuthenticatorActions(req, res) {
         const action = req.params.action;
         const user = req.user;
@@ -132,54 +166,20 @@ let Authenticator = class Authenticator {
             handleError(res, error, `Error in ${action}`);
         }
     }
-    async verifyKey(req, res) {
-        const { code, userId } = req.body;
-        if (!userId) {
-            await this.logAction(req, "verifyKey", 400);
-            return res.status(400).send({ message: "User ID is required" });
-        }
-        try {
-            const user = await this.userService.getUser(userId);
-            if (!user) {
-                await this.logAction(req, "verifyKey", 404);
-                return res.status(404).send({ message: "User not found" });
-            }
-            const key = user.authenticator_secret;
-            if (!key || !code) {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Key and code are required" });
-            }
-            const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
-            if (isValid) {
-                await this.logAction(req, "verifyKey", 200);
-                const apiKey = (0, GenKey_1.genKey)(user.user_id);
-                const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
-                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
-            }
-            else {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Invalid key or code" });
-            }
-        }
-        catch (error) {
-            await this.logAction(req, "verifyKey", 500, { error });
-            handleError(res, error, "Error verifying key");
-        }
-    }
 };
 exports.Authenticator = Authenticator;
-__decorate([
-    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], Authenticator.prototype, "handleAuthenticatorActions", null);
 __decorate([
     (0, inversify_express_utils_1.httpPost)("/verifyKey"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], Authenticator.prototype, "verifyKey", null);
+__decorate([
+    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], Authenticator.prototype, "handleAuthenticatorActions", null);
 exports.Authenticator = Authenticator = __decorate([
     (0, inversify_express_utils_1.controller)("/authenticator"),
     __param(0, (0, inversify_1.inject)("UserService")),

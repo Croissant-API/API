@@ -41,6 +41,42 @@ export class Authenticator {
         }
     }
 
+
+
+    @httpPost("/verifyKey")
+    async verifyKey(req: Request, res: Response) {
+        const { code, userId } = req.body;
+        if (!userId) {
+            await this.logAction(req, "verifyKey", 400);
+            return res.status(400).send({ message: "User ID is required" });
+        }
+        try {
+            const user = await this.userService.getUser(userId);
+            if (!user) {
+                await this.logAction(req, "verifyKey", 404);
+                return res.status(404).send({ message: "User not found" });
+            }
+            const key = user.authenticator_secret;
+            if (!key || !code) {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Key and code are required" });
+            }
+            const isValid = Totp.validate({ secret: key, passcode: code });
+            if (isValid) {
+                await this.logAction(req, "verifyKey", 200);
+                const apiKey = genKey(user.user_id);
+                const jwtToken = generateUserJwt(user, apiKey);
+                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
+            } else {
+                await this.logAction(req, "verifyKey", 400);
+                return res.status(400).send({ message: "Invalid key or code" });
+            }
+        } catch (error) {
+            await this.logAction(req, "verifyKey", 500, { error });
+            handleError(res, error, "Error verifying key");
+        }
+    }
+
     @httpPost("/:action", LoggedCheck.middleware)
     async handleAuthenticatorActions(req: AuthenticatedRequest, res: Response) {
         const action = req.params.action;
@@ -101,40 +137,6 @@ export class Authenticator {
         } catch (error) {
             await this.logAction(req, action, 500, { error });
             handleError(res, error, `Error in ${action}`);
-        }
-    }
-
-    @httpPost("/verifyKey")
-    async verifyKey(req: Request, res: Response) {
-        const { code, userId } = req.body;
-        if (!userId) {
-            await this.logAction(req, "verifyKey", 400);
-            return res.status(400).send({ message: "User ID is required" });
-        }
-        try {
-            const user = await this.userService.getUser(userId);
-            if (!user) {
-                await this.logAction(req, "verifyKey", 404);
-                return res.status(404).send({ message: "User not found" });
-            }
-            const key = user.authenticator_secret;
-            if (!key || !code) {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Key and code are required" });
-            }
-            const isValid = Totp.validate({ secret: key, passcode: code });
-            if (isValid) {
-                await this.logAction(req, "verifyKey", 200);
-                const apiKey = genKey(user.user_id);
-                const jwtToken = generateUserJwt(user, apiKey);
-                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
-            } else {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Invalid key or code" });
-            }
-        } catch (error) {
-            await this.logAction(req, "verifyKey", 500, { error });
-            handleError(res, error, "Error verifying key");
         }
     }
 }

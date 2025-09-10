@@ -7,6 +7,6 @@ export declare class Authenticator {
     private logService;
     constructor(userService: IUserService, logService: ILogService);
     private logAction;
-    handleAuthenticatorActions(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     verifyKey(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    handleAuthenticatorActions(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }
