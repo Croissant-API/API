@@ -2,6 +2,10 @@ import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { GameRepository } from "../repositories/GameRepository";
 import { Game } from "../interfaces/Game";
+import { Badge } from "../interfaces/Badge";
+import { GameViewStats } from "../interfaces/GameView";
+import { BadgeService } from "./BadgeService";
+import { GameViewService } from "./GameViewService";
 
 export interface IGameService {
   getUserGames(userId: string): Promise<Game[]>;
@@ -26,15 +30,22 @@ export interface IGameService {
   userOwnsGame(gameId: string, userId: string): Promise<boolean>;
   transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void>;
   canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{ canTransfer: boolean; reason?: string }>;
+  getGameWithBadgesAndViews(gameId: string): Promise<(Game & { badges: Badge[]; views: GameViewStats }) | null>;
+  getGamesWithBadgesAndViews(gameIds: string[]): Promise<(Game & { badges: Badge[]; views: GameViewStats })[]>;
 }
 
 @injectable()
 export class GameService implements IGameService {
   private gameRepository: GameRepository;
+  private badgeService: BadgeService;
+  private gameViewService: GameViewService;
+
   constructor(
     @inject("DatabaseService") private databaseService: IDatabaseService
   ) {
     this.gameRepository = new GameRepository(this.databaseService);
+    this.badgeService = new BadgeService(this.databaseService);
+    this.gameViewService = new GameViewService(this.databaseService);
   }
 
   async getGame(gameId: string): Promise<Game | null> {
@@ -78,11 +89,26 @@ export class GameService implements IGameService {
 
   async createGame(game: Omit<Game, "id">): Promise<void> {
     await this.gameRepository.createGame(game);
+    // Ajouter le badge "nouveau" pour 10 jours
+    try {
+      await this.badgeService.addBadgeToGame(game.gameId, "nouveau");
+    } catch (error) {
+      console.error("Error adding 'nouveau' badge to game:", error);
+    }
   }
 
   async updateGame(gameId: string, game: Partial<Omit<Game, "id" | "gameId">>): Promise<void> {
-    const { fields, values } = buildUpdateFields(game, ["owners"]);
+    const { fields, values } = buildUpdateFields(game, ["owners", "markAsUpdated"]);
     if (fields.length) await this.gameRepository.updateGame(gameId, fields, values);
+    
+    // Si markAsUpdated est true, ajouter le badge "mise-a-jour"
+    if (game.markAsUpdated) {
+      try {
+        await this.badgeService.addBadgeToGame(gameId, "mise-a-jour");
+      } catch (error) {
+        console.error("Error adding 'mise-a-jour' badge to game:", error);
+      }
+    }
   }
 
   async deleteGame(gameId: string): Promise<void> {
@@ -137,6 +163,56 @@ export class GameService implements IGameService {
     if (!game) return { canTransfer: false, reason: "Game not found" };
     if (game.owner_id === fromUserId) return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
     return { canTransfer: true };
+  }
+
+  async getGameWithBadgesAndViews(gameId: string): Promise<(Game & { badges: Badge[]; views: GameViewStats }) | null> {
+    const game = await this.getGame(gameId);
+    if (!game) return null;
+
+    const [badges, views] = await Promise.all([
+      this.badgeService.getActiveBadgesForGame(gameId),
+      this.gameViewService.getGameViewStats(gameId)
+    ]);
+
+    return {
+      ...game,
+      badges,
+      views
+    };
+  }
+
+  async getGamesWithBadgesAndViews(gameIds: string[]): Promise<(Game & { badges: Badge[]; views: GameViewStats })[]> {
+    if (gameIds.length === 0) return [];
+
+    const [games, viewsMap] = await Promise.all([
+      Promise.all(gameIds.map(id => this.getGame(id))),
+      this.gameViewService.getViewsForGames(gameIds)
+    ]);
+
+    const results: (Game & { badges: Badge[]; views: GameViewStats })[] = [];
+
+    for (let i = 0; i < games.length; i++) {
+      const game = games[i];
+      if (game) {
+        const badges = await this.badgeService.getActiveBadgesForGame(game.gameId);
+        const views = viewsMap[game.gameId] || {
+          gameId: game.gameId,
+          total_views: 0,
+          unique_views: 0,
+          views_today: 0,
+          views_this_week: 0,
+          views_this_month: 0
+        };
+
+        results.push({
+          ...game,
+          badges,
+          views
+        });
+      }
+    }
+
+    return results;
   }
 }
 

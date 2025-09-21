@@ -56,6 +56,12 @@ export class DatabaseService implements IDatabaseService {
       // Pour MySQL, result = [rows, fields]
       const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
 
+      // Vérifier que rows est un tableau
+      if (!Array.isArray(rows)) {
+        console.warn("Database query returned non-array result:", rows);
+        return [];
+      }
+
       return rows.map((row: { [key: string]: string }) => {
         for (const key in row) {
           if (typeof row[key] === "string") {

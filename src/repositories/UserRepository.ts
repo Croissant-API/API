@@ -91,8 +91,7 @@ export class UserRepository {
 
   async createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string, created_at?: string): Promise<void> {
     await this.databaseService.request(
-      // Temporarily set beta_user to 1 for all new users, and giving them 1000 starting balance
-      "INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at, beta_user) VALUES (?, ?, ?, ?, 1000, ?, ?, ?, 1)",
+      "INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)",
       [
         user_id,
         username,

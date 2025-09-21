@@ -7,6 +7,7 @@ import { gameIdParamSchema, createGameBodySchema, updateGameBodySchema } from ".
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { v4 } from "uuid";
 import { IUserService } from "../services/UserService";
+import { IGameViewService } from "../services/GameViewService";
 import fetch from "node-fetch";
 import { pipeline } from "stream";
 import { promisify } from "util";
@@ -35,7 +36,8 @@ export class Games {
     constructor(
         @inject("GameService") private gameService: IGameService,
         @inject("UserService") private userService: IUserService,
-        @inject("LogService") private logService: ILogService
+        @inject("LogService") private logService: ILogService,
+        @inject("GameViewService") private gameViewService: IGameViewService
     ) { }
 
     private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string) {
@@ -60,8 +62,10 @@ export class Games {
     public async listGames(req: Request, res: Response) {
         try {
             const games = await this.gameService.getStoreGames();
+            const gameIds = games.map(game => game.gameId);
+            const gamesWithBadgesAndViews = await this.gameService.getGamesWithBadgesAndViews(gameIds);
             await this.createLog(req, "listGames", "games", 200);
-            res.send(games);
+            res.send(gamesWithBadgesAndViews);
         } catch (error) {
             await this.createLog(req, "listGames", "games", 500);
             handleError(res, error, "Error listing games");
@@ -77,8 +81,10 @@ export class Games {
         }
         try {
             const games = await this.gameService.searchGames(query);
+            const gameIds = games.map(game => game.gameId);
+            const gamesWithBadgesAndViews = await this.gameService.getGamesWithBadgesAndViews(gameIds);
             await this.createLog(req, "searchGames", "games", 200);
-            res.send(games);
+            res.send(gamesWithBadgesAndViews);
         } catch (error) {
             await this.createLog(req, "searchGames", "games", 500);
             handleError(res, error, "Error searching games");
@@ -118,7 +124,7 @@ export class Games {
         }
         try {
             const { gameId } = req.params;
-            const game = await this.gameService.getGameForPublic(gameId);
+            const game = await this.gameService.getGameWithBadgesAndViews(gameId);
             if (!game) {
                 await this.createLog(req, "getGame", "games", 404);
                 return res.status(404).send({ message: "Game not found" });
@@ -378,4 +384,5 @@ export class Games {
             handleError(res, error, "Error downloading game");
         }
     }
+
 }

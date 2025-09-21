@@ -15,6 +15,8 @@ import { ILogService, LogService } from "./services/LogService";
 import { IGameGiftService, GameGiftService } from "./services/GameGiftService";
 import { IMarketListingService, MarketListingService } from "./services/MarketListingService";
 import { IBuyOrderService, BuyOrderService } from "./services/BuyOrderService";
+import { IBadgeService, BadgeService } from "./services/BadgeService";
+import { IGameViewService, GameViewService } from "./services/GameViewService";
 
 const container = new Container();
 
@@ -33,5 +35,7 @@ container.bind<ILogService>("LogService").to(LogService).inSingletonScope();
 container.bind<IGameGiftService>("GameGiftService").to(GameGiftService).inSingletonScope();
 container.bind<IMarketListingService>("MarketListingService").to(MarketListingService).inSingletonScope();
 container.bind<IBuyOrderService>("BuyOrderService").to(BuyOrderService).inSingletonScope();
+container.bind<IBadgeService>("BadgeService").to(BadgeService).inSingletonScope();
+container.bind<IGameViewService>("GameViewService").to(GameViewService).inSingletonScope();
 
 export default container;

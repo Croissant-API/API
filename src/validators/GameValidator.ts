@@ -44,5 +44,6 @@ export const updateGameBodySchema = yup.object({
     rating: yup.number(),
     website: yup.string().url("Website must be a valid URL").nullable(),
     trailer_link: yup.string().url("Trailer link must be a valid URL").nullable(),
-    multiplayer: yup.boolean()
+    multiplayer: yup.boolean(),
+    markAsUpdated: yup.boolean()
 }).noUnknown();

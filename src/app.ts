@@ -23,6 +23,7 @@ import "./controllers/AuthenticatorController";
 import "./controllers/GameGiftController";
 import "./controllers/MarketListingController";
 import "./controllers/BuyOrderController";
+import "./controllers/GameViewController";
 
 const server = new InversifyExpressServer(container);
 
