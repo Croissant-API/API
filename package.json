@@ -48,6 +48,8 @@
     "time2fa": "^1.4.2",
     "ts-sql-query": "^1.67.0",
     "uuid": "^11.1.0",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0",
     "yup": "^1.6.1"
   },
   "devDependencies": {
