@@ -20,6 +20,7 @@ src/
 ├── models/         # ORM ts-sql-query / schémas DB
 ├── routers/        # Définition des routes REST
 ├── middlewares/    # Auth, validation, logs
+├── job/            # Taches planifiés
 ├── utils/          # Fonctions utilitaires partagées
 ├── types/          # Types globaux et partagés
 ├── app.ts          # Initialisation Express
@@ -108,8 +109,8 @@ src/
 * Logs HTTP via middleware de logging
 * Logs d’erreurs centralisés dans `logs/` (prévu : transport vers Sentry ou webhook Discord)
 
-## 🔁 Jobs planifiés *(à venir)*
-Des jobs planifiés seront ajoutés dans un dossier `jobs/` avec un moteur de tâche type **node-cron**.
+## 🔁 Jobs planifiés
+Les jobs planifiés sont classés dans un dossier `jobs/` avec un moteur de tâche type **node-cron**.
 
 ## 🚦 Lint & Qualité de code
 * **ESLint** (TypeScript strict)
