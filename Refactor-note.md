@@ -28,3 +28,7 @@ Modification des commandes suivantes :
 -- Commande : "migrate:logs" exécute `database/migrate-logs.ts` qui n'est pas dans le repo, par sécurité je ne vais pas y toucher
 
 Ajout du fichier de configuration lors des appels base de données `./src/config/db.ts`
+
+2025.10.03 - 8:02 
+Add winston for log & instanciation of logger (config) and middleware of log
+Add catchSync Error Middleware for the controller logic.
