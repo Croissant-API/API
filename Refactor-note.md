@@ -8,3 +8,7 @@ Modification du eslint.config.mjs
 - Changement de l’environnement global (browser to node : ESLint considère maintenant que le code s’exécute dans un environnement Node.js, pas navigateur. -> Supprime les avertissements sur l’utilisation d’objets globaux Node (__dirname, process, etc.).)
 - Utilisation de js.configs.recommended au lieu de plugins: { js }, extends: ["js/recommended"]
 - Ajout explicite de ecmaVersion: 'latest'
+
+Modif du tsconfig.json
+- Change module "node" (node10 - deprecated) to "node16" (same for `moduleResolution`)
+- Remove `baseUrl` (And correct the `path` with add the relative baseUrl)
