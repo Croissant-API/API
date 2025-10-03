@@ -2,8 +2,6 @@ import { inject, injectable } from "inversify";
 import { IDatabaseService } from "./DatabaseService";
 import { UserRepository } from "../repositories/UserRepository";
 import { User, PublicUser, UserExtensions, PublicUserAsAdmin } from "../interfaces/User";
-import { config } from "dotenv";
-import path from "path";
 import crypto from "crypto";
 import { genKey, decryptUserId } from "../utils/GenKey";
 import removeDiacritics from "diacritics";
@@ -22,8 +20,6 @@ function slugify(str: string): string {
   str = str.replace(/[^a-zA-Z0-9]/g, "");
   return str.toLowerCase();
 }
-
-config({ path: path.join(__dirname, "..", "..", ".env") });
 
 export interface IUserService {
   updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;

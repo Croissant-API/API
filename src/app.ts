@@ -4,8 +4,6 @@ import container from "./container";
 import * as path from "path";
 import cors from "cors";
 import express from "express";
-import { config } from "dotenv";
-config();
 
 import "./controllers/DescribeController";
 import "./controllers/GameController";

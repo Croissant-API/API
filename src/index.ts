@@ -3,9 +3,8 @@ import { app } from "./app";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
-import dotenv from "dotenv";
 
-dotenv.config();
+import "./config/envVerifications";
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
@@ -31,11 +30,6 @@ function backupDatabase() {
   const dbPassword = process.env.DB_PASS;
   const dbName = process.env.DB_NAME;
   const dbHost = process.env.DB_HOST;
-
-  if (!dbUser || !dbPassword || !dbName || !dbHost) {
-    console.error("Missing database credentials in environment variables.");
-    return;
-  }
 
   const command = `mysqldump -h ${dbHost} -u ${dbUser} -p'${dbPassword}' ${dbName} > ${backupPath}`;
 
