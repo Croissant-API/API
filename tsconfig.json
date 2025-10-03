@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "module": "CommonJS",
+    "module": "node16",
     "declaration": true,
     "outDir": "./dist",
     "rootDir": "./src",
@@ -9,10 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "baseUrl": "./",
+    "moduleResolution": "node16",
     "paths": {
-      "*": ["src/*"]
+      "*": ["./src/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
