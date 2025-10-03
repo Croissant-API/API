@@ -12,3 +12,19 @@ Modification du eslint.config.mjs
 Modif du tsconfig.json
 - Change module "node" (node10 - deprecated) to "node16" (same for `moduleResolution`)
 - Remove `baseUrl` (And correct the `path` with add the relative baseUrl)
+
+2025.10.03 - 7:13
+start migration of query builder :
+- From knex to ts-query-builder
+
+Remove dotenv
+
+Modification des commandes suivantes :
+- A start:development : Démarre l'app avec la configuration development.env
+- M start : Démarre l'app avec la configuration production.env
+- M dev : Run ts-node l'app typescript avec le fichier de development
+- M build : Ajout du contexte de build
+
+-- Commande : "migrate:logs" exécute `database/migrate-logs.ts` qui n'est pas dans le repo, par sécurité je ne vais pas y toucher
+
+Ajout du fichier de configuration lors des appels base de données `./src/config/db.ts`
