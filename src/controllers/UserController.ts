@@ -668,6 +668,7 @@ export class Users {
       steam_username: "string",
       steam_avatar_url: "string",
       isStudio: "boolean",
+      studios: "array",
       admin: "boolean",
       inventory: "array",
       ownedItems: "array",
@@ -700,7 +701,13 @@ export class Users {
     );
     res.send({
       ...this.mapUserSearch(userWithData),
-      studios,
+      studios: studios.map((s) => {
+        return {
+          id: s.user_id,
+          name: s.me.username,
+          verified: s.me.verified,
+        }
+      }),
       inventory: userWithData.inventory || [],
       ownedItems: userWithData.ownedItems || [],
       createdGames: userWithData.createdGames || [],
