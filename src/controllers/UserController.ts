@@ -384,7 +384,14 @@ export class Users {
       verificationKey: genVerificationKey(userWithData.user_id),
       google_id: userWithData.google_id,
       discord_id: userWithData.discord_id,
-      studios,
+      studios: studios.map((s) => {
+        return {
+          ...s,
+          id: s.user_id,
+          name: s.me.username,
+          verified: s.me.verified,
+        }
+      }),
       roles,
       inventory: userWithData.inventory || [],
       ownedItems: userWithData.ownedItems || [],
