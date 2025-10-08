@@ -426,7 +426,7 @@ export class Games {
         }
       } else {
         
-        res.status(302).send({ message: 'Redirect removed. Please handle the download manually.' });
+        res.redirect(downloadUrl);
       }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
