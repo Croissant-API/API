@@ -463,9 +463,8 @@ export class Games {
       }
 
       const fileRes = await fetch(link, { method: 'HEAD' });
-      console.log('Response headers:', fileRes.headers);
-      if (!fileRes.headers.get('accept-ranges') || fileRes.headers.get('accept-ranges') === 'none') {
-        throw new Error('Le serveur ne supporte pas les requêtes Range');
+      if (!fileRes.ok) {
+        return res.status(fileRes.status).send({ message: 'Error fetching file metadata' });
       }
 
       res.setHeader('Content-Length', fileRes.headers.get('content-length') || '0');
@@ -475,78 +474,6 @@ export class Games {
     } catch (error) {
       handleError(res, error, 'Error fetching file metadata');
     }
-  }
-
-  @httpGet('/:gameId/eocd', LoggedCheck.middleware)
-  public async getEOCD(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
-    const userId = req.user.user_id;
-
-    try {
-      const game = await this.gameService.getGame(gameId);
-      if (!game) {
-        return res.status(404).send({ message: 'Game not found' });
-      }
-
-      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
-      if (!owns) {
-        return res.status(403).send({ message: 'Access denied' });
-      }
-
-      const link = game.download_link;
-      if (!link) {
-        return res.status(404).send({ message: 'Download link not available' });
-      }
-
-      let buffer;
-      try {
-        // Attempt to fetch the last 1KB of the file (maximum EOCD search window)
-        const rangeHeader = 'bytes=-1024';
-        const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
-
-        if (!fileRes.ok) {
-          throw new Error(`Range request failed with status ${fileRes.status}`);
-        }
-
-        buffer = await fileRes.arrayBuffer();
-      } catch (rangeError) {
-        // Ensure rangeError is treated as an Error
-        const errorMessage = rangeError instanceof Error ? rangeError.message : 'Unknown error';
-        console.warn('Range request failed, falling back to full download:', errorMessage);
-
-        // Fallback: Download the entire file
-        const fullFileRes = await fetch(link);
-        if (!fullFileRes.ok) {
-          const errorText = await fullFileRes.text();
-          return res.status(fullFileRes.status).send({ message: 'Error fetching EOCD', status: fullFileRes.status, error: errorText });
-        }
-
-        buffer = await fullFileRes.arrayBuffer();
-      }
-
-      // Extract EOCD from the buffer
-      const bufferData = Buffer.from(buffer);
-      const eocd = this.extractEOCD(bufferData);
-
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.status(200).send(eocd);
-    } catch (error) {
-      handleError(res, error, 'Error fetching EOCD');
-    }
-  }
-
-  private extractEOCD(buffer: Buffer): Buffer {
-    // EOCD signature: 0x06054b50
-    const eocdSignature = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
-    const maxEOCDSearch = Math.min(buffer.length, 1024); // Search within the last 1KB
-
-    for (let i = buffer.length - maxEOCDSearch; i >= 0; i--) {
-      if (buffer.slice(i, i + 4).equals(eocdSignature)) {
-        return buffer.slice(i);
-      }
-    }
-
-    throw new Error('EOCD not found in the file');
   }
 }
 
