@@ -97,6 +97,10 @@ export class Games {
     }
   }
 
+  private logUnexpectedStatus(req: Request, statusCode: number, message: string) {
+    console.warn(`Unexpected status code ${statusCode} for request ${req.method} ${req.originalUrl}: ${message}`);
+  }
+
   @httpGet('/')
   public async listGames(req: Request, res: Response) {
     try {
@@ -399,35 +403,32 @@ export class Games {
         const [_, owner, repo] = githubMatch;
         downloadUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
       }
+      const headers: any = {};
       if (req.headers.range) {
-        
-        const headers: any = {};
-        if (req.headers.range) {
-          headers.Range = req.headers.range;
-        }
-        const fileRes = await fetch(downloadUrl, { headers });
-        if (!fileRes.ok) return res.status(502).send({ message: 'Failed to fetch game file' });
-        const sanitizedFileName = encodeURIComponent(game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_'));
-        res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}.zip"`);
-        res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
-        const contentLength = fileRes.headers.get('content-length');
-        if (contentLength) res.setHeader('Content-Length', contentLength);
-        const acceptRanges = fileRes.headers.get('accept-ranges');
-        if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
-        if (fileRes.headers.get('content-range')) res.setHeader('Content-Range', fileRes.headers.get('content-range')!);
-        res.status(fileRes.status);
-        if (fileRes.body) {
-          try {
-            await streamPipeline(fileRes.body, res);
-          } catch (err) {
-            res.status(500).send({ message: 'Error streaming the file.' });
-          }
-        } else {
-          res.status(500).send({ message: 'Response body is empty.' });
+        headers.Range = req.headers.range;
+      }
+      const fileRes = await fetch(downloadUrl, { headers });
+      if (!fileRes.ok) {
+        this.logUnexpectedStatus(req, fileRes.status, 'Failed to fetch game file');
+        return res.status(fileRes.status).send({ message: 'Failed to fetch game file' });
+      }
+      const sanitizedFileName = encodeURIComponent(game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_'));
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}.zip"`);
+      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+      const contentLength = fileRes.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
+      if (fileRes.headers.get('content-range')) res.setHeader('Content-Range', fileRes.headers.get('content-range')!);
+      res.status(fileRes.status);
+      if (fileRes.body) {
+        try {
+          await streamPipeline(fileRes.body, res);
+        } catch (err) {
+          res.status(500).send({ message: 'Error streaming the file.' });
         }
       } else {
-        
-        res.redirect(downloadUrl);
+        res.status(500).send({ message: 'Response body is empty.' });
       }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
