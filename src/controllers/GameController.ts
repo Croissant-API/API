@@ -394,30 +394,29 @@ export class Games {
     const { gameId } = req.params;
     const userId = req.user.user_id;
     try {
+      // Vérifiez si le jeu existe
       const game = await this.gameService.getGame(gameId);
       if (!game) {
         return res.status(404).send({ message: 'Game not found' });
       }
+
+      // Vérifiez si l'utilisateur possède le jeu ou y a accès
       const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
       if (!owns) {
         return res.status(403).send({ message: 'Access denied' });
       }
+
+      // Vérifiez si un lien de téléchargement est disponible
       const link = game.download_link;
       if (!link) {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      // Optionally, generate a signed URL if the source supports it
-      // const signedLink = await this.generateSignedUrl(link);
-
-      // Redirect the client to the source link
-      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.status(302).setHeader('Location', link); // Use signedLink if generated
+      // Effectuer une redirection pure vers le lien source
+      res.status(302).setHeader('Location', link);
       res.end();
     } catch (error) {
-      handleError(res, error, 'Error downloading game');
+      handleError(res, error, 'Error processing download request');
     }
   }
 }
