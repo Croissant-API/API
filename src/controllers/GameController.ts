@@ -407,38 +407,15 @@ export class Games {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      const headers: any = {};
-      if (req.headers.range) {
-        headers.Range = req.headers.range;
-      }
+      // Optionally, generate a signed URL if the source supports it
+      // const signedLink = await this.generateSignedUrl(link);
 
-      const fileRes = await fetch(link, { headers });
-      if (!fileRes.ok) {
-        return res.status(fileRes.status).send({ message: 'Error fetching file' });
-      }
-
+      // Redirect the client to the source link
       res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
-      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
-
-      const contentLength = fileRes.headers.get('content-length');
-      if (contentLength !== null) {
-        res.setHeader('Content-Length', contentLength);
-      }
-      const acceptRanges = fileRes.headers.get('accept-ranges');
-      if (acceptRanges !== null) {
-        res.setHeader('Accept-Ranges', acceptRanges);
-      }
-      const contentRange = fileRes.headers.get('content-range');
-      if (contentRange !== null) {
-        res.setHeader('Content-Range', contentRange);
-      }
-
-      res.status(fileRes.status);
-      if (fileRes.body) {
-        fileRes.body.pipe(res);
-      } else {
-        res.end();
-      }
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.status(302).setHeader('Location', link); // Use signedLink if generated
+      res.end();
     } catch (error) {
       handleError(res, error, 'Error downloading game');
     }
