@@ -410,6 +410,12 @@ export class Games {
       const headers: any = {};
       if (req.headers.range) {
         headers.Range = req.headers.range;
+      } else {
+        // If no range is provided, return an empty zip file
+        res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Length', '0');
+        return res.status(200).end();
       }
 
       const fileRes = await fetch(link, { headers });
