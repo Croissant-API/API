@@ -414,7 +414,14 @@ export class Games {
 
       const fileRes = await fetch(link, { headers });
       if (!fileRes.ok) {
+        console.error(`Error fetching file: ${fileRes.status} - ${fileRes.statusText}`);
         return res.status(fileRes.status).send({ message: 'Error fetching file' });
+      }
+
+      // Ensure the server supports partial downloads if Range is requested
+      if (req.headers.range && !fileRes.headers.get('accept-ranges')) {
+        console.warn('Server does not support partial downloads');
+        return res.status(416).send({ message: 'Requested range not satisfiable' });
       }
 
       res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
@@ -440,6 +447,7 @@ export class Games {
         res.end();
       }
     } catch (error) {
+      console.error('Error in downloadGame:', error);
       handleError(res, error, 'Error downloading game');
     }
   }
