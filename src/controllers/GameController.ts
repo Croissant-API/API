@@ -393,18 +393,26 @@ export class Games {
       if (!owns) return res.status(403).send({ message: 'You do not own this game' });
       const link = game.download_link;
       if (!link) return res.status(404).send({ message: 'No download link available' });
+      let downloadUrl = link;
       const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
       if (githubMatch) {
         const [_, owner, repo] = githubMatch;
-        const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
-        return res.redirect(zipUrl);
+        downloadUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
       }
-      const fileRes = await fetch(link);
+      const headers: any = {};
+      if (req.headers.range) {
+        headers.Range = req.headers.range;
+      }
+      const fileRes = await fetch(downloadUrl, { headers });
       if (!fileRes.ok) return res.status(502).send({ message: 'Failed to fetch game file' });
       res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
       res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
       const contentLength = fileRes.headers.get('content-length');
       if (contentLength) res.setHeader('Content-Length', contentLength);
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
+      if (fileRes.headers.get('content-range')) res.setHeader('Content-Range', fileRes.headers.get('content-range')!);
+      res.status(fileRes.status);
       if (fileRes.body) {
         try {
           await streamPipeline(fileRes.body, res);
