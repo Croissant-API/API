@@ -412,9 +412,8 @@ export class Games {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      // Effectuer une redirection pure vers le lien source
-      res.status(302).setHeader('Location', link);
-      res.end();
+      // Renvoyer directement le lien du fichier ZIP en réponse
+      res.status(200).send({ downloadLink: link });
     } catch (error) {
       handleError(res, error, 'Error processing download request');
     }
