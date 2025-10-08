@@ -463,8 +463,9 @@ export class Games {
       }
 
       const fileRes = await fetch(link, { method: 'HEAD' });
-      if (!fileRes.ok) {
-        return res.status(fileRes.status).send({ message: 'Error fetching file metadata' });
+      console.log('Response headers:', fileRes.headers);
+      if (!fileRes.headers.get('accept-ranges') || fileRes.headers.get('accept-ranges') === 'none') {
+        throw new Error('Le serveur ne supporte pas les requêtes Range');
       }
 
       res.setHeader('Content-Length', fileRes.headers.get('content-length') || '0');
@@ -498,7 +499,7 @@ export class Games {
       }
 
       // Fetch the last 64KB of the file (maximum EOCD search window)
-      const rangeHeader = 'bytes=-65536';
+      const rangeHeader = 'bytes=-1024'; // Réduire la plage demandée
       const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
 
       if (!fileRes.ok) {
