@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut, httpHead } from 'inversify-express-utils';
+import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import fetch from 'node-fetch';
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
@@ -410,16 +410,14 @@ export class Games {
       const headers: any = {};
       if (req.headers.range) {
         headers.Range = req.headers.range;
-      } 
+      }
 
       const fileRes = await fetch(link, { headers });
       if (!fileRes.ok) {
         return res.status(fileRes.status).send({ message: 'Error fetching file' });
       }
 
-      // Sanitize the filename to remove invalid characters
-      const sanitizedFilename = game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_');
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}.zip"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
       res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
 
       const contentLength = fileRes.headers.get('content-length');
@@ -443,38 +441,6 @@ export class Games {
       }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
-    }
-  }
-
-  @httpHead('/:gameId/download', LoggedCheck.middleware)
-  public async headDownloadGame(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
-    const userId = req.user.user_id;
-    try {
-      const game = await this.gameService.getGame(gameId);
-      if (!game) {
-        return res.status(404).send({ message: 'Game not found' });
-      }
-      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
-      if (!owns) {
-        return res.status(403).send({ message: 'Access denied' });
-      }
-      const link = game.download_link;
-      if (!link) {
-        return res.status(404).send({ message: 'Download link not available' });
-      }
-
-      const fileRes = await fetch(link, { method: 'HEAD' });
-      if (!fileRes.ok) {
-        return res.status(fileRes.status).send({ message: 'Error fetching file metadata' });
-      }
-
-      res.setHeader('Content-Length', fileRes.headers.get('content-length') || '0');
-      res.setHeader('Accept-Ranges', fileRes.headers.get('accept-ranges') || 'none');
-      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
-      res.status(200).end();
-    } catch (error) {
-      handleError(res, error, 'Error fetching file metadata');
     }
   }
 }
