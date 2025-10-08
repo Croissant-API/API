@@ -407,6 +407,12 @@ export class Games {
       if (req.headers.range) {
         headers.Range = req.headers.range;
       }
+
+      // Ensure the token is not included in the headers
+      if (headers.Authorization) {
+        delete headers.Authorization;
+      }
+
       const fileRes = await fetch(downloadUrl, { headers });
       if (!fileRes.ok) {
         this.logUnexpectedStatus(req, fileRes.status, 'Failed to fetch game file');
