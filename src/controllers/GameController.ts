@@ -475,6 +475,43 @@ export class Games {
       handleError(res, error, 'Error fetching file metadata');
     }
   }
+
+  @httpGet('/:gameId/eocd', LoggedCheck.middleware)
+  public async getEOCD(req: AuthenticatedRequest, res: Response) {
+    const { gameId } = req.params;
+    const userId = req.user.user_id;
+
+    try {
+      const game = await this.gameService.getGame(gameId);
+      if (!game) {
+        return res.status(404).send({ message: 'Game not found' });
+      }
+
+      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
+      if (!owns) {
+        return res.status(403).send({ message: 'Access denied' });
+      }
+
+      const link = game.download_link;
+      if (!link) {
+        return res.status(404).send({ message: 'Download link not available' });
+      }
+
+      // Fetch the last 22 bytes of the file (minimum EOCD size)
+      const rangeHeader = 'bytes=-22';
+      const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
+
+      if (!fileRes.ok) {
+        return res.status(fileRes.status).send({ message: 'Error fetching EOCD' });
+      }
+
+      const buffer = await fileRes.arrayBuffer();
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.status(200).send(Buffer.from(buffer));
+    } catch (error) {
+      handleError(res, error, 'Error fetching EOCD');
+    }
+  }
 }
 
 
