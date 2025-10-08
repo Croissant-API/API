@@ -407,40 +407,12 @@ export class Games {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      const headers: any = {};
-      if (req.headers.range) {
-        headers.Range = req.headers.range;
-      }
-
-      const fileRes = await fetch(link, { headers });
-      if (!fileRes.ok) {
-        return res.status(fileRes.status).send({ message: 'Error fetching file' });
-      }
-
-      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
-      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
-
-      const contentLength = fileRes.headers.get('content-length');
-      if (contentLength !== null) {
-        res.setHeader('Content-Length', contentLength);
-      }
-      const acceptRanges = fileRes.headers.get('accept-ranges');
-      if (acceptRanges !== null) {
-        res.setHeader('Accept-Ranges', acceptRanges);
-      }
-      const contentRange = fileRes.headers.get('content-range');
-      if (contentRange !== null) {
-        res.setHeader('Content-Range', contentRange);
-      }
-
-      res.status(fileRes.status);
-      if (fileRes.body) {
-        fileRes.body.pipe(res);
-      } else {
-        res.end();
-      }
+      // Return the download link directly
+      res.status(200).send({
+        downloadLink: link,
+      });
     } catch (error) {
-      handleError(res, error, 'Error downloading game');
+      handleError(res, error, 'Error fetching download link');
     }
   }
 }
