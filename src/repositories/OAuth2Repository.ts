@@ -13,7 +13,6 @@ export class OAuth2Repository {
     return { owner_id, client_id, client_secret, name, redirect_urls };
   }
 
-  // Méthode générique pour récupérer les apps selon des filtres
   async getApps(filters: { owner_id?: string; client_id?: string } = {}, select: string = '*'): Promise<OAuth2App[]> {
     let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
     const params = [];
@@ -26,7 +25,7 @@ export class OAuth2Repository {
       params.push(filters.client_id);
     }
     const apps = await this.db.read<OAuth2App>(query, params);
-    // Always parse redirect_urls if present
+
     return apps.map(app => ({
       ...app,
       redirect_urls: typeof app.redirect_urls === 'string' ? JSON.parse(app.redirect_urls) : app.redirect_urls,

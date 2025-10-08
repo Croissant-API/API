@@ -3,14 +3,14 @@ import { InventoryItem } from './Inventory';
 export interface TradeItem extends InventoryItem {
   itemId: string;
   amount: number;
-  metadata?: { [key: string]: unknown; _unique_id?: string }; // Métadonnées complètes incluant _unique_id
-  purchasePrice?: number; // Prix d'achat pour identifier les items spécifiques
+  metadata?: { [key: string]: unknown; _unique_id?: string };
+  purchasePrice?: number;
 }
 
 export type TradeStatus = 'pending' | 'approved' | 'completed' | 'canceled';
 
 export interface Trade {
-  id: string; // UUID
+  id: string;
   fromUserId: string;
   toUserId: string;
   fromUserItems: TradeItem[];
@@ -18,6 +18,6 @@ export interface Trade {
   approvedFromUser: boolean;
   approvedToUser: boolean;
   status: TradeStatus;
-  createdAt: string; // ISO date
-  updatedAt: string; // ISO date
+  createdAt: string;
+  updatedAt: string;
 }

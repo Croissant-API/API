@@ -14,7 +14,6 @@ export class ItemRepository {
     );
   }
 
-  // Méthode générique pour récupérer les items selon des filtres
   async getItems(filters: { itemId?: string; owner?: string; showInStore?: boolean; deleted?: boolean; search?: string } = {}, select: string = '*', orderBy: string = 'name', limit?: number): Promise<Item[]> {
     let query = `SELECT ${select} FROM items WHERE 1=1`;
     const params = [];
@@ -44,7 +43,6 @@ export class ItemRepository {
     return this.databaseService.read<Item>(query, params);
   }
 
-  // Surcharges utilisant la méthode générique
   async getItem(itemId: string): Promise<Item | null> {
     const items = await this.getItems({ itemId });
     return items[0] || null;

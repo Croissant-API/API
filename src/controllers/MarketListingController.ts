@@ -11,7 +11,6 @@ function handleError(res: Response, error: unknown, message: string, status = 50
   res.status(status).send({ message, error: msg });
 }
 
-// Helper for pagination/search
 function getPagination(req: AuthenticatedRequest) {
   return {
     limit: req.query.limit ? Number(req.query.limit) : 50,
@@ -27,7 +26,6 @@ export class MarketListingController {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  // Helper pour les logs (uniformisé)
   private async createLog(req: AuthenticatedRequest, action: string, tableName?: string, statusCode?: number, userId?: string) {
     try {
       await this.logService.createLog({

@@ -7,7 +7,7 @@ export interface InventoryItem {
   description?: string;
   metadata?: { [key: string]: unknown };
   sellable: boolean;
-  purchasePrice?: number; // Prix d'achat stocké dans la DB
+  purchasePrice?: number;
   rarity: 'very-common' | 'common' | 'uncommon' | 'rare' | 'very-rare' | 'epic' | 'ultra-epic' | 'legendary' | 'ancient' | 'mythic' | 'godlike' | 'radiant';
   custom_url_link?: string;
 }

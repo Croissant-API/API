@@ -6,7 +6,7 @@ import { Schema, ValidationError } from 'yup';
 import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILobbyService } from '../services/LobbyService';
-import { ILogService } from '../services/LogService'; // Ajout import LogService
+import { ILogService } from '../services/LogService';
 import { lobbyIdParamSchema, userIdParamSchema } from '../validators/LobbyValidator';
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
@@ -31,10 +31,9 @@ async function validateOr400(schema: Schema<unknown>, data: unknown, res: Respon
 export class Lobbies {
   constructor(
     @inject('LobbyService') private lobbyService: ILobbyService,
-    @inject('LogService') private logService: ILogService // Ajout injection LogService
+    @inject('LogService') private logService: ILogService
   ) {}
 
-  // Helper pour créer des logs
   private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string) {
     try {
       await this.logService.createLog({
@@ -52,7 +51,6 @@ export class Lobbies {
     }
   }
 
-  // --- Création de lobby ---
   @describe({
     endpoint: '/lobbies',
     method: 'POST',
@@ -64,7 +62,7 @@ export class Lobbies {
   @httpPost('/', LoggedCheck.middleware)
   public async createLobby(req: AuthenticatedRequest, res: Response) {
     try {
-      const lobbyId = v4(); // Generate a new UUID for the lobbyId
+      const lobbyId = v4();
       await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
       await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
 
@@ -77,7 +75,6 @@ export class Lobbies {
     }
   }
 
-  // --- Récupération d’un lobby ---
   @describe({
     endpoint: '/lobbies/:lobbyId',
     method: 'GET',
@@ -173,7 +170,6 @@ export class Lobbies {
     }
   }
 
-  // --- Actions sur un lobby ---
   @describe({
     endpoint: '/lobbies/:lobbyId/join',
     method: 'POST',
@@ -190,7 +186,6 @@ export class Lobbies {
       return;
     }
     try {
-      // Quitter tous les autres lobbies avant de rejoindre le nouveau
       await this.lobbyService.leaveAllLobbies(req.user.user_id);
       await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
       await this.createLog(req, 'joinLobby', 'lobbies', 200, req.user.user_id);

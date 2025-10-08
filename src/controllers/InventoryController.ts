@@ -8,7 +8,6 @@ import { IInventoryService } from '../services/InventoryService';
 import { ILogService } from '../services/LogService';
 import { userIdParamSchema } from '../validators/InventoryValidator';
 
-// --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });

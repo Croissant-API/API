@@ -9,7 +9,6 @@ import { IUserService } from '../services/UserService';
 import { genKey } from '../utils/GenKey';
 import { generateUserJwt } from '../utils/Jwt';
 
-// --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });

@@ -55,18 +55,15 @@ export class GameGiftService implements IGameGiftService {
   }
 
   async getGift(giftCode: string): Promise<GameGift | null> {
-    // Utilise la surcharge générique
     const gifts = await this.gameGiftRepository.getGifts({ giftCode });
     return gifts[0] || null;
   }
 
   async getUserSentGifts(userId: string): Promise<GameGift[]> {
-    // Utilise la surcharge générique
     return await this.gameGiftRepository.getGifts({ fromUserId: userId }, 'createdAt DESC');
   }
 
   async getUserReceivedGifts(userId: string): Promise<GameGift[]> {
-    // Utilise la surcharge générique
     return await this.gameGiftRepository.getGifts({ toUserId: userId }, 'claimedAt DESC');
   }
 
@@ -80,7 +77,6 @@ export class GameGiftService implements IGameGiftService {
   }
 
   private generateGiftCode(): string {
-    // Génère un code de 16 caractères alphanumériques
     return crypto.randomBytes(8).toString('hex').toUpperCase();
   }
 }

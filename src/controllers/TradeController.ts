@@ -19,7 +19,6 @@ export class Trades {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  // Helper pour les logs (uniformisé)
   private async createLog(req: AuthenticatedRequest, tableName?: string, statusCode?: number, metadata?: object, userId?: string) {
     try {
       const requestBody = { ...req.body };
@@ -39,7 +38,6 @@ export class Trades {
     }
   }
 
-  // --- Démarrage ou récupération de trade ---
   @describe({
     endpoint: '/trades/start-or-latest/:userId',
     method: 'POST',
@@ -91,7 +89,6 @@ export class Trades {
     }
   }
 
-  // --- Lecture ---
   @describe({
     endpoint: '/trades/:id',
     method: 'GET',
@@ -243,7 +240,6 @@ export class Trades {
     }
   }
 
-  // --- Actions sur une trade ---
   @describe({
     endpoint: '/trades/:id/add-item',
     method: 'POST',
@@ -328,7 +324,6 @@ export class Trades {
       return res.status(400).send({ message: 'Invalid tradeItem format' });
     }
 
-    // Pour les items avec _unique_id, l'amount peut être omis
     if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
       await this.createLog(req, 'trade_items', 400, {
         trade_id: tradeId,

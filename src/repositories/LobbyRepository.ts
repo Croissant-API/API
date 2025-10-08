@@ -5,11 +5,10 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class LobbyRepository {
   constructor(private databaseService: IDatabaseService) {}
 
-  // Méthode générique pour récupérer les lobbies selon des filtres
   async getLobbies(filters: { lobbyId?: string; userId?: string } = {}): Promise<Lobby[]> {
     const query = 'SELECT lobbyId, users FROM lobbies WHERE 1=1';
     const rows = await this.databaseService.read<{ lobbyId: string; users: string[] }>(query);
-    // Parse users JSON for all lobbies
+
     const lobbies: Lobby[] = [];
     for (const row of rows) {
       if (filters.userId && row.users.indexOf(filters.userId) !== -1 && filters.userId) {
@@ -29,7 +28,6 @@ export class LobbyRepository {
     return lobbies;
   }
 
-  // Surcharges utilisant la méthode générique
   async getLobby(lobbyId: string): Promise<Lobby | null> {
     const lobbies = await this.getLobbies({ lobbyId });
     return lobbies[0] || null;

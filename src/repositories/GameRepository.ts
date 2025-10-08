@@ -4,7 +4,6 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class GameRepository {
   constructor(private databaseService: IDatabaseService) {}
 
-  // Méthode générique pour récupérer des jeux selon des filtres
   async getGames(filters: { gameId?: string; ownerId?: string; showInStore?: boolean; search?: string } = {}, select: string = '*', orderBy: string = '', limit?: number): Promise<Game[]> {
     let query = `SELECT ${select} FROM games WHERE 1=1`;
     const params = [];
@@ -32,7 +31,6 @@ export class GameRepository {
     return await this.databaseService.read<Game>(query, params);
   }
 
-  // Surcharges utilisant la méthode générique
   async getGame(gameId: string): Promise<Game | null> {
     const games = await this.getGames({ gameId });
     return games[0] || null;

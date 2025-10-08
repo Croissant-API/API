@@ -8,43 +8,40 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 
-// --- CONSTANTS ---
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 
-// Configuration des tiers de crédits
 const CREDIT_TIERS = [
   {
     id: 'tier1',
-    price: 99, // 0.99€ in cents
+    price: 99,
     credits: 200,
     name: '200 credits',
     image: 'https://croissant-api.fr/assets/credits/tier1.png',
   },
   {
     id: 'tier2',
-    price: 198, // 1.98€ in cents
+    price: 198,
     credits: 400,
     name: '400 credits',
     image: 'https://croissant-api.fr/assets/credits/tier2.png',
   },
   {
     id: 'tier3',
-    price: 495, // 4.95€ in cents
+    price: 495,
     credits: 1000,
     name: '1000 credits',
     image: 'https://croissant-api.fr/assets/credits/tier3.png',
   },
   {
     id: 'tier4',
-    price: 990, // 9.90€ in cents
+    price: 990,
     credits: 2000,
     name: '2000 credits',
     image: 'https://croissant-api.fr/assets/credits/tier4.png',
   },
 ] as const;
 
-// --- VALIDATORS ---
 const checkoutQuerySchema = yup.object({
   tier: yup
     .string()
@@ -52,7 +49,6 @@ const checkoutQuerySchema = yup.object({
     .required(),
 });
 
-// --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });
@@ -90,7 +86,6 @@ export class StripeController {
     });
   }
 
-  // Helper pour les logs (uniformisé)
   private async createLog(req: Request, tableName?: string, statusCode?: number, metadata?: object, user_id?: string) {
     try {
       const requestBody = { ...req.body };
@@ -125,11 +120,7 @@ export class StripeController {
 
     let event: Stripe.Event;
     try {
-      event = this.stripe.webhooks.constructEvent(
-        req.body, // Buffer as required by Stripe
-        sig,
-        STRIPE_WEBHOOK_SECRET
-      );
+      event = this.stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
       await this.createLog(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
       return handleError(res, err, 'Webhook signature verification failed', 400);
@@ -152,10 +143,8 @@ export class StripeController {
     }
   }
 
-  // --- CHECKOUT ---
   @httpGet('/checkout', LoggedCheck.middleware)
   public async checkoutEndpoint(req: AuthenticatedRequest, res: Response) {
-    // TEMP DISABLING
     //res.send("This endpoint is temporarly disabled, please retry later")
     //return;
 
@@ -210,7 +199,6 @@ export class StripeController {
     res.send(CREDIT_TIERS);
   }
 
-  // --- PRIVATE METHODS ---
   private async processWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -247,7 +235,6 @@ export class StripeController {
     const oldBalance = user.balance;
     await this.userService.updateUserBalance(user.user_id, user.balance + creditsToAdd);
 
-    // Log du succès du paiement et de l'ajout de crédits
     console.log(`Added ${creditsToAdd} credits to user ${user.user_id} (${user.username})`);
     console.log(`Balance updated: ${oldBalance} -> ${oldBalance + creditsToAdd}`);
   }
@@ -256,12 +243,8 @@ export class StripeController {
     return await this.stripe.checkout.sessions.create({
       payment_method_types: ['card', 'link', 'paypal'],
       payment_method_options: {
-        card: {
-          // Google Pay is supported automatically via card
-        },
-        link: {
-          // Link payment method for saved payment methods
-        },
+        card: {},
+        link: {},
       },
       line_items: [
         {

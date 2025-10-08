@@ -19,7 +19,6 @@ export class OAuth2 {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  // Helper pour les logs (uniformisé)
   private async createLog(req: Request, tableName: string, statusCode?: number, userId?: string, metadata?: object) {
     try {
       const requestBody = { ...req.body };
@@ -38,8 +37,6 @@ export class OAuth2 {
       console.error('Failed to log action:', error);
     }
   }
-
-  // --- Application Management ---
 
   @describe({
     endpoint: '/oauth2/app/:client_id',
@@ -208,8 +205,6 @@ export class OAuth2 {
       handleError(res, error, 'Error deleting app');
     }
   }
-
-  // --- Authorization & User ---
 
   @describe({
     endpoint: '/oauth2/authorize',

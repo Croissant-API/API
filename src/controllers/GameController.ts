@@ -13,7 +13,6 @@ import { IUserService } from '../services/UserService';
 import { createGameBodySchema, gameIdParamSchema, updateGameBodySchema } from '../validators/GameValidator';
 const streamPipeline = promisify(pipeline);
 
-// --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });
@@ -57,7 +56,6 @@ export class Games {
     }
   }
 
-  // --- LISTING & SEARCH ---
   @httpGet('/')
   public async listGames(req: Request, res: Response) {
     try {
@@ -159,7 +157,6 @@ export class Games {
     }
   }
 
-  // --- CREATION & MODIFICATION ---
   @httpPost('/', LoggedCheck.middleware)
   public async createGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(createGameBodySchema, req.body, res))) {
@@ -209,7 +206,6 @@ export class Games {
     }
   }
 
-  // --- ACHAT ---
   @httpPost(':gameId/buy', LoggedCheck.middleware)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
@@ -255,7 +251,6 @@ export class Games {
     }
   }
 
-  // --- PROPRIÉTÉ ---
   @httpPost('/transfer-ownership/:gameId', LoggedCheck.middleware)
   public async transferOwnership(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
@@ -359,7 +354,6 @@ export class Games {
       if (!link) return res.status(404).send({ message: 'No download link available' });
       const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
       if (githubMatch) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const [_, owner, repo] = githubMatch;
         const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
         return res.redirect(zipUrl);
@@ -373,7 +367,6 @@ export class Games {
       if (fileRes.body) {
         try {
           await streamPipeline(fileRes.body, res);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           res.status(500).send({ message: 'Error streaming the file.' });
         }

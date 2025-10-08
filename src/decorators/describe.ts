@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const endpointDescriptions: any[] = [];
 
 export function describe(info: { endpoint: string; method: string; description: string; params?: any; body?: any; query?: any; responseType?: object; exampleResponse?: any; example?: string; requiresAuth?: boolean }) {

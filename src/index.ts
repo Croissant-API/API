@@ -46,8 +46,6 @@ function backupDatabase() {
   });
 }
 
-// Backup at startup
 backupDatabase();
 
-// Backup every hour
 setInterval(backupDatabase, 60 * 60 * 1000);

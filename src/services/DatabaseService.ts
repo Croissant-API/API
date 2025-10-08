@@ -53,10 +53,9 @@ export class DatabaseService implements IDatabaseService {
   public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
     try {
       const result = await this.db.raw(query, params);
-      // Pour MySQL, result = [rows, fields]
+
       const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
 
-      // Vérifier que rows est un tableau
       if (!Array.isArray(rows)) {
         console.warn('Database query returned non-array result:', rows);
         return [];
@@ -68,11 +67,7 @@ export class DatabaseService implements IDatabaseService {
             try {
               const parsed = JSON.parse(row[key]);
               row[key] = parsed;
-
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (e: unknown) {
-              // Not a JSON string, leave as is
-            }
+            } catch (e: unknown) {}
           }
         }
         return row as T;

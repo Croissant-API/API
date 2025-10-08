@@ -28,14 +28,9 @@ export class MarketListingService implements IMarketListingService {
     this.marketListingRepository = new MarketListingRepository(this.databaseService);
   }
 
-  /**
-   * Met un item de l'inventaire en vente sur le marketplace
-   * L'item est retiré de l'inventaire et ajouté aux ordres de vente
-   */
   async createMarketListing(sellerId: string, inventoryItem: InventoryItem, sellingPrice: number): Promise<MarketListing> {
     const now = new Date().toISOString();
 
-    // Vérifications préliminaires
     if (!inventoryItem.sellable && !inventoryItem.metadata) {
       throw new Error('This item cannot be sold');
     }
@@ -52,7 +47,6 @@ export class MarketListingService implements IMarketListingService {
       throw new Error('Selling price must be positive');
     }
 
-    // Création de l'ordre de vente
     const marketListing: MarketListing = {
       id: uuidv4(),
       seller_id: sellerId,
@@ -85,9 +79,6 @@ export class MarketListingService implements IMarketListingService {
     return marketListing;
   }
 
-  /**
-   * Annule un ordre de vente et remet l'item dans l'inventaire du vendeur
-   */
   async cancelMarketListing(listingId: string, sellerId: string): Promise<void> {
     const listing = await this.marketListingRepository.getMarketListingById(listingId, sellerId);
     if (!listing) throw new Error('Market listing not found or already processed');
@@ -110,7 +101,7 @@ export class MarketListingService implements IMarketListingService {
     const now = new Date().toISOString();
     const listing = await this.marketListingRepository.getMarketListingById(listingId);
     if (!listing) throw new Error('Market listing not found or already sold');
-    // (Vérification crédits à faire côté controller/service appelant)
+
     await this.marketListingRepository.updateMarketListingSold(listingId, buyerId, now);
     const inventoryItem: InventoryItem = {
       user_id: buyerId,
@@ -126,9 +117,6 @@ export class MarketListingService implements IMarketListingService {
     return { ...listing, status: 'sold', buyer_id: buyerId, sold_at: now };
   }
 
-  /**
-   * Récupère tous les ordres de vente d'un utilisateur
-   */
   async getMarketListingsByUser(userId: string): Promise<EnrichedMarketListing[]> {
     const listings = await this.marketListingRepository.getMarketListingsByUser(userId);
     return listings.map(row => ({
@@ -139,25 +127,16 @@ export class MarketListingService implements IMarketListingService {
     }));
   }
 
-  /**
-   * Récupère tous les ordres de vente actifs pour un item spécifique
-   */
   async getActiveListingsForItem(itemId: string): Promise<MarketListing[]> {
     const listings = await this.marketListingRepository.getActiveListingsForItem(itemId);
     return listings.map(this.deserializeMarketListing);
   }
 
-  /**
-   * Récupère un ordre de vente par son ID
-   */
   async getMarketListingById(listingId: string): Promise<MarketListing | null> {
     const listing = await this.marketListingRepository.getMarketListingByIdAnyStatus(listingId);
     return listing ? this.deserializeMarketListing(listing) : null;
   }
 
-  /**
-   * Récupère les ordres de vente enrichis avec les détails des items
-   */
   async getEnrichedMarketListings(limit: number = 50, offset: number = 0): Promise<EnrichedMarketListing[]> {
     const listings = await this.marketListingRepository.getEnrichedMarketListings(limit, offset);
     return listings.map(row => ({
@@ -168,9 +147,6 @@ export class MarketListingService implements IMarketListingService {
     }));
   }
 
-  /**
-   * Recherche d'ordres de vente par nom d'item
-   */
   async searchMarketListings(searchTerm: string, limit: number = 50): Promise<EnrichedMarketListing[]> {
     const listings = await this.marketListingRepository.searchMarketListings(searchTerm, limit);
     return listings.map(row => ({
@@ -181,9 +157,6 @@ export class MarketListingService implements IMarketListingService {
     }));
   }
 
-  /**
-   * Désérialise une ligne de la base de données en MarketListing
-   */
   private deserializeMarketListing = (row: MarketListing): MarketListing => ({
     id: row.id,
     seller_id: row.seller_id,
@@ -198,9 +171,4 @@ export class MarketListingService implements IMarketListingService {
     rarity: row.rarity || 'common',
     custom_url_link: row.custom_url_link || undefined,
   });
-
-  /**
-   * Méthode helper pour ajouter un item à l'inventaire (comme dans TradeService)
-   */
-  // ...existing code...
 }

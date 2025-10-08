@@ -16,6 +16,7 @@ export default defineConfig([
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "ignore",
+      "@typescript-eslint/no-unused-vars": "ignore",
     },
   },
   tseslint.configs.recommended,

@@ -36,7 +36,6 @@ server.setConfig(app => {
   app.use(express.static(path.join(__dirname, 'public')));
 });
 
-// 404 handler
 server.setErrorConfig(app => {
   app.use((req, res) => {
     res.status(404).json({ message: 'Not Found' });

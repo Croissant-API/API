@@ -8,7 +8,7 @@ import { IUserService } from '../services/UserService';
 
 export interface AuthenticatedRequest extends Request {
   user: User;
-  originalUser?: User; // Pour conserver l'utilisateur original avant modification de rôle
+  originalUser?: User;
 }
 
 export class LoggedCheck {

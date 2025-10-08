@@ -58,7 +58,6 @@ export class Items {
     }
   }
 
-  // --- LECTURE ---
   @describe({
     endpoint: '/items',
     method: 'GET',
@@ -202,7 +201,6 @@ export class Items {
     }
   }
 
-  // --- CREATION / MODIFICATION / SUPPRESSION ---
   @describe({
     endpoint: '/items/create',
     method: 'POST',
@@ -324,7 +322,6 @@ export class Items {
     }
   }
 
-  // --- ACTIONS INVENTAIRE ---
   @httpPost('/buy/:itemId', LoggedCheck.middleware)
   public async buyItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
@@ -401,7 +398,7 @@ export class Items {
         res.status(200).send({ message: 'Item sold', totalValue: Math.round(sellValue), itemsSold: amount });
         return;
       }
-      // Vente sans prix spécifique
+
       const items = await repo.getInventory({ userId: correctedUserId, itemId, sellable: true });
       const totalAvailable = items.filter(i => !i.metadata).reduce((sum, i) => sum + i.amount, 0);
       if (totalAvailable < amount) {

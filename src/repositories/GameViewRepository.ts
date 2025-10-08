@@ -61,7 +61,6 @@ export class GameViewRepository {
       stats[row.gameId] = row;
     }
 
-    // Ensure all requested games have stats (even if 0)
     for (const gameId of gameIds) {
       if (!stats[gameId]) {
         stats[gameId] = {

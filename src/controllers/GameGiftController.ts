@@ -7,7 +7,6 @@ import { IGameService } from '../services/GameService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 
-// --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
   res.status(status).send({ message, error: msg });
@@ -22,7 +21,6 @@ export class GameGifts {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  // Helper pour créer des logs (signature uniforme)
   private async createLog(req: AuthenticatedRequest, action: string, tableName?: string, statusCode?: number, userId?: string) {
     try {
       await this.logService.createLog({

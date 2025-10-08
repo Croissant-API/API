@@ -46,7 +46,6 @@ export class Studios {
     return studio;
   }
 
-  // --- Création de studio ---
   @describe({
     endpoint: '/studios',
     method: 'POST',
@@ -70,7 +69,6 @@ export class Studios {
     }
   }
 
-  // --- Récupération d'un studio ---
   @describe({
     endpoint: '/studios/:studioId',
     method: 'GET',
@@ -104,7 +102,6 @@ export class Studios {
     }
   }
 
-  // --- Récupération des studios de l'utilisateur ---
   @describe({
     endpoint: '/studios/user/@me',
     method: 'GET',
@@ -141,7 +138,6 @@ export class Studios {
     }
   }
 
-  // --- Gestion des membres (add/remove) ---
   private async checkStudioAdmin(req: AuthenticatedRequest, res: Response, studioId: string) {
     const studio = await this.getStudioOrError(studioId, req, res);
     if (!studio) return null;
