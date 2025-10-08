@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
+import fetch from 'node-fetch';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import { v4 } from 'uuid';
@@ -398,7 +399,35 @@ export class Games {
         const [_, owner, repo] = githubMatch;
         downloadUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
       }
-      res.redirect(downloadUrl);
+      if (req.headers.range) {
+        
+        const headers: any = {};
+        if (req.headers.range) {
+          headers.Range = req.headers.range;
+        }
+        const fileRes = await fetch(downloadUrl, { headers });
+        if (!fileRes.ok) return res.status(502).send({ message: 'Failed to fetch game file' });
+        res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+        res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+        const contentLength = fileRes.headers.get('content-length');
+        if (contentLength) res.setHeader('Content-Length', contentLength);
+        const acceptRanges = fileRes.headers.get('accept-ranges');
+        if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
+        if (fileRes.headers.get('content-range')) res.setHeader('Content-Range', fileRes.headers.get('content-range')!);
+        res.status(fileRes.status);
+        if (fileRes.body) {
+          try {
+            await streamPipeline(fileRes.body, res);
+          } catch (err) {
+            res.status(500).send({ message: 'Error streaming the file.' });
+          }
+        } else {
+          res.status(500).send({ message: 'Response body is empty.' });
+        }
+      } else {
+        
+        res.redirect(downloadUrl);
+      }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
     }
