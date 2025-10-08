@@ -417,7 +417,9 @@ export class Games {
         return res.status(fileRes.status).send({ message: 'Error fetching file' });
       }
 
-      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+      // Sanitize the filename to remove invalid characters
+      const sanitizedFilename = game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_');
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}.zip"`);
       res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
 
       const contentLength = fileRes.headers.get('content-length');
