@@ -5,6 +5,7 @@ import { InversifyExpressServer } from 'inversify-express-utils';
 import * as path from 'path';
 import 'reflect-metadata';
 import container from './container';
+import compression from 'compression';
 config();
 
 import './controllers/AuthenticatorController';
@@ -32,6 +33,7 @@ server.setConfig(app => {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use(cors());
+  app.use(compression());
 
   app.use(express.static(path.join(__dirname, 'public')));
 });

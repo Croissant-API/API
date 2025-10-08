@@ -3,8 +3,6 @@ import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import fetch from 'node-fetch';
-import { pipeline } from 'stream';
-import { promisify } from 'util';
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
@@ -12,7 +10,7 @@ import { IGameViewService } from '../services/GameViewService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 import { createGameBodySchema, gameIdParamSchema, updateGameBodySchema } from '../validators/GameValidator';
-const streamPipeline = promisify(pipeline);
+import crypto from 'crypto';
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -70,6 +68,11 @@ const transferGameRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Helper function to generate ETag
+function generateETag(content: Buffer) {
+  return crypto.createHash('md5').update(content).digest('hex');
+}
 
 @controller('/games')
 export class Games {
@@ -392,49 +395,49 @@ export class Games {
     const userId = req.user.user_id;
     try {
       const game = await this.gameService.getGame(gameId);
-      if (!game) return res.status(404).send({ message: 'Game not found' });
-      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
-      if (!owns) return res.status(403).send({ message: 'You do not own this game' });
-      const link = game.download_link;
-      if (!link) return res.status(404).send({ message: 'No download link available' });
-      let downloadUrl = link;
-      const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
-      if (githubMatch) {
-        const [_, owner, repo] = githubMatch;
-        downloadUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
+      if (!game) {
+        return res.status(404).send({ message: 'Game not found' });
       }
+      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
+      if (!owns) {
+        return res.status(403).send({ message: 'Access denied' });
+      }
+      const link = game.download_link;
+      if (!link) {
+        return res.status(404).send({ message: 'Download link not available' });
+      }
+
       const headers: any = {};
       if (req.headers.range) {
         headers.Range = req.headers.range;
       }
 
-      // Ensure the token is not included in the headers
-      if (headers.Authorization) {
-        delete headers.Authorization;
+      const fileRes = await fetch(link, { headers });
+      if (!fileRes.ok) {
+        return res.status(fileRes.status).send({ message: 'Error fetching file' });
       }
 
-      const fileRes = await fetch(downloadUrl, { headers });
-      if (!fileRes.ok) {
-        this.logUnexpectedStatus(req, fileRes.status, 'Failed to fetch game file');
-        return res.status(fileRes.status).send({ message: 'Failed to fetch game file' });
-      }
-      const sanitizedFileName = encodeURIComponent(game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_'));
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}.zip"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
       res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+
       const contentLength = fileRes.headers.get('content-length');
-      if (contentLength) res.setHeader('Content-Length', contentLength);
+      if (contentLength !== null) {
+        res.setHeader('Content-Length', contentLength);
+      }
       const acceptRanges = fileRes.headers.get('accept-ranges');
-      if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
-      if (fileRes.headers.get('content-range')) res.setHeader('Content-Range', fileRes.headers.get('content-range')!);
+      if (acceptRanges !== null) {
+        res.setHeader('Accept-Ranges', acceptRanges);
+      }
+      const contentRange = fileRes.headers.get('content-range');
+      if (contentRange !== null) {
+        res.setHeader('Content-Range', contentRange);
+      }
+
       res.status(fileRes.status);
       if (fileRes.body) {
-        try {
-          await streamPipeline(fileRes.body, res);
-        } catch (err) {
-          res.status(500).send({ message: 'Error streaming the file.' });
-        }
+        fileRes.body.pipe(res);
       } else {
-        res.status(500).send({ message: 'Response body is empty.' });
+        res.end();
       }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
