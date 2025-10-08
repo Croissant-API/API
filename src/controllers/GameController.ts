@@ -407,7 +407,8 @@ export class Games {
         }
         const fileRes = await fetch(downloadUrl, { headers });
         if (!fileRes.ok) return res.status(502).send({ message: 'Failed to fetch game file' });
-        res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+        const sanitizedFileName = encodeURIComponent(game.name.replace(/[^a-zA-Z0-9-_\.]/g, '_'));
+        res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}.zip"`);
         res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
         const contentLength = fileRes.headers.get('content-length');
         if (contentLength) res.setHeader('Content-Length', contentLength);
