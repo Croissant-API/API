@@ -497,12 +497,13 @@ export class Games {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      // Fetch the last 22 bytes of the file (minimum EOCD size)
-      const rangeHeader = 'bytes=-22';
+      // Fetch the last 64KB of the file (maximum EOCD search window)
+      const rangeHeader = 'bytes=-65536';
       const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
 
       if (!fileRes.ok) {
-        return res.status(fileRes.status).send({ message: 'Error fetching EOCD' });
+        const errorText = await fileRes.text();
+        return res.status(fileRes.status).send({ message: 'Error fetching EOCD', status: fileRes.status, error: errorText });
       }
 
       const buffer = await fileRes.arrayBuffer();
