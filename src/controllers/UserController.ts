@@ -1,5 +1,3 @@
-
-
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Request, Response } from "express";
@@ -421,7 +419,7 @@ export class Users {
       await this.userService.updateUser(userId, username.trim());
       await this.createLog(req, "changeUsername", "users", 200, userId);
       res.status(200).send({ message: "Username updated" });
-    } catch (error) {
+    } catch  {
       await this.createLog(req, "changeUsername", "users", 500, userId);
       this.sendError(res, 500, "Error updating username");
     }
@@ -475,7 +473,7 @@ export class Users {
       await this.userService.updateUserPassword(userId, hashedPassword);
       await this.createLog(req, "changePassword", "users", 200, userId);
       res.status(200).send({ message: "Password changed successfully" });
-    } catch (error) {
+    } catch  {
       await this.createLog(req, "changePassword", "users", 500, userId);
       this.sendError(res, 500, "Error changing password");
     }
@@ -529,7 +527,7 @@ export class Users {
       res
         .status(200)
         .send({ message: "Password reset successfully", token: jwtToken });
-    } catch (error) {
+    } catch  {
       await this.createLog(req, "resetPassword", "users", 500, user.user_id);
       this.sendError(res, 500, "Error resetting password");
     }
@@ -656,7 +654,7 @@ export class Users {
       });
       await this.createLog(req, "searchUsers", "users", 200);
       res.send(users.map((user) => this.mapUserSearch(user)));
-    } catch (error) {
+    } catch  {
       await this.createLog(req, "searchUsers", "users", 500);
       this.sendError(res, 500, "Error searching users");
     }
@@ -688,7 +686,7 @@ export class Users {
   public async getUser(req: Request, res: Response) {
     try {
       await userIdParamValidator.validate(req.params);
-    } catch (err) {
+    } catch {
       await this.createLog(req, "getUser", "users", 400);
       return this.sendError(res, 400, "Invalid userId");
     }
@@ -758,7 +756,7 @@ export class Users {
         req.user.user_id,
       );
       res.send(users.map((user) => this.mapUserSearch(user)));
-    } catch (error) {
+    } catch  {
       await this.createLog(
         req,
         "adminSearchUsers",
@@ -838,7 +836,7 @@ export class Users {
     }
     try {
       await userIdParamValidator.validate(req.params);
-    } catch (err) {
+    } catch {
       await this.createLog(
         req,
         "adminGetUser",
@@ -888,7 +886,8 @@ export class Users {
   @httpPost("/transfer-credits", LoggedCheck.middleware)
   public async transferCredits(req: AuthenticatedRequest, res: Response) {
     const { targetUserId, amount } = req.body;
-    if (!targetUserId || isNaN(amount) || amount <= 0) {
+    const transferAmount = Number(amount); 
+    if (!targetUserId || isNaN(transferAmount) || transferAmount <= 0) {
       await this.createLog(
         req,
         "transferCredits",
@@ -925,7 +924,7 @@ export class Users {
         );
         return this.sendError(res, 404, "Recipient not found");
       }
-      if (sender.balance < amount) {
+      if (sender.balance < transferAmount) {
         await this.createLog(
           req,
           "transferCredits",
@@ -937,11 +936,11 @@ export class Users {
       }
       await this.userService.updateUserBalance(
         sender.user_id,
-        sender.balance - Number(amount),
+        sender.balance - transferAmount,
       );
       await this.userService.updateUserBalance(
         recipient.user_id,
-        recipient.balance + Number(amount),
+        recipient.balance + transferAmount,
       );
       await this.createLog(
         req,
@@ -951,7 +950,7 @@ export class Users {
         sender.user_id,
       );
       res.status(200).send({ message: "Credits transferred" });
-    } catch (error) {
+    } catch  {
       await this.createLog(
         req,
         "transferCredits",
@@ -1030,7 +1029,7 @@ export class Users {
       });
       await this.createLog(req, "changeRole", "users", 200, userId);
       return res.status(200).send({ message: "Role updated successfully" });
-    } catch (error) {
+    } catch  {
       await this.createLog(req, "changeRole", "users", 500, userId);
       this.sendError(res, 500, "Error setting role cookie");
     }
@@ -1055,7 +1054,7 @@ export class Users {
         email: userData.email,
         username: userData.username,
       };
-    } catch (error) {
+    } catch  {
       throw new Error("Failed to verify Discord token");
     }
   }
@@ -1076,7 +1075,7 @@ export class Users {
         email: userData.email,
         username: userData.name,
       };
-    } catch (error) {
+    } catch  {
       throw new Error("Failed to verify Google token");
     }
   }
