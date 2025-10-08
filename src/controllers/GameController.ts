@@ -394,28 +394,53 @@ export class Games {
     const { gameId } = req.params;
     const userId = req.user.user_id;
     try {
-      // Vérifiez si le jeu existe
       const game = await this.gameService.getGame(gameId);
       if (!game) {
         return res.status(404).send({ message: 'Game not found' });
       }
-
-      // Vérifiez si l'utilisateur possède le jeu ou y a accès
       const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
       if (!owns) {
         return res.status(403).send({ message: 'Access denied' });
       }
-
-      // Vérifiez si un lien de téléchargement est disponible
       const link = game.download_link;
       if (!link) {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      // Renvoyer directement le lien du fichier ZIP en réponse
-      res.status(200).send({ downloadLink: link });
+      const headers: any = {};
+      if (req.headers.range) {
+        headers.Range = req.headers.range;
+      }
+
+      const fileRes = await fetch(link, { headers });
+      if (!fileRes.ok) {
+        return res.status(fileRes.status).send({ message: 'Error fetching file' });
+      }
+
+      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+
+      const contentLength = fileRes.headers.get('content-length');
+      if (contentLength !== null) {
+        res.setHeader('Content-Length', contentLength);
+      }
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges !== null) {
+        res.setHeader('Accept-Ranges', acceptRanges);
+      }
+      const contentRange = fileRes.headers.get('content-range');
+      if (contentRange !== null) {
+        res.setHeader('Content-Range', contentRange);
+      }
+
+      res.status(fileRes.status);
+      if (fileRes.body) {
+        fileRes.body.pipe(res);
+      } else {
+        res.end();
+      }
     } catch (error) {
-      handleError(res, error, 'Error processing download request');
+      handleError(res, error, 'Error downloading game');
     }
   }
 }
