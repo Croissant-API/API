@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
+import { controller, httpGet, httpPost, httpPut, httpHead } from 'inversify-express-utils';
 import fetch from 'node-fetch';
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
@@ -441,6 +441,34 @@ export class Games {
       }
     } catch (error) {
       handleError(res, error, 'Error downloading game');
+    }
+  }
+
+  @httpHead('/:gameId')
+  public async headGame(req: Request, res: Response) {
+    if (!(await validateOr400(gameIdParamSchema, req.params, res))) {
+      await this.createLog(req, 'headGame', 'games', 400);
+      return;
+    }
+    try {
+      const { gameId } = req.params;
+      const game = await this.gameService.getGame(gameId);
+      if (!game) {
+        await this.createLog(req, 'headGame', 'games', 404);
+        return res.status(404).send({ message: 'Game not found' });
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'ETag': generateETag(Buffer.from(JSON.stringify(game))),
+      };
+
+      res.set(headers);
+      await this.createLog(req, 'headGame', 'games', 200);
+      res.status(200).end();
+    } catch (error) {
+      await this.createLog(req, 'headGame', 'games', 500);
+      handleError(res, error, 'Error fetching game headers');
     }
   }
 }
