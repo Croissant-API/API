@@ -498,21 +498,55 @@ export class Games {
         return res.status(404).send({ message: 'Download link not available' });
       }
 
-      // Fetch the last 64KB of the file (maximum EOCD search window)
-      const rangeHeader = 'bytes=-1024'; // Réduire la plage demandée
-      const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
+      let buffer;
+      try {
+        // Attempt to fetch the last 1KB of the file (maximum EOCD search window)
+        const rangeHeader = 'bytes=-1024';
+        const fileRes = await fetch(link, { headers: { Range: rangeHeader } });
 
-      if (!fileRes.ok) {
-        const errorText = await fileRes.text();
-        return res.status(fileRes.status).send({ message: 'Error fetching EOCD', status: fileRes.status, error: errorText });
+        if (!fileRes.ok) {
+          throw new Error(`Range request failed with status ${fileRes.status}`);
+        }
+
+        buffer = await fileRes.arrayBuffer();
+      } catch (rangeError) {
+        // Ensure rangeError is treated as an Error
+        const errorMessage = rangeError instanceof Error ? rangeError.message : 'Unknown error';
+        console.warn('Range request failed, falling back to full download:', errorMessage);
+
+        // Fallback: Download the entire file
+        const fullFileRes = await fetch(link);
+        if (!fullFileRes.ok) {
+          const errorText = await fullFileRes.text();
+          return res.status(fullFileRes.status).send({ message: 'Error fetching EOCD', status: fullFileRes.status, error: errorText });
+        }
+
+        buffer = await fullFileRes.arrayBuffer();
       }
 
-      const buffer = await fileRes.arrayBuffer();
+      // Extract EOCD from the buffer
+      const bufferData = Buffer.from(buffer);
+      const eocd = this.extractEOCD(bufferData);
+
       res.setHeader('Content-Type', 'application/octet-stream');
-      res.status(200).send(Buffer.from(buffer));
+      res.status(200).send(eocd);
     } catch (error) {
       handleError(res, error, 'Error fetching EOCD');
     }
+  }
+
+  private extractEOCD(buffer: Buffer): Buffer {
+    // EOCD signature: 0x06054b50
+    const eocdSignature = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
+    const maxEOCDSearch = Math.min(buffer.length, 1024); // Search within the last 1KB
+
+    for (let i = buffer.length - maxEOCDSearch; i >= 0; i--) {
+      if (buffer.slice(i, i + 4).equals(eocdSignature)) {
+        return buffer.slice(i);
+      }
+    }
+
+    throw new Error('EOCD not found in the file');
   }
 }
 
