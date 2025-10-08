@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import fetch from 'node-fetch';
@@ -29,6 +30,46 @@ async function validateOr400(schema: yup.Schema<unknown>, data: unknown, res: Re
     return false;
   }
 }
+
+const createGameRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many game creations, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const updateGameRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many game updates, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const buyGameRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 20, 
+  message: 'Too many game purchases, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const transferOwnershipRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many ownership transfers, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const transferGameRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many game transfers, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 @controller('/games')
 export class Games {
@@ -157,7 +198,7 @@ export class Games {
     }
   }
 
-  @httpPost('/', LoggedCheck.middleware)
+  @httpPost('/', LoggedCheck.middleware, createGameRateLimit)
   public async createGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(createGameBodySchema, req.body, res))) {
       await this.createLog(req, 'createGame', 'games', 400, req.user?.user_id);
@@ -176,7 +217,7 @@ export class Games {
     }
   }
 
-  @httpPut(':gameId', LoggedCheck.middleware)
+  @httpPut(':gameId', LoggedCheck.middleware, updateGameRateLimit)
   public async updateGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(gameIdParamSchema, req.params, res))) {
       await this.createLog(req, 'updateGame', 'games', 400, req.user?.user_id);
@@ -206,7 +247,7 @@ export class Games {
     }
   }
 
-  @httpPost(':gameId/buy', LoggedCheck.middleware)
+  @httpPost(':gameId/buy', LoggedCheck.middleware, buyGameRateLimit)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
     const userId = req.user.user_id;
@@ -251,7 +292,7 @@ export class Games {
     }
   }
 
-  @httpPost('/transfer-ownership/:gameId', LoggedCheck.middleware)
+  @httpPost('/transfer-ownership/:gameId', LoggedCheck.middleware, transferOwnershipRateLimit)
   public async transferOwnership(req: AuthenticatedRequest, res: Response) {
     const { gameId } = req.params;
     const { newOwnerId } = req.body;
@@ -285,7 +326,7 @@ export class Games {
     }
   }
 
-  @httpPost(':gameId/transfer', LoggedCheck.middleware)
+  @httpPost(':gameId/transfer', LoggedCheck.middleware, transferGameRateLimit)
   public async transferGame(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(gameIdParamSchema, req.params, res))) {
       await this.createLog(req, 'transferGame', 'games', 400, req.user?.user_id);
@@ -378,3 +419,5 @@ export class Games {
     }
   }
 }
+
+

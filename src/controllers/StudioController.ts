@@ -1,10 +1,35 @@
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IStudioService } from '../services/StudioService';
+
+const createStudioRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 3, 
+  message: 'Too many studio creations, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const addUserToStudioRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many add user requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const removeUserFromStudioRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many remove user requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 @controller('/studios')
 export class Studios {
@@ -55,7 +80,7 @@ export class Studios {
     example: 'POST /api/studios {"studioName": "My Studio"}',
     requiresAuth: true,
   })
-  @httpPost('/', LoggedCheck.middleware)
+  @httpPost('/', LoggedCheck.middleware, createStudioRateLimit)
   async createStudio(req: AuthenticatedRequest, res: Response) {
     if (req.user.isStudio) return res.status(403).send({ message: "A studio can't create another studio" });
     const { studioName } = req.body;
@@ -159,7 +184,7 @@ export class Studios {
     example: 'POST /api/studios/studio123/add-user {"userId": "user456"}',
     requiresAuth: true,
   })
-  @httpPost('/:studioId/add-user', LoggedCheck.middleware)
+  @httpPost('/:studioId/add-user', LoggedCheck.middleware, addUserToStudioRateLimit)
   async addUserToStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
@@ -187,7 +212,7 @@ export class Studios {
     example: 'POST /api/studios/studio123/remove-user {"userId": "user456"}',
     requiresAuth: true,
   })
-  @httpPost('/:studioId/remove-user', LoggedCheck.middleware)
+  @httpPost('/:studioId/remove-user', LoggedCheck.middleware, removeUserFromStudioRateLimit)
   async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
     const { studioId } = req.params;
     const { userId } = req.body;
@@ -204,3 +229,5 @@ export class Studios {
     }
   }
 }
+
+

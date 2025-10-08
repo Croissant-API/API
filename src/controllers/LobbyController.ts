@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { v4 } from 'uuid';
@@ -26,6 +27,30 @@ async function validateOr400(schema: Schema<unknown>, data: unknown, res: Respon
     throw error;
   }
 }
+
+const createLobbyRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 30, 
+  message: 'Too many lobby creations, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const joinLobbyRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many lobby joins, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const leaveLobbyRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many lobby leaves, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 @controller('/lobbies')
 export class Lobbies {
@@ -59,7 +84,7 @@ export class Lobbies {
     example: 'POST /api/lobbies',
     requiresAuth: true,
   })
-  @httpPost('/', LoggedCheck.middleware)
+  @httpPost('/', LoggedCheck.middleware, createLobbyRateLimit)
   public async createLobby(req: AuthenticatedRequest, res: Response) {
     try {
       const lobbyId = v4();
@@ -179,7 +204,7 @@ export class Lobbies {
     example: 'POST /api/lobbies/123/join',
     requiresAuth: true,
   })
-  @httpPost('/:lobbyId/join', LoggedCheck.middleware)
+  @httpPost('/:lobbyId/join', LoggedCheck.middleware, joinLobbyRateLimit)
   public async joinLobby(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(lobbyIdParamSchema, req.params, res))) {
       await this.createLog(req, 'joinLobby', 'lobbies', 400, req.user.user_id);
@@ -205,7 +230,7 @@ export class Lobbies {
     example: 'POST /api/lobbies/123/leave',
     requiresAuth: true,
   })
-  @httpPost('/:lobbyId/leave', LoggedCheck.middleware)
+  @httpPost('/:lobbyId/leave', LoggedCheck.middleware, leaveLobbyRateLimit)
   public async leaveLobby(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(lobbyIdParamSchema, req.params, res))) {
       await this.createLog(req, 'leaveLobby', 'lobbies', 400, req.user.user_id);
@@ -221,3 +246,5 @@ export class Lobbies {
     }
   }
 }
+
+

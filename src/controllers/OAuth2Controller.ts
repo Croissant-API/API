@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpDelete, httpGet, httpPatch, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
@@ -6,6 +7,38 @@ import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IOAuth2Service } from '../services/OAuth2Service';
 import { genVerificationKey } from '../utils/GenKey';
+
+const createOAuth2AppRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many OAuth2 app creations, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const updateOAuth2AppRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many OAuth2 app updates, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const deleteOAuth2AppRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many OAuth2 app deletions, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authorizeRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 200, 
+  message: 'Too many authorization requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -86,7 +119,7 @@ export class OAuth2 {
     example: 'POST /api/oauth2/app {"name": "My App", "redirect_urls": ["https://example.com/callback"]}',
     requiresAuth: true,
   })
-  @httpPost('/app', LoggedCheck.middleware)
+  @httpPost('/app', LoggedCheck.middleware, createOAuth2AppRateLimit)
   async createApp(req: AuthenticatedRequest, res: Response) {
     const { name, redirect_urls } = req.body;
     if (!name || !redirect_urls || !Array.isArray(redirect_urls)) {
@@ -155,7 +188,7 @@ export class OAuth2 {
     example: 'PATCH /api/oauth2/app/123 {"name": "Updated App"}',
     requiresAuth: true,
   })
-  @httpPatch('/app/:client_id', LoggedCheck.middleware)
+  @httpPatch('/app/:client_id', LoggedCheck.middleware, updateOAuth2AppRateLimit)
   async updateApp(req: AuthenticatedRequest, res: Response) {
     const { client_id } = req.params;
     const { name, redirect_urls } = req.body;
@@ -190,7 +223,7 @@ export class OAuth2 {
     example: 'DELETE /api/oauth2/app/123',
     requiresAuth: true,
   })
-  @httpDelete('/app/:client_id', LoggedCheck.middleware)
+  @httpDelete('/app/:client_id', LoggedCheck.middleware, deleteOAuth2AppRateLimit)
   async deleteApp(req: AuthenticatedRequest, res: Response) {
     const { client_id } = req.params;
     try {
@@ -218,7 +251,7 @@ export class OAuth2 {
     example: 'GET /api/oauth2/authorize?client_id=123&redirect_uri=https://example.com/callback',
     requiresAuth: true,
   })
-  @httpGet('/authorize', LoggedCheck.middleware)
+  @httpGet('/authorize', LoggedCheck.middleware, authorizeRateLimit)
   async authorize(req: AuthenticatedRequest, res: Response) {
     const { client_id, redirect_uri } = req.query as { client_id: string; redirect_uri: string };
     const userId = req.user?.user_id;
@@ -316,3 +349,5 @@ export class OAuth2 {
     }
   }
 }
+
+

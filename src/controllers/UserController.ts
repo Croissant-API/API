@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
@@ -15,6 +16,86 @@ import { genKey, genVerificationKey } from '../utils/GenKey';
 import { requireFields } from '../utils/helpers';
 import { generateUserJwt } from '../utils/Jwt';
 import { userIdParamValidator } from '../validators/UserValidator';
+
+const registerRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many registration attempts from this IP, please try again later.',
+  standardHeaders: true, 
+  legacyHeaders: false, 
+});
+
+const changeUsernameRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many username changes, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const changePasswordRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 20, 
+  message: 'Too many password changes, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const transferCreditsRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10, 
+  message: 'Too many credit transfers, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const forgotPasswordRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many password reset requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const resetPasswordRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 5, 
+  message: 'Too many password reset attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginOAuthRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many OAuth login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const changeRoleRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 500, 
+  message: 'Too many role changes, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const unlinkSteamRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 30, 
+  message: 'Too many unlink steam requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 @controller('/users')
 export class Users {
@@ -82,7 +163,7 @@ export class Users {
     };
   }
 
-  @httpPost('/login-oauth')
+  @httpPost('/login-oauth', loginOAuthRateLimit)
   public async loginOAuth(req: Request, res: Response) {
     const { provider, code } = req.body;
     if (!provider || !code) {
@@ -189,7 +270,7 @@ export class Users {
     });
   }
 
-  @httpPost('/register')
+  @httpPost('/register', registerRateLimit)
   public async register(req: Request, res: Response) {
     const missing = requireFields(req.body, ['username', 'email']);
     if (missing || (!req.body.password && !req.body.provider)) {
@@ -234,7 +315,7 @@ export class Users {
     }
   }
 
-  @httpPost('/login')
+  @httpPost('/login', loginRateLimit)
   public async login(req: Request, res: Response) {
     const allUsers = await this.userService.getAllUsersWithDisabled();
     const user = allUsers.find(u => u.email === req.body.email);
@@ -329,7 +410,7 @@ export class Users {
     });
   }
 
-  @httpPost('/change-username', LoggedCheck.middleware)
+  @httpPost('/change-username', LoggedCheck.middleware, changeUsernameRateLimit)
   public async changeUsername(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
     const { username } = req.body;
@@ -351,7 +432,7 @@ export class Users {
     }
   }
 
-  @httpPost('/change-password', LoggedCheck.middleware)
+  @httpPost('/change-password', LoggedCheck.middleware, changePasswordRateLimit)
   public async changePassword(req: AuthenticatedRequest, res: Response) {
     const { oldPassword, newPassword, confirmPassword } = req.body;
     if (!newPassword || !confirmPassword) {
@@ -389,7 +470,7 @@ export class Users {
     }
   }
 
-  @httpPost('/forgot-password')
+  @httpPost('/forgot-password', forgotPasswordRateLimit)
   public async forgotPassword(req: Request, res: Response) {
     const { email } = req.body;
     if (!email) {
@@ -407,7 +488,7 @@ export class Users {
     res.status(200).send({ message: 'Password reset email sent' });
   }
 
-  @httpPost('/reset-password')
+  @httpPost('/reset-password', resetPasswordRateLimit)
   public async resetPassword(req: Request, res: Response) {
     const { new_password, confirm_password, reset_token } = req.body;
     if (!new_password || !reset_token || !confirm_password) {
@@ -486,7 +567,7 @@ export class Users {
     }
   }
 
-  @httpPost('/unlink-steam', LoggedCheck.middleware)
+  @httpPost('/unlink-steam', LoggedCheck.middleware, unlinkSteamRateLimit)
   public async unlinkSteam(req: AuthenticatedRequest, res: Response) {
     const userId = req.user?.user_id;
     if (!userId) {
@@ -710,7 +791,7 @@ export class Users {
     example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }",
     requiresAuth: true,
   })
-  @httpPost('/transfer-credits', LoggedCheck.middleware)
+  @httpPost('/transfer-credits', LoggedCheck.middleware, transferCreditsRateLimit)
   public async transferCredits(req: AuthenticatedRequest, res: Response) {
     const { targetUserId, amount } = req.body;
     const transferAmount = Number(amount);
@@ -776,7 +857,7 @@ export class Users {
     res.send({ success: isValid });
   }
 
-  @httpPost('/change-role', LoggedCheck.middleware)
+  @httpPost('/change-role', LoggedCheck.middleware, changeRoleRateLimit)
   async changeRole(req: AuthenticatedRequest, res: Response) {
     const userId = req.originalUser?.user_id;
     const { role } = req.body;
@@ -851,3 +932,5 @@ export class Users {
     }
   }
 }
+
+

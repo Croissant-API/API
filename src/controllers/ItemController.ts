@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
 import { controller, httpDelete, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import { v4 } from 'uuid';
@@ -29,6 +30,70 @@ async function validateOr400(schema: Schema<unknown>, data: unknown, res: Respon
     throw error;
   }
 }
+
+const createItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 500,
+  message: 'Too many item creations, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const updateItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 1000, 
+  message: 'Too many item updates, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const deleteItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 500, 
+  message: 'Too many item deletions, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const buyItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 2000, 
+  message: 'Too many item purchases, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const sellItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 2000, 
+  message: 'Too many item sales, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const consumeItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 1000, 
+  message: 'Too many item consumptions, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const dropItemRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 1000, 
+  message: 'Too many item drops, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const transferOwnershipRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 500, 
+  message: 'Too many ownership transfers, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 @controller('/items')
 export class Items {
@@ -216,7 +281,7 @@ export class Items {
     example: 'POST /api/items/create {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
     requiresAuth: true,
   })
-  @httpPost('/create', LoggedCheck.middleware)
+  @httpPost('/create', LoggedCheck.middleware, createItemRateLimit)
   public async createItem(req: AuthenticatedRequest, res: Response) {
     if (!(await validateOr400(createItemValidator, req.body, res, 'Invalid item data'))) {
       await this.createLog(req, 'items', 400);
@@ -259,7 +324,7 @@ export class Items {
     example: 'PUT /api/items/update/123 {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
     requiresAuth: true,
   })
-  @httpPut('/update/:itemId', OwnerCheck.middleware)
+  @httpPut('/update/:itemId', OwnerCheck.middleware, updateItemRateLimit)
   public async updateItem(req: AuthenticatedRequestWithOwner, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, 'Invalid itemId'))) {
       await this.createLog(req, 'items', 400);
@@ -305,7 +370,7 @@ export class Items {
     example: 'DELETE /api/items/delete/123',
     requiresAuth: true,
   })
-  @httpDelete('/delete/:itemId', OwnerCheck.middleware)
+  @httpDelete('/delete/:itemId', OwnerCheck.middleware, deleteItemRateLimit)
   public async deleteItem(req: AuthenticatedRequestWithOwner, res: Response) {
     if (!(await validateOr400(itemIdParamValidator, req.params, res, 'Invalid itemId'))) {
       await this.createLog(req, 'items', 400);
@@ -322,7 +387,7 @@ export class Items {
     }
   }
 
-  @httpPost('/buy/:itemId', LoggedCheck.middleware)
+  @httpPost('/buy/:itemId', LoggedCheck.middleware, buyItemRateLimit)
   public async buyItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
     const { amount } = req.body;
@@ -362,7 +427,7 @@ export class Items {
     }
   }
 
-  @httpPost('/sell/:itemId', LoggedCheck.middleware)
+  @httpPost('/sell/:itemId', LoggedCheck.middleware, sellItemRateLimit)
   public async sellItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
     const { amount, purchasePrice, dataItemIndex } = req.body;
@@ -418,7 +483,7 @@ export class Items {
     }
   }
 
-  @httpPost('/consume/:itemId', OwnerCheck.middleware)
+  @httpPost('/consume/:itemId', OwnerCheck.middleware, consumeItemRateLimit)
   public async consumeItem(req: AuthenticatedRequestWithOwner, res: Response) {
     const { itemId } = req.params;
     const { amount, uniqueId, userId } = req.body;
@@ -468,7 +533,7 @@ export class Items {
     }
   }
 
-  @httpPost('/drop/:itemId', LoggedCheck.middleware)
+  @httpPost('/drop/:itemId', LoggedCheck.middleware, dropItemRateLimit)
   public async dropItem(req: AuthenticatedRequest, res: Response) {
     const { itemId } = req.params;
     const { amount, uniqueId, dataItemIndex } = req.body;
@@ -513,7 +578,7 @@ export class Items {
     }
   }
 
-  @httpPost('/transfer-ownership/:itemId', OwnerCheck.middleware)
+  @httpPost('/transfer-ownership/:itemId', OwnerCheck.middleware, transferOwnershipRateLimit)
   public async transferOwnership(req: AuthenticatedRequestWithOwner, res: Response) {
     const { itemId } = req.params;
     const { newOwnerId } = req.body;
@@ -541,3 +606,5 @@ export class Items {
     }
   }
 }
+
+
