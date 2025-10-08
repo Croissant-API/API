@@ -444,31 +444,53 @@ export class Games {
     }
   }
 
-  @httpHead('/:gameId')
-  public async headGame(req: Request, res: Response) {
-    if (!(await validateOr400(gameIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'headGame', 'games', 400);
-      return;
-    }
+  @httpHead('/:gameId/download', LoggedCheck.middleware)
+  public async headDownloadGame(req: AuthenticatedRequest, res: Response) {
+    const { gameId } = req.params;
+    const userId = req.user.user_id;
     try {
-      const { gameId } = req.params;
       const game = await this.gameService.getGame(gameId);
       if (!game) {
-        await this.createLog(req, 'headGame', 'games', 404);
         return res.status(404).send({ message: 'Game not found' });
       }
+      const owns = (await this.gameService.userOwnsGame(gameId, userId)) || game.owner_id === userId;
+      if (!owns) {
+        return res.status(403).send({ message: 'Access denied' });
+      }
+      const link = game.download_link;
+      if (!link) {
+        return res.status(404).send({ message: 'Download link not available' });
+      }
 
-      const headers = {
-        'Content-Type': 'application/json',
-        'ETag': generateETag(Buffer.from(JSON.stringify(game))),
-      };
+      const headers: any = {};
+      if (req.headers.range) {
+        headers.Range = req.headers.range;
+      }
 
-      res.set(headers);
-      await this.createLog(req, 'headGame', 'games', 200);
-      res.status(200).end();
+      const fileRes = await fetch(link, { method: 'HEAD', headers });
+      if (!fileRes.ok) {
+        return res.status(fileRes.status).send({ message: 'Error fetching file headers' });
+      }
+
+      res.setHeader('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+      res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+
+      const contentLength = fileRes.headers.get('content-length');
+      if (contentLength !== null) {
+        res.setHeader('Content-Length', contentLength);
+      }
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges !== null) {
+        res.setHeader('Accept-Ranges', acceptRanges);
+      }
+      const contentRange = fileRes.headers.get('content-range');
+      if (contentRange !== null) {
+        res.setHeader('Content-Range', contentRange);
+      }
+
+      res.status(fileRes.status).end();
     } catch (error) {
-      await this.createLog(req, 'headGame', 'games', 500);
-      handleError(res, error, 'Error fetching game headers');
+      handleError(res, error, 'Error fetching file headers');
     }
   }
 }
