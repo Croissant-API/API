@@ -1,35 +1,35 @@
-import crypto from "crypto";
-import removeDiacritics from "diacritics";
-import { config } from "dotenv";
-import { InventoryItem } from "interfaces/Inventory";
-import { Item } from "interfaces/Item";
-import { inject, injectable } from "inversify";
-import path from "path";
-import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from "../interfaces/User";
-import { UserRepository } from "../repositories/UserRepository";
-import { decryptUserId, genKey } from "../utils/GenKey";
-import { verifyUserJwt } from "../utils/Jwt";
-import { IDatabaseService } from "./DatabaseService";
+import crypto from 'crypto';
+import removeDiacritics from 'diacritics';
+import { config } from 'dotenv';
+import { InventoryItem } from 'interfaces/Inventory';
+import { Item } from 'interfaces/Item';
+import { inject, injectable } from 'inversify';
+import path from 'path';
+import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from '../interfaces/User';
+import { UserRepository } from '../repositories/UserRepository';
+import { decryptUserId, genKey } from '../utils/GenKey';
+import { verifyUserJwt } from '../utils/Jwt';
+import { IDatabaseService } from './DatabaseService';
 
 function slugify(str: string): string {
-  str = str.normalize("NFKD");
+  str = str.normalize('NFKD');
   str = removeDiacritics.remove(str);
-  const substitutions: Record<string, string> = { "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l", "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f", "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l" };
+  const substitutions: Record<string, string> = { α: 'a', β: 'b', γ: 'g', δ: 'd', ε: 'e', θ: 'o', λ: 'l', μ: 'm', ν: 'v', π: 'p', ρ: 'r', σ: 's', τ: 't', φ: 'f', χ: 'x', ψ: 'ps', ω: 'w', ℓ: 'l', '𝓁': 'l', '𝔩': 'l' };
   str = str
-    .split("")
-    .map((c) => substitutions[c] ?? c)
-    .join("");
-  str = str.replace(/[^a-zA-Z0-9]/g, "");
+    .split('')
+    .map(c => substitutions[c] ?? c)
+    .join('');
+  str = str.replace(/[^a-zA-Z0-9]/g, '');
   return str.toLowerCase();
 }
 
-config({ path: path.join(__dirname, "..", "..", ".env") });
+config({ path: path.join(__dirname, '..', '..', '.env') });
 
 export interface IUserService {
   updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
   searchUsersByUsername(query: string): Promise<PublicUser[]>;
   updateUserBalance(user_id: string, balance: number): Promise<void>;
-  createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+  createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string): Promise<User>;
   createBrandUser(user_id: string, username: string): Promise<User>;
   getUser(user_id: string): Promise<User | null>;
   adminGetUser(user_id: string): Promise<User | null>;
@@ -43,7 +43,7 @@ export interface IUserService {
   disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
   reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
   findByEmail(email: string): Promise<User | null>;
-  associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+  associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void>;
   getUserBySteamId(steamId: string): Promise<User | null>;
   generatePasswordResetToken(user_id: string): Promise<string>;
   updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
@@ -63,9 +63,9 @@ export class UserService implements IUserService {
   private apiKeyUserCache: Map<string, User> = new Map();
 
   private userRepository: UserRepository;
-  constructor(@inject("DatabaseService") private databaseService: IDatabaseService) {
+  constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.userRepository = new UserRepository(this.databaseService);
-    this.getAllUsersWithDisabled().then((users) => {
+    this.getAllUsersWithDisabled().then(users => {
       for (const user of users) {
         const key = genKey(user.user_id);
         this.apiKeyUserCache.set(key, user);
@@ -83,14 +83,14 @@ export class UserService implements IUserService {
     return await this.userRepository.findByEmail(email);
   }
 
-  async associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void> {
+  async associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void> {
     await this.userRepository.associateOAuth(user_id, provider, providerId);
   }
 
   async disableAccount(targetUserId: string, adminUserId: string): Promise<void> {
     const admin = await this.adminGetUser(adminUserId);
     if (!admin || !admin.admin) {
-      throw new Error("Unauthorized: not admin");
+      throw new Error('Unauthorized: not admin');
     }
     await this.userRepository.disableAccount(targetUserId);
   }
@@ -98,7 +98,7 @@ export class UserService implements IUserService {
   async reenableAccount(targetUserId: string, adminUserId: string): Promise<void> {
     const admin = await this.adminGetUser(adminUserId);
     if (!admin || !admin.admin) {
-      throw new Error("Unauthorized: not admin");
+      throw new Error('Unauthorized: not admin');
     }
     await this.userRepository.reenableAccount(targetUserId);
   }
@@ -106,19 +106,21 @@ export class UserService implements IUserService {
   async searchUsersByUsername(query: string): Promise<PublicUser[]> {
     const users = await this.adminSearchUsers(query);
     // we return users as PublicUser[]
-    return users.filter((u: PublicUser) => !u.disabled).map((u: PublicUser) => ({
-      user_id: u.user_id,
-      username: u.username,
-      verified: !!u.verified,
-      isStudio: !!u.isStudio,
-      admin: !!u.admin,
-      beta_user: !!u.beta_user,
-      badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
-      disabled: !!u.disabled, // <-- Ajout ici
-    }));
+    return users
+      .filter((u: PublicUser) => !u.disabled)
+      .map((u: PublicUser) => ({
+        user_id: u.user_id,
+        username: u.username,
+        verified: !!u.verified,
+        isStudio: !!u.isStudio,
+        admin: !!u.admin,
+        beta_user: !!u.beta_user,
+        badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
+        disabled: !!u.disabled, // <-- Ajout ici
+      }));
   }
 
-  async createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User> {
+  async createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string): Promise<User> {
     const existing = await this.findByEmail(email);
     if (existing) {
       if (provider && providerId) {
@@ -156,7 +158,7 @@ export class UserService implements IUserService {
       isStudio: !!u.isStudio,
       admin: !!u.admin,
       beta_user: !!u.beta_user,
-      badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+      badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
       disabled: !!u.disabled,
     }));
   }
@@ -186,7 +188,7 @@ export class UserService implements IUserService {
   }
 
   async generatePasswordResetToken(email: string): Promise<string> {
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = crypto.randomBytes(32).toString('hex');
     await this.userRepository.generatePasswordResetToken(email, token);
     return token;
   }
@@ -216,9 +218,9 @@ export class UserService implements IUserService {
   async addWebauthnCredential(userId: string, credential: { id: string; name: string; created_at: Date }): Promise<void> {
     const existing = await this.getUser(userId);
     if (!existing) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
-    const credentials = JSON.parse(existing.webauthn_credentials || "[]");
+    const credentials = JSON.parse(existing.webauthn_credentials || '[]');
     credentials.push({
       id: credential.id,
       name: credential.name,
@@ -323,7 +325,7 @@ export class UserService implements IUserService {
 
     const user = results[0];
     if (user.beta_user) {
-      user.badges = ["early_user", ...user.badges];
+      user.badges = ['early_user', ...user.badges];
     }
     if (user.inventory) {
       user.inventory = user.inventory
@@ -331,28 +333,28 @@ export class UserService implements IUserService {
         .map((item: InventoryItem) => ({
           ...item,
           metadata:
-            typeof item.metadata === "string" && item.metadata
+            typeof item.metadata === 'string' && item.metadata
               ? (() => {
-                try {
-                  return JSON.parse(item.metadata);
-                } catch {
-                  return item.metadata;
-                }
-              })()
+                  try {
+                    return JSON.parse(item.metadata);
+                  } catch {
+                    return item.metadata;
+                  }
+                })()
               : item.metadata,
-        }))
+        }));
     }
     if (user.ownedItems) {
       user.ownedItems = user.ownedItems.sort((a: Item, b: Item) => {
-        const nameCompare = a.name?.localeCompare(b.name || "") || 0;
+        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
         if (nameCompare !== 0) return nameCompare;
         return 0;
       });
     }
-    if(user.badges) {
-      const badgeOrder = ["early_user", "staff", "bug_hunter", "contributor", "moderator", "community_manager", "partner"];
+    if (user.badges) {
+      const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
       user.badges = user.badges.filter(badge => badgeOrder.includes(badge));
-      user.badges.sort((a,b)=> badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
+      user.badges.sort((a, b) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
     }
     return user;
   }
@@ -403,6 +405,6 @@ export class UserService implements IUserService {
 
   getSteamAuthUrl(): string {
     const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
-    return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || "")}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
+    return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
   }
 }

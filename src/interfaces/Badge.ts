@@ -22,5 +22,3 @@ export interface BadgeType {
   icon: string;
   duration_days: number;
 }
-
-

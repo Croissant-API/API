@@ -15,5 +15,3 @@ export interface GameViewStats {
   views_this_week: number;
   views_this_month: number;
 }
-
-

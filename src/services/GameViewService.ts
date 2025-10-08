@@ -1,7 +1,7 @@
-import { inject, injectable } from "inversify";
-import { GameViewStats } from "../interfaces/GameView";
-import { GameViewRepository } from "../repositories/GameViewRepository";
-import { IDatabaseService } from "./DatabaseService";
+import { inject, injectable } from 'inversify';
+import { GameViewStats } from '../interfaces/GameView';
+import { GameViewRepository } from '../repositories/GameViewRepository';
+import { IDatabaseService } from './DatabaseService';
 
 export interface IGameViewService {
   addView(gameId: string, viewerCookie: string, ipAddress: string, userAgent?: string): Promise<void>;
@@ -15,9 +15,7 @@ export interface IGameViewService {
 export class GameViewService implements IGameViewService {
   private gameViewRepository: GameViewRepository;
 
-  constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {
+  constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.gameViewRepository = new GameViewRepository(this.databaseService);
   }
 
@@ -41,5 +39,3 @@ export class GameViewService implements IGameViewService {
     await this.gameViewRepository.cleanupOldViews(daysToKeep);
   }
 }
-
-

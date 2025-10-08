@@ -1,19 +1,15 @@
-import crypto from "crypto";
-import { inject, injectable } from "inversify";
-import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
-import { User } from "../interfaces/User";
-import { StudioRepository } from "../repositories/StudioRepository";
-import { genKey } from "../utils/GenKey";
-import { IDatabaseService } from "./DatabaseService";
-import { IUserService } from "./UserService";
+import crypto from 'crypto';
+import { inject, injectable } from 'inversify';
+import { Studio, StudioUser, StudioWithApiKey } from '../interfaces/Studio';
+import { User } from '../interfaces/User';
+import { StudioRepository } from '../repositories/StudioRepository';
+import { genKey } from '../utils/GenKey';
+import { IDatabaseService } from './DatabaseService';
+import { IUserService } from './UserService';
 
 export interface IStudioService {
   getStudio(user_id: string): Promise<Studio | null>;
-  setStudioProperties(
-    user_id: string,
-    admin_id: string,
-    users: User[]
-  ): Promise<void>;
+  setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;
   getUserStudios(user_id: string): Promise<StudioWithApiKey[]>;
   createStudio(studioName: string, admin_id: string): Promise<void>;
   addUserToStudio(studioId: string, user: User): Promise<void>;
@@ -25,8 +21,8 @@ export interface IStudioService {
 export class StudioService implements IStudioService {
   private studioRepository: StudioRepository;
   constructor(
-    @inject("DatabaseService") private db: IDatabaseService,
-    @inject("UserService") private userService: IUserService
+    @inject('DatabaseService') private db: IDatabaseService,
+    @inject('UserService') private userService: IUserService
   ) {
     this.studioRepository = new StudioRepository(this.db);
   }
@@ -40,23 +36,29 @@ export class StudioService implements IStudioService {
   }
 
   async setStudioProperties(user_id: string, admin_id: string, users: User[]) {
-    await this.studioRepository.setStudioProperties(user_id, admin_id, users.map(u => u.user_id));
+    await this.studioRepository.setStudioProperties(
+      user_id,
+      admin_id,
+      users.map(u => u.user_id)
+    );
   }
 
   async getUserStudios(user_id: string) {
     const studios = await this.studioRepository.getUserStudios(user_id);
-    return Promise.all(studios.map(async s => {
-      const userIds = [...s.users, s.admin_id];
-      const users = await this.getUsersByIds(userIds);
-      const me = await this.userService.getUser(s.user_id) as StudioUser;
-      return {
-        user_id: s.user_id,
-        admin_id: s.admin_id,
-        users,
-        me,
-        apiKey: s.admin_id === user_id ? genKey(s.user_id) : undefined,
-      };
-    }));
+    return Promise.all(
+      studios.map(async s => {
+        const userIds = [...s.users, s.admin_id];
+        const users = await this.getUsersByIds(userIds);
+        const me = (await this.userService.getUser(s.user_id)) as StudioUser;
+        return {
+          user_id: s.user_id,
+          admin_id: s.admin_id,
+          users,
+          me,
+          apiKey: s.admin_id === user_id ? genKey(s.user_id) : undefined,
+        };
+      })
+    );
   }
 
   async createStudio(studioName: string, admin_id: string) {
@@ -67,7 +69,7 @@ export class StudioService implements IStudioService {
 
   async addUserToStudio(studioId: string, user: User) {
     const studio = await this.getStudio(studioId);
-    if (!studio) throw new Error("Studio not found");
+    if (!studio) throw new Error('Studio not found');
     if (!studio.users.some(u => u.user_id === user.user_id)) {
       await this.setStudioProperties(studioId, studio.admin_id, [...studio.users, user]);
     }
@@ -75,7 +77,7 @@ export class StudioService implements IStudioService {
 
   async removeUserFromStudio(studioId: string, userId: string) {
     const studio = await this.getStudio(studioId);
-    if (!studio) throw new Error("Studio not found");
+    if (!studio) throw new Error('Studio not found');
     await this.setStudioProperties(
       studioId,
       studio.admin_id,
@@ -89,9 +91,6 @@ export class StudioService implements IStudioService {
 
   private async getUsersByIds(userIds: string[]) {
     if (!userIds.length) return [];
-    return this.db.read<User>(
-      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`,
-      userIds
-    );
+    return this.db.read<User>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
   }
 }

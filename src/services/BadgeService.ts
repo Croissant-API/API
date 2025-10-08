@@ -1,7 +1,7 @@
-import { inject, injectable } from "inversify";
-import { Badge, BadgeType } from "../interfaces/Badge";
-import { BadgeRepository } from "../repositories/BadgeRepository";
-import { IDatabaseService } from "./DatabaseService";
+import { inject, injectable } from 'inversify';
+import { Badge, BadgeType } from '../interfaces/Badge';
+import { BadgeRepository } from '../repositories/BadgeRepository';
+import { IDatabaseService } from './DatabaseService';
 
 export interface IBadgeService {
   getActiveBadgesForGame(gameId: string): Promise<Badge[]>;
@@ -14,9 +14,7 @@ export interface IBadgeService {
 export class BadgeService implements IBadgeService {
   private badgeRepository: BadgeRepository;
 
-  constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {
+  constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.badgeRepository = new BadgeRepository(this.databaseService);
   }
 
@@ -41,5 +39,3 @@ export class BadgeService implements IBadgeService {
     return this.badgeRepository.getBadgeTypes();
   }
 }
-
-

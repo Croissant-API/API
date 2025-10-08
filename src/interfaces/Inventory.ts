@@ -1,4 +1,3 @@
-
 export interface InventoryItem {
   user_id: string;
   item_id: string;

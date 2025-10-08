@@ -1,18 +1,15 @@
-import { Item } from "interfaces/Item";
-import { inject, injectable } from "inversify";
-import { ItemRepository } from "../repositories/ItemRepository";
-import { IDatabaseService } from "./DatabaseService";
+import { Item } from 'interfaces/Item';
+import { inject, injectable } from 'inversify';
+import { ItemRepository } from '../repositories/ItemRepository';
+import { IDatabaseService } from './DatabaseService';
 
 export interface IItemService {
-  createItem(item: Omit<Item, "id">): Promise<void>;
+  createItem(item: Omit<Item, 'id'>): Promise<void>;
   getItem(itemId: string): Promise<Item | null>;
   getAllItems(): Promise<Item[]>;
   getStoreItems(): Promise<Item[]>;
   getMyItems(userId: string): Promise<Item[]>;
-  updateItem(
-    itemId: string,
-    item: Partial<Omit<Item, "id" | "itemId" | "owner">>
-  ): Promise<void>;
+  updateItem(itemId: string, item: Partial<Omit<Item, 'id' | 'itemId' | 'owner'>>): Promise<void>;
   deleteItem(itemId: string): Promise<void>;
   searchItemsByName(query: string): Promise<Item[]>;
   transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
@@ -21,13 +18,11 @@ export interface IItemService {
 @injectable()
 export class ItemService implements IItemService {
   private itemRepository: ItemRepository;
-  constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {
+  constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.itemRepository = new ItemRepository(this.databaseService);
   }
 
-  async createItem(item: Omit<Item, "id">): Promise<void> {
+  async createItem(item: Omit<Item, 'id'>): Promise<void> {
     await this.itemRepository.createItem(item);
   }
 
@@ -47,10 +42,7 @@ export class ItemService implements IItemService {
     return this.itemRepository.getMyItems(userId);
   }
 
-  async updateItem(
-    itemId: string,
-    item: Partial<Omit<Item, "id" | "itemId">>
-  ): Promise<void> {
+  async updateItem(itemId: string, item: Partial<Omit<Item, 'id' | 'itemId'>>): Promise<void> {
     await this.itemRepository.updateItem(itemId, item, buildUpdateFields);
   }
 
@@ -64,8 +56,8 @@ export class ItemService implements IItemService {
 
   async transferOwnership(itemId: string, newOwnerId: string): Promise<void> {
     const item = await this.getItem(itemId);
-    if (!item) throw new Error("Item not found");
-    if (item.deleted) throw new Error("Cannot transfer deleted item");
+    if (!item) throw new Error('Item not found');
+    if (item.deleted) throw new Error('Cannot transfer deleted item');
     await this.updateItem(itemId, { owner: newOwnerId });
   }
 }
@@ -80,7 +72,7 @@ function buildUpdateFields(obj: Record<string, unknown>, skip: string[] = []) {
   for (const key in obj) {
     if (skip.includes(key)) continue;
     fields.push(`${key} = ?`);
-    values.push(["showInStore", "deleted"].includes(key) ? toDbBool(obj[key]) : obj[key]);
+    values.push(['showInStore', 'deleted'].includes(key) ? toDbBool(obj[key]) : obj[key]);
   }
   return { fields, values };
 }

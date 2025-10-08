@@ -1,6 +1,6 @@
-import { Game } from "./Game";
-import { InventoryItem } from "./Inventory";
-import { Item } from "./Item";
+import { Game } from './Game';
+import { InventoryItem } from './Inventory';
+import { Item } from './Item';
 
 export interface PublicUser {
   user_id: string;
@@ -12,7 +12,7 @@ export interface PublicUser {
   beta_user: boolean;
   created_at?: string;
   updated_at?: string;
-  disabled?: boolean; 
+  disabled?: boolean;
 }
 
 export interface User extends PublicUser {
@@ -63,4 +63,3 @@ export interface Friend {
   datetime?: string;
   status: 'pending' | 'approved';
 }
-

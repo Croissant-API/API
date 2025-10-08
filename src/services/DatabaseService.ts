@@ -1,6 +1,6 @@
-import { injectable } from "inversify";
-import { Knex, knex } from "knex";
-import "reflect-metadata";
+import { injectable } from 'inversify';
+import { Knex, knex } from 'knex';
+import 'reflect-metadata';
 
 export interface IDatabaseService {
   request(query: string, params?: unknown[]): Promise<void>;
@@ -16,7 +16,7 @@ export class DatabaseService implements IDatabaseService {
     console.log(process.env.DB_HOST, process.env.DB_USER, process.env.DB_NAME);
 
     this.db = knex({
-      client: "mysql",
+      client: 'mysql',
       connection: {
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
@@ -28,12 +28,12 @@ export class DatabaseService implements IDatabaseService {
     });
 
     this.db
-      .raw("SELECT 1")
+      .raw('SELECT 1')
       .then(() => {
-        console.log("Database connection established");
+        console.log('Database connection established');
       })
-      .catch((err) => {
-        console.error("Database connection error:", err);
+      .catch(err => {
+        console.error('Database connection error:', err);
       });
   }
 
@@ -45,7 +45,7 @@ export class DatabaseService implements IDatabaseService {
     try {
       await this.db.raw(query, params);
     } catch (err) {
-      console.error("Error executing query", err);
+      console.error('Error executing query', err);
       throw err;
     }
   }
@@ -58,13 +58,13 @@ export class DatabaseService implements IDatabaseService {
 
       // Vérifier que rows est un tableau
       if (!Array.isArray(rows)) {
-        console.warn("Database query returned non-array result:", rows);
+        console.warn('Database query returned non-array result:', rows);
         return [];
       }
 
       return rows.map((row: { [key: string]: string }) => {
         for (const key in row) {
-          if (typeof row[key] === "string") {
+          if (typeof row[key] === 'string') {
             try {
               const parsed = JSON.parse(row[key]);
               row[key] = parsed;
@@ -78,7 +78,7 @@ export class DatabaseService implements IDatabaseService {
         return row as T;
       });
     } catch (err) {
-      console.error("Error reading data", err);
+      console.error('Error reading data', err);
       throw err;
     }
   }

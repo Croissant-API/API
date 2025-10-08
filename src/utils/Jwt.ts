@@ -1,11 +1,11 @@
-import * as dotenv from "dotenv";
-import jwt from "jsonwebtoken";
+import * as dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
-export function generateUserJwt(user: { user_id: string; username: string; email: string; }, apiKey: string) {
+export function generateUserJwt(user: { user_id: string; username: string; email: string }, apiKey: string) {
   return jwt.sign(
     {
       user_id: user.user_id,
@@ -14,7 +14,7 @@ export function generateUserJwt(user: { user_id: string; username: string; email
       apiKey,
     },
     JWT_SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: '30d' }
   );
 }
 

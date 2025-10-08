@@ -1,9 +1,9 @@
-import { app } from "./app";
+import { app } from './app';
 
-import { exec } from "child_process";
-import dotenv from "dotenv";
-import fs from "fs";
-import path from "path";
+import { exec } from 'child_process';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -14,13 +14,13 @@ app.listen(port, () => {
 
 function getTimestamp() {
   const now = new Date();
-  const pad = (n: number) => n.toString().padStart(2, "0");
+  const pad = (n: number) => n.toString().padStart(2, '0');
   return `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
 }
 
 function backupDatabase() {
   const timestamp = getTimestamp();
-  const backupDir = path.join(process.cwd(), "database_backups");
+  const backupDir = path.join(process.cwd(), 'database_backups');
   const backupPath = path.join(backupDir, `mysql_backup_${timestamp}.sql`);
 
   if (!fs.existsSync(backupDir)) {
@@ -33,15 +33,15 @@ function backupDatabase() {
   const dbHost = process.env.DB_HOST;
 
   if (!dbUser || !dbPassword || !dbName || !dbHost) {
-    console.error("Missing database credentials in environment variables.");
+    console.error('Missing database credentials in environment variables.');
     return;
   }
 
   const command = `mysqldump -h ${dbHost} -u ${dbUser} -p'${dbPassword}' ${dbName} > ${backupPath}`;
 
-  exec(command, (error) => {
+  exec(command, error => {
     if (!error) {
-      console.log("MySQL database backup created:", backupPath);
+      console.log('MySQL database backup created:', backupPath);
     }
   });
 }

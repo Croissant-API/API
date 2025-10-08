@@ -1,11 +1,11 @@
-import { inject, injectable } from "inversify";
-import { Badge } from "../interfaces/Badge";
-import { Game } from "../interfaces/Game";
-import { GameViewStats } from "../interfaces/GameView";
-import { GameRepository } from "../repositories/GameRepository";
-import { BadgeService } from "./BadgeService";
-import { IDatabaseService } from "./DatabaseService";
-import { GameViewService } from "./GameViewService";
+import { inject, injectable } from 'inversify';
+import { Badge } from '../interfaces/Badge';
+import { Game } from '../interfaces/Game';
+import { GameViewStats } from '../interfaces/GameView';
+import { GameRepository } from '../repositories/GameRepository';
+import { BadgeService } from './BadgeService';
+import { IDatabaseService } from './DatabaseService';
+import { GameViewService } from './GameViewService';
 
 export interface IGameService {
   getUserGames(userId: string): Promise<Game[]>;
@@ -14,11 +14,8 @@ export interface IGameService {
   getStoreGames(): Promise<Game[]>;
   getMyCreatedGames(userId: string): Promise<Game[]>;
   getUserOwnedGames(userId: string): Promise<Game[]>;
-  createGame(game: Omit<Game, "id">): Promise<void>;
-  updateGame(
-    gameId: string,
-    game: Partial<Omit<Game, "id" | "gameId">>
-  ): Promise<void>;
+  createGame(game: Omit<Game, 'id'>): Promise<void>;
+  updateGame(gameId: string, game: Partial<Omit<Game, 'id' | 'gameId'>>): Promise<void>;
   deleteGame(gameId: string): Promise<void>;
   addOwner(gameId: string, ownerId: string): Promise<void>;
   removeOwner(gameId: string, ownerId: string): Promise<void>;
@@ -40,9 +37,7 @@ export class GameService implements IGameService {
   private badgeService: BadgeService;
   private gameViewService: GameViewService;
 
-  constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService
-  ) {
+  constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.gameRepository = new GameRepository(this.databaseService);
     this.badgeService = new BadgeService(this.databaseService);
     this.gameViewService = new GameViewService(this.databaseService);
@@ -87,24 +82,24 @@ export class GameService implements IGameService {
     return this.gameRepository.searchGames(query);
   }
 
-  async createGame(game: Omit<Game, "id">): Promise<void> {
+  async createGame(game: Omit<Game, 'id'>): Promise<void> {
     await this.gameRepository.createGame(game);
     // Ajouter le badge "nouveau" pour 10 jours
     try {
-      await this.badgeService.addBadgeToGame(game.gameId, "nouveau");
+      await this.badgeService.addBadgeToGame(game.gameId, 'nouveau');
     } catch (error) {
       console.error("Error adding 'nouveau' badge to game:", error);
     }
   }
 
-  async updateGame(gameId: string, game: Partial<Omit<Game, "id" | "gameId">>): Promise<void> {
-    const { fields, values } = buildUpdateFields(game, ["owners", "markAsUpdated"]);
+  async updateGame(gameId: string, game: Partial<Omit<Game, 'id' | 'gameId'>>): Promise<void> {
+    const { fields, values } = buildUpdateFields(game, ['owners', 'markAsUpdated']);
     if (fields.length) await this.gameRepository.updateGame(gameId, fields, values);
-    
+
     // Si markAsUpdated est true, ajouter le badge "mise-a-jour"
     if (game.markAsUpdated) {
       try {
-        await this.badgeService.addBadgeToGame(gameId, "mise-a-jour");
+        await this.badgeService.addBadgeToGame(gameId, 'mise-a-jour');
       } catch (error) {
         console.error("Error adding 'mise-a-jour' badge to game:", error);
       }
@@ -125,7 +120,7 @@ export class GameService implements IGameService {
 
   async transferOwnership(gameId: string, newOwnerId: string): Promise<void> {
     const game = await this.getGame(gameId);
-    if (!game) throw new Error("Game not found");
+    if (!game) throw new Error('Game not found');
     await this.updateGame(gameId, { owner_id: newOwnerId });
   }
 
@@ -139,29 +134,21 @@ export class GameService implements IGameService {
   }
 
   async transferGameCopy(gameId: string, fromUserId: string, toUserId: string): Promise<void> {
-    const [fromOwns, toOwns, game] = await Promise.all([
-      this.userOwnsGame(gameId, fromUserId),
-      this.userOwnsGame(gameId, toUserId),
-      this.getGame(gameId)
-    ]);
+    const [fromOwns, toOwns, game] = await Promise.all([this.userOwnsGame(gameId, fromUserId), this.userOwnsGame(gameId, toUserId), this.getGame(gameId)]);
     if (!fromOwns) throw new Error("You don't own this game");
-    if (toOwns) throw new Error("Recipient already owns this game");
-    if (!game) throw new Error("Game not found");
-    if (game.owner_id === fromUserId) throw new Error("Game creator cannot transfer their copy");
+    if (toOwns) throw new Error('Recipient already owns this game');
+    if (!game) throw new Error('Game not found');
+    if (game.owner_id === fromUserId) throw new Error('Game creator cannot transfer their copy');
     await this.removeOwner(gameId, fromUserId);
     await this.addOwner(gameId, toUserId);
   }
 
   async canTransferGame(gameId: string, fromUserId: string, toUserId: string): Promise<{ canTransfer: boolean; reason?: string }> {
-    const [fromOwns, toOwns, game] = await Promise.all([
-      this.userOwnsGame(gameId, fromUserId),
-      this.userOwnsGame(gameId, toUserId),
-      this.getGame(gameId)
-    ]);
+    const [fromOwns, toOwns, game] = await Promise.all([this.userOwnsGame(gameId, fromUserId), this.userOwnsGame(gameId, toUserId), this.getGame(gameId)]);
     if (!fromOwns) return { canTransfer: false, reason: "You don't own this game" };
-    if (toOwns) return { canTransfer: false, reason: "Recipient already owns this game" };
-    if (!game) return { canTransfer: false, reason: "Game not found" };
-    if (game.owner_id === fromUserId) return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
+    if (toOwns) return { canTransfer: false, reason: 'Recipient already owns this game' };
+    if (!game) return { canTransfer: false, reason: 'Game not found' };
+    if (game.owner_id === fromUserId) return { canTransfer: false, reason: 'Game creator cannot transfer their copy' };
     return { canTransfer: true };
   }
 
@@ -169,25 +156,19 @@ export class GameService implements IGameService {
     const game = await this.getGame(gameId);
     if (!game) return null;
 
-    const [badges, views] = await Promise.all([
-      this.badgeService.getActiveBadgesForGame(gameId),
-      this.gameViewService.getGameViewStats(gameId)
-    ]);
+    const [badges, views] = await Promise.all([this.badgeService.getActiveBadgesForGame(gameId), this.gameViewService.getGameViewStats(gameId)]);
 
     return {
       ...game,
       badges,
-      views
+      views,
     };
   }
 
   async getGamesWithBadgesAndViews(gameIds: string[]): Promise<(Game & { badges: Badge[]; views: GameViewStats })[]> {
     if (gameIds.length === 0) return [];
 
-    const [games, viewsMap] = await Promise.all([
-      Promise.all(gameIds.map(id => this.getGame(id))),
-      this.gameViewService.getViewsForGames(gameIds)
-    ]);
+    const [games, viewsMap] = await Promise.all([Promise.all(gameIds.map(id => this.getGame(id))), this.gameViewService.getViewsForGames(gameIds)]);
 
     const results: (Game & { badges: Badge[]; views: GameViewStats })[] = [];
 
@@ -201,13 +182,13 @@ export class GameService implements IGameService {
           unique_views: 0,
           views_today: 0,
           views_this_week: 0,
-          views_this_month: 0
+          views_this_month: 0,
         };
 
         results.push({
           ...game,
           badges,
-          views
+          views,
         });
       }
     }
@@ -226,11 +207,7 @@ function buildUpdateFields(obj: Record<string, unknown>, skip: string[] = []) {
   for (const key in obj) {
     if (skip.includes(key)) continue;
     fields.push(`${key} = ?`);
-    values.push(
-      ["showInStore", "multiplayer"].includes(key)
-        ? toDbBool(obj[key])
-        : obj[key]
-    );
+    values.push(['showInStore', 'multiplayer'].includes(key) ? toDbBool(obj[key]) : obj[key]);
   }
   return { fields, values };
 }

@@ -1,13 +1,11 @@
-import { Badge, BadgeType } from "../interfaces/Badge";
-import { IDatabaseService } from "../services/DatabaseService";
+import { Badge, BadgeType } from '../interfaces/Badge';
+import { IDatabaseService } from '../services/DatabaseService';
 
 export class BadgeRepository {
   constructor(private databaseService: IDatabaseService) {}
 
   async getBadgeTypes(): Promise<BadgeType[]> {
-    const result = await this.databaseService.read<BadgeType>(
-      "SELECT * FROM badge_types ORDER BY id"
-    );
+    const result = await this.databaseService.read<BadgeType>('SELECT * FROM badge_types ORDER BY id');
     return result;
   }
 
@@ -38,17 +36,11 @@ export class BadgeRepository {
   }
 
   async removeExpiredBadges(): Promise<void> {
-    await this.databaseService.request(
-      "DELETE FROM game_badges WHERE expires_at < NOW()"
-    );
+    await this.databaseService.request('DELETE FROM game_badges WHERE expires_at < NOW()');
   }
 
   async getBadgeTypeByName(name: string): Promise<BadgeType | null> {
-    const result = await this.databaseService.read<BadgeType>(
-      "SELECT * FROM badge_types WHERE name = ?",
-      [name]
-    );
+    const result = await this.databaseService.read<BadgeType>('SELECT * FROM badge_types WHERE name = ?', [name]);
     return result.length > 0 ? result[0] : null;
   }
 }
-

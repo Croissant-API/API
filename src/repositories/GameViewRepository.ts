@@ -1,5 +1,5 @@
-import { GameViewStats } from "../interfaces/GameView";
-import { IDatabaseService } from "../services/DatabaseService";
+import { GameViewStats } from '../interfaces/GameView';
+import { IDatabaseService } from '../services/DatabaseService';
 
 export class GameViewRepository {
   constructor(private databaseService: IDatabaseService) {}
@@ -70,7 +70,7 @@ export class GameViewRepository {
           unique_views: 0,
           views_today: 0,
           views_this_week: 0,
-          views_this_month: 0
+          views_this_month: 0,
         };
       }
     }
@@ -79,9 +79,6 @@ export class GameViewRepository {
   }
 
   async cleanupOldViews(daysToKeep: number = 365): Promise<void> {
-    await this.databaseService.request(
-      "DELETE FROM game_views WHERE viewed_at < DATE_SUB(NOW(), INTERVAL ? DAY)",
-      [daysToKeep]
-    );
+    await this.databaseService.request('DELETE FROM game_views WHERE viewed_at < DATE_SUB(NOW(), INTERVAL ? DAY)', [daysToKeep]);
   }
 }

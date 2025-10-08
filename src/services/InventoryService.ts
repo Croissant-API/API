@@ -1,9 +1,9 @@
-import { inject, injectable } from "inversify";
-import { v4 as uuidv4 } from "uuid";
-import { Inventory } from "../interfaces/Inventory";
-import { InventoryRepository } from "../repositories/InventoryRepository";
-import { IDatabaseService } from "./DatabaseService";
-import { IUserService } from "./UserService";
+import { inject, injectable } from 'inversify';
+import { v4 as uuidv4 } from 'uuid';
+import { Inventory } from '../interfaces/Inventory';
+import { InventoryRepository } from '../repositories/InventoryRepository';
+import { IDatabaseService } from './DatabaseService';
+import { IUserService } from './UserService';
 
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;
@@ -21,8 +21,8 @@ export interface IInventoryService {
 export class InventoryService implements IInventoryService {
   private inventoryRepository: InventoryRepository;
   constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService,
-    @inject("UserService") private userService: IUserService
+    @inject('DatabaseService') private databaseService: IDatabaseService,
+    @inject('UserService') private userService: IUserService
   ) {
     this.inventoryRepository = new InventoryRepository(this.databaseService);
   }
@@ -43,15 +43,7 @@ export class InventoryService implements IInventoryService {
   }
 
   async addItem(userId: string, itemId: string, amount: number, metadata?: { [key: string]: unknown }, sellable = false, purchasePrice?: number): Promise<void> {
-    await this.inventoryRepository.addItem(
-      await this.getCorrectedUserId(userId),
-      itemId,
-      amount,
-      metadata,
-      sellable,
-      purchasePrice,
-      uuidv4
-    );
+    await this.inventoryRepository.addItem(await this.getCorrectedUserId(userId), itemId, amount, metadata, sellable, purchasePrice, uuidv4);
   }
 
   async setItemAmount(userId: string, itemId: string, amount: number): Promise<void> {
@@ -71,11 +63,6 @@ export class InventoryService implements IInventoryService {
   }
 
   async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.inventoryRepository.transferItem(
-      await this.getCorrectedUserId(fromUserId),
-      await this.getCorrectedUserId(toUserId),
-      itemId,
-      uniqueId
-    );
+    await this.inventoryRepository.transferItem(await this.getCorrectedUserId(fromUserId), await this.getCorrectedUserId(toUserId), itemId, uniqueId);
   }
 }

@@ -1,8 +1,8 @@
-import { inject, injectable } from "inversify";
-import { Lobby } from "../interfaces/Lobbies";
-import { LobbyRepository } from "../repositories/LobbyRepository";
-import { IDatabaseService } from "./DatabaseService";
-import { UserService } from "./UserService";
+import { inject, injectable } from 'inversify';
+import { Lobby } from '../interfaces/Lobbies';
+import { LobbyRepository } from '../repositories/LobbyRepository';
+import { IDatabaseService } from './DatabaseService';
+import { UserService } from './UserService';
 
 export interface ILobbyService {
   getLobby(lobbyId: string): Promise<Lobby | null>;
@@ -19,8 +19,8 @@ export interface ILobbyService {
 export class LobbyService implements ILobbyService {
   private lobbyRepository: LobbyRepository;
   constructor(
-    @inject("DatabaseService") private databaseService: IDatabaseService,
-    @inject("UserService") private userService: UserService
+    @inject('DatabaseService') private databaseService: IDatabaseService,
+    @inject('UserService') private userService: UserService
   ) {
     this.lobbyRepository = new LobbyRepository(this.databaseService);
   }
@@ -31,20 +31,19 @@ export class LobbyService implements ILobbyService {
     return lobby;
   }
 
-
   async joinLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
     const user = await this.userService.getUser(userId);
-    if (!lobby) throw new Error("Lobby not found");
-    if (!user) throw new Error("User not found");
+    if (!lobby) throw new Error('Lobby not found');
+    if (!user) throw new Error('User not found');
     const users = [...new Set([...lobby.users, user])];
     await this.lobbyRepository.updateLobbyUsers(lobbyId, users);
   }
 
   async leaveLobby(lobbyId: string, userId: string): Promise<void> {
     const lobby = await this.getLobby(lobbyId);
-    if (!lobby) throw new Error("Lobby not found");
-    const newUsers = lobby.users.filter((u) => u.user_id !== userId);
+    if (!lobby) throw new Error('Lobby not found');
+    const newUsers = lobby.users.filter(u => u.user_id !== userId);
     if (newUsers.length === 0) {
       // await this.deleteLobby(lobbyId);
     } else {
@@ -69,7 +68,7 @@ export class LobbyService implements ILobbyService {
   async getUserLobbies(userId: string): Promise<Lobby[]> {
     const lobbies = await this.lobbyRepository.getUserLobbies(userId);
     return Promise.all(
-      lobbies.map(async (lobby) => {
+      lobbies.map(async lobby => {
         return lobby;
       })
     );
@@ -81,5 +80,4 @@ export class LobbyService implements ILobbyService {
       await this.leaveLobby(lobby.lobbyId, userId);
     }
   }
-
 }
