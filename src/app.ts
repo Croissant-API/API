@@ -2,7 +2,6 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import express from 'express';
 import { InversifyExpressServer } from 'inversify-express-utils';
-import * as path from 'path';
 import 'reflect-metadata';
 import container from './container';
 import compression from 'compression';
@@ -33,9 +32,11 @@ server.setConfig(app => {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use(cors());
-  app.use(compression());
-
-  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(
+    compression({
+      threshold: 1024, // Compress responses larger than 1KB
+    })
+  );
 });
 
 server.setErrorConfig(app => {
