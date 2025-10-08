@@ -1,22 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Crypto } from '@peculiar/webcrypto';
+import {
+    generateAuthenticationOptions,
+    generateRegistrationOptions,
+    verifyAuthenticationResponse,
+    verifyRegistrationResponse,
+} from '@simplewebauthn/server';
 if (!globalThis.crypto) {
     globalThis.crypto = new Crypto();
 }
-import {
-    generateRegistrationOptions,
-    verifyRegistrationResponse,
-    generateAuthenticationOptions,
-    verifyAuthenticationResponse,
-} from '@simplewebauthn/server';
-
 
 export function getRegistrationOptions(user: any) {
     console.log('Generating registration options for user:', user);
     return generateRegistrationOptions({
         rpName: 'Croissant',
         rpID: 'croissant-api.fr',
-        userID: user.id, // doit être un Buffer/Uint8Array
+        userID: user.id, 
         userName: user.username,
         attestationType: 'none',
         authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
@@ -27,7 +26,7 @@ export async function verifyRegistration(body: any, expectedChallenge: string) {
     return verifyRegistrationResponse({
         response: body.credential,
         expectedChallenge,
-        expectedOrigin: 'https://croissant-api.fr', // change to your domain in prod
+        expectedOrigin: 'https://croissant-api.fr', 
         expectedRPID: 'croissant-api.fr',
     });
 }
@@ -62,3 +61,5 @@ export async function verifyAuthentication(body: any, expectedChallenge: string,
         },
     });
 }
+
+

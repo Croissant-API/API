@@ -141,3 +141,4 @@ exports.LogService = LogService;
 exports.LogService = LogService = __decorate([
     (0, inversify_1.injectable)()
 ], LogService);
+

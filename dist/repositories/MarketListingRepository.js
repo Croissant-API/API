@@ -19,7 +19,7 @@ class MarketListingRepository {
             listing.purchasePrice
         ]);
     }
-    // --- INVENTORY HELPERS ---
+    
     async removeInventoryItemByUniqueId(userId, itemId, uniqueId) {
         await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
     }
@@ -36,7 +36,7 @@ class MarketListingRepository {
         await this.databaseService.request(`UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND amount > 0`, [userId, itemId]);
         await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND amount = 0`, [userId, itemId]);
     }
-    // --- MARKET LISTING GENERIC GETTER ---
+    
     async getMarketListings(filters = {}, select = "*", orderBy = "created_at DESC", limit) {
         let query = `SELECT ${select} FROM market_listings WHERE 1=1`;
         const params = [];
@@ -61,7 +61,7 @@ class MarketListingRepository {
             query += ` LIMIT ${limit}`;
         return this.databaseService.read(query, params);
     }
-    // --- Surcharges utilisant la méthode générique ---
+    
     async getMarketListingById(listingId, sellerId) {
         const listings = await this.getMarketListings({ id: listingId, sellerId, status: "active" });
         return listings[0] || null;
@@ -110,7 +110,7 @@ class MarketListingRepository {
              ORDER BY ml.price ASC, ml.created_at ASC
              LIMIT ?`, [`%${searchTerm}%`, limit]);
     }
-    // --- UPDATE STATUS ---
+    
     async updateMarketListingStatus(listingId, status, updatedAt) {
         await this.databaseService.request(`UPDATE market_listings SET status = ?, updated_at = ? WHERE id = ?`, [status, updatedAt, listingId]);
     }
@@ -120,7 +120,7 @@ class MarketListingRepository {
     async updateBuyOrderToFulfilled(buyOrderId, now) {
         await this.databaseService.request(`UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`, [now, now, buyOrderId]);
     }
-    // --- INVENTORY ADD ---
+    
     async addItemToInventory(inventoryItem) {
         if (inventoryItem.metadata && inventoryItem.metadata._unique_id) {
             await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`, [
@@ -151,3 +151,4 @@ class MarketListingRepository {
     }
 }
 exports.MarketListingRepository = MarketListingRepository;
+

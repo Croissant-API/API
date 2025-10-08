@@ -21,9 +21,7 @@ let MarketListingService = class MarketListingService {
     constructor(databaseService, buyOrderService) {
         this.databaseService = databaseService;
         this.buyOrderService = buyOrderService;
-        /**
-         * Désérialise une ligne de la base de données en MarketListing
-         */
+        
         this.deserializeMarketListing = (row) => ({
             id: row.id,
             seller_id: row.seller_id,
@@ -40,13 +38,10 @@ let MarketListingService = class MarketListingService {
         });
         this.marketListingRepository = new MarketListingRepository_1.MarketListingRepository(this.databaseService);
     }
-    /**
-     * Met un item de l'inventaire en vente sur le marketplace
-     * L'item est retiré de l'inventaire et ajouté aux ordres de vente
-     */
+    
     async createMarketListing(sellerId, inventoryItem, sellingPrice) {
         const now = new Date().toISOString();
-        // Vérifications préliminaires
+        
         if (!inventoryItem.sellable && !inventoryItem.metadata) {
             throw new Error('This item cannot be sold');
         }
@@ -59,7 +54,7 @@ let MarketListingService = class MarketListingService {
         if (sellingPrice <= 0) {
             throw new Error('Selling price must be positive');
         }
-        // Création de l'ordre de vente
+        
         const marketListing = {
             id: (0, uuid_1.v4)(),
             seller_id: sellerId,
@@ -90,9 +85,7 @@ let MarketListingService = class MarketListingService {
         }
         return marketListing;
     }
-    /**
-     * Annule un ordre de vente et remet l'item dans l'inventaire du vendeur
-     */
+    
     async cancelMarketListing(listingId, sellerId) {
         const listing = await this.marketListingRepository.getMarketListingById(listingId, sellerId);
         if (!listing)
@@ -118,7 +111,7 @@ let MarketListingService = class MarketListingService {
         const listing = await this.marketListingRepository.getMarketListingById(listingId);
         if (!listing)
             throw new Error('Market listing not found or already sold');
-        // (Vérification crédits à faire côté controller/service appelant)
+        
         await this.marketListingRepository.updateMarketListingSold(listingId, buyerId, now);
         const inventoryItem = {
             user_id: buyerId,
@@ -133,9 +126,7 @@ let MarketListingService = class MarketListingService {
         await this.marketListingRepository.addItemToInventory(inventoryItem);
         return { ...listing, status: 'sold', buyer_id: buyerId, sold_at: now };
     }
-    /**
-     * Récupère tous les ordres de vente d'un utilisateur
-     */
+    
     async getMarketListingsByUser(userId) {
         const listings = await this.marketListingRepository.getMarketListingsByUser(userId);
         return listings.map(row => ({
@@ -145,23 +136,17 @@ let MarketListingService = class MarketListingService {
             item_icon_hash: row.item_icon_hash
         }));
     }
-    /**
-     * Récupère tous les ordres de vente actifs pour un item spécifique
-     */
+    
     async getActiveListingsForItem(itemId) {
         const listings = await this.marketListingRepository.getActiveListingsForItem(itemId);
         return listings.map(this.deserializeMarketListing);
     }
-    /**
-     * Récupère un ordre de vente par son ID
-     */
+    
     async getMarketListingById(listingId) {
         const listing = await this.marketListingRepository.getMarketListingByIdAnyStatus(listingId);
         return listing ? this.deserializeMarketListing(listing) : null;
     }
-    /**
-     * Récupère les ordres de vente enrichis avec les détails des items
-     */
+    
     async getEnrichedMarketListings(limit = 50, offset = 0) {
         const listings = await this.marketListingRepository.getEnrichedMarketListings(limit, offset);
         return listings.map(row => ({
@@ -171,9 +156,7 @@ let MarketListingService = class MarketListingService {
             item_icon_hash: row.item_icon_hash
         }));
     }
-    /**
-     * Recherche d'ordres de vente par nom d'item
-     */
+    
     async searchMarketListings(searchTerm, limit = 50) {
         const listings = await this.marketListingRepository.searchMarketListings(searchTerm, limit);
         return listings.map(row => ({
@@ -191,3 +174,4 @@ exports.MarketListingService = MarketListingService = __decorate([
     __param(1, (0, inversify_1.inject)('BuyOrderService')),
     __metadata("design:paramtypes", [DatabaseService_1.DatabaseService, Object])
 ], MarketListingService);
+

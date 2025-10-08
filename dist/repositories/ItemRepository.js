@@ -21,7 +21,7 @@ class ItemRepository {
             item.deleted ? 1 : 0,
         ]);
     }
-    // Méthode générique pour récupérer les items selon des filtres
+    
     async getItems(filters = {}, select = "*", orderBy = "name", limit) {
         let query = `SELECT ${select} FROM items WHERE 1=1`;
         const params = [];
@@ -51,7 +51,7 @@ class ItemRepository {
             query += ` LIMIT ${limit}`;
         return this.databaseService.read(query, params);
     }
-    // Surcharges utilisant la méthode générique
+    
     async getItem(itemId) {
         const items = await this.getItems({ itemId });
         return items[0] || null;
@@ -80,3 +80,4 @@ class ItemRepository {
     }
 }
 exports.ItemRepository = ItemRepository;
+

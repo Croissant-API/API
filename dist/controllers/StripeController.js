@@ -45,48 +45,48 @@ const inversify_1 = require("inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const yup_1 = require("yup");
 const yup = __importStar(require("yup"));
-// --- CONSTANTS ---
+
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
-// Configuration des tiers de crédits
+
 const CREDIT_TIERS = [
     {
         id: "tier1",
-        price: 99, // 0.99€ in cents
+        price: 99, 
         credits: 200,
         name: "200 credits",
         image: "https://croissant-api.fr/assets/credits/tier1.png",
     },
     {
         id: "tier2",
-        price: 198, // 1.98€ in cents
+        price: 198, 
         credits: 400,
         name: "400 credits",
         image: "https://croissant-api.fr/assets/credits/tier2.png",
     },
     {
         id: "tier3",
-        price: 495, // 4.95€ in cents
+        price: 495, 
         credits: 1000,
         name: "1000 credits",
         image: "https://croissant-api.fr/assets/credits/tier3.png",
     },
     {
         id: "tier4",
-        price: 990, // 9.90€ in cents
+        price: 990, 
         credits: 2000,
         name: "2000 credits",
         image: "https://croissant-api.fr/assets/credits/tier4.png",
     },
 ];
-// --- VALIDATORS ---
+
 const checkoutQuerySchema = yup.object({
     tier: yup
         .string()
         .oneOf(CREDIT_TIERS.map((t) => t.id))
         .required(),
 });
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -118,7 +118,7 @@ let StripeController = class StripeController {
             apiVersion: "2025-06-30.basil",
         });
     }
-    // Helper pour les logs (uniformisé)
+    
     async createLog(req, tableName, statusCode, metadata, user_id) {
         try {
             const requestBody = { ...req.body };
@@ -151,7 +151,7 @@ let StripeController = class StripeController {
         }
         let event;
         try {
-            event = this.stripe.webhooks.constructEvent(req.body, // Buffer as required by Stripe
+            event = this.stripe.webhooks.constructEvent(req.body, 
             sig, STRIPE_WEBHOOK_SECRET);
         }
         catch (err) {
@@ -175,9 +175,9 @@ let StripeController = class StripeController {
             handleError(res, error, "Error processing webhook event");
         }
     }
-    // --- CHECKOUT ---
+    
     async checkoutEndpoint(req, res) {
-        // TEMP DISABLING
+        
         //res.send("This endpoint is temporarly disabled, please retry later")
         //return;
         if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
@@ -224,7 +224,7 @@ let StripeController = class StripeController {
         await this.createLog(req, undefined, 200);
         res.send(CREDIT_TIERS);
     }
-    // --- PRIVATE METHODS ---
+    
     async processWebhookEvent(event) {
         switch (event.type) {
             case "checkout.session.completed":
@@ -255,7 +255,7 @@ let StripeController = class StripeController {
         }
         const oldBalance = user.balance;
         await this.userService.updateUserBalance(user.user_id, user.balance + creditsToAdd);
-        // Log du succès du paiement et de l'ajout de crédits
+        
         console.log(`Added ${creditsToAdd} credits to user ${user.user_id} (${user.username})`);
         console.log(`Balance updated: ${oldBalance} -> ${oldBalance + creditsToAdd}`);
     }
@@ -264,10 +264,10 @@ let StripeController = class StripeController {
             payment_method_types: ["card", "link", "paypal"],
             payment_method_options: {
                 card: {
-                // Google Pay is supported automatically via card
+                
                 },
                 link: {
-                // Link payment method for saved payment methods
+                
                 },
             },
             line_items: [
@@ -323,3 +323,4 @@ exports.StripeController = StripeController = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], StripeController);
+

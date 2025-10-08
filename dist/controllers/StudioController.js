@@ -53,7 +53,7 @@ let Studios = class Studios {
         }
         return studio;
     }
-    // --- Création de studio ---
+    
     async createStudio(req, res) {
         if (req.user.isStudio)
             return res.status(403).send({ message: "A studio can't create another studio" });
@@ -69,7 +69,7 @@ let Studios = class Studios {
             await this.handleError(res, req, "studios", 500, error, "Error creating studio");
         }
     }
-    // --- Récupération d'un studio ---
+    
     async getStudio(req, res) {
         try {
             const studio = await this.getStudioOrError(req.params.studioId, req, res);
@@ -82,7 +82,7 @@ let Studios = class Studios {
             await this.handleError(res, req, "studios", 500, error, "Error fetching studio");
         }
     }
-    // --- Récupération des studios de l'utilisateur ---
+    
     async getMyStudios(req, res) {
         try {
             const studios = await this.studioService.getUserStudios(req.user.user_id);
@@ -93,7 +93,7 @@ let Studios = class Studios {
             await this.handleError(res, req, "studios", 500, error, "Error fetching user studios");
         }
     }
-    // --- Gestion des membres (add/remove) ---
+    
     async checkStudioAdmin(req, res, studioId) {
         const studio = await this.getStudioOrError(studioId, req, res);
         if (!studio)
@@ -257,3 +257,4 @@ exports.Studios = Studios = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Studios);
+

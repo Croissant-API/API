@@ -145,3 +145,4 @@ exports.LogController = LogController = __decorate([
     __param(0, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object])
 ], LogController);
+

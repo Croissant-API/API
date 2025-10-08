@@ -44,7 +44,7 @@ let LobbyService = class LobbyService {
             throw new Error("Lobby not found");
         const newUsers = lobby.users.filter((u) => u.user_id !== userId);
         if (newUsers.length === 0) {
-            // await this.deleteLobby(lobbyId);
+            
         }
         else {
             await this.lobbyRepository.updateLobbyUsers(lobbyId, newUsers);
@@ -82,3 +82,4 @@ exports.LobbyService = LobbyService = __decorate([
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, UserService_1.UserService])
 ], LobbyService);
+

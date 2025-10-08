@@ -4,3 +4,4 @@ export declare const userIdParamSchema: yup.ObjectSchema<{
 }, yup.AnyObject, {
     userId: undefined;
 }, "">;
+

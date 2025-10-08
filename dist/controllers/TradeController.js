@@ -26,7 +26,7 @@ let Trades = class Trades {
         this.tradeService = tradeService;
         this.logService = logService;
     }
-    // Helper pour les logs (uniformisé)
+    
     async createLog(req, tableName, statusCode, metadata, userId) {
         try {
             const requestBody = { ...req.body };
@@ -47,7 +47,7 @@ let Trades = class Trades {
             console.error("Failed to log action:", error);
         }
     }
-    // --- Démarrage ou récupération de trade ---
+    
     async startOrGetPendingTrade(req, res) {
         const fromUserId = req.user.user_id;
         const toUserId = req.params.userId;
@@ -76,7 +76,7 @@ let Trades = class Trades {
             handleError(res, error, "Error starting or getting trade");
         }
     }
-    // --- Lecture ---
+    
     async getTradeById(req, res) {
         const id = req.params.id;
         try {
@@ -143,7 +143,7 @@ let Trades = class Trades {
             handleError(res, error, "Error fetching trades");
         }
     }
-    // --- Actions sur une trade ---
+    
     async addItemToTrade(req, res) {
         const tradeId = req.params.id;
         const { tradeItem } = req.body;
@@ -190,7 +190,7 @@ let Trades = class Trades {
             });
             return res.status(400).send({ message: "Invalid tradeItem format" });
         }
-        // Pour les items avec _unique_id, l'amount peut être omis
+        
         if (!tradeItem.metadata?._unique_id && (!tradeItem.amount || tradeItem.amount <= 0)) {
             await this.createLog(req, "trade_items", 400, {
                 trade_id: tradeId,
@@ -455,3 +455,4 @@ exports.Trades = Trades = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Trades);
+

@@ -1,29 +1,29 @@
-import "reflect-metadata";
-import { InversifyExpressServer } from "inversify-express-utils";
-import container from "./container";
-import * as path from "path";
 import cors from "cors";
-import express from "express";
 import { config } from "dotenv";
+import express from "express";
+import { InversifyExpressServer } from "inversify-express-utils";
+import * as path from "path";
+import "reflect-metadata";
+import container from "./container";
 config();
 
+import "./controllers/AuthenticatorController";
+import "./controllers/BuyOrderController";
 import "./controllers/DescribeController";
 import "./controllers/GameController";
+import "./controllers/GameGiftController";
+import "./controllers/GameViewController";
 import "./controllers/InventoryController";
 import "./controllers/ItemController";
 import "./controllers/LobbyController";
-import "./controllers/TradeController";
-import "./controllers/UserController";
+import "./controllers/MarketListingController";
 import "./controllers/OAuth2Controller";
-import "./controllers/StudioController";
 import "./controllers/SearchController";
 import "./controllers/StripeController";
+import "./controllers/StudioController";
+import "./controllers/TradeController";
+import "./controllers/UserController";
 import "./controllers/WebAuthnController";
-import "./controllers/AuthenticatorController";
-import "./controllers/GameGiftController";
-import "./controllers/MarketListingController";
-import "./controllers/BuyOrderController";
-import "./controllers/GameViewController";
 
 const server = new InversifyExpressServer(container);
 

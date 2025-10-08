@@ -38,12 +38,12 @@ async function validateOr400(schema, data, res) {
     }
 }
 let Lobbies = class Lobbies {
-    constructor(lobbyService, logService // Ajout injection LogService
+    constructor(lobbyService, logService 
     ) {
         this.lobbyService = lobbyService;
         this.logService = logService;
     }
-    // Helper pour créer des logs
+    
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
@@ -61,10 +61,10 @@ let Lobbies = class Lobbies {
             console.error("Error creating log:", error);
         }
     }
-    // --- Création de lobby ---
+    
     async createLobby(req, res) {
         try {
-            const lobbyId = (0, uuid_1.v4)(); // Generate a new UUID for the lobbyId
+            const lobbyId = (0, uuid_1.v4)(); 
             await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
             await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
             await this.createLog(req, "createLobby", "lobbies", 201, req.user.user_id);
@@ -76,7 +76,7 @@ let Lobbies = class Lobbies {
             res.status(500).send({ message: "Error creating lobby", error: message });
         }
     }
-    // --- Récupération d’un lobby ---
+    
     async getLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res))) {
             await this.createLog(req, "getLobby", "lobbies", 400);
@@ -133,14 +133,14 @@ let Lobbies = class Lobbies {
             handleError(res, error, "Error fetching user lobby");
         }
     }
-    // --- Actions sur un lobby ---
+    
     async joinLobby(req, res) {
         if (!(await validateOr400(LobbyValidator_1.lobbyIdParamSchema, req.params, res))) {
             await this.createLog(req, "joinLobby", "lobbies", 400, req.user.user_id);
             return;
         }
         try {
-            // Quitter tous les autres lobbies avant de rejoindre le nouveau
+            
             await this.lobbyService.leaveAllLobbies(req.user.user_id);
             await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
             await this.createLog(req, "joinLobby", "lobbies", 200, req.user.user_id);
@@ -272,3 +272,4 @@ exports.Lobbies = Lobbies = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Lobbies);
+

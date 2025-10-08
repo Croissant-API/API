@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { IItemService } from "../services/ItemService";
-import { IInventoryService } from "../services/InventoryService";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { AuthenticatedRequestWithOwner } from "../middlewares/OwnerCheck";
+import { IInventoryService } from "../services/InventoryService";
+import { IItemService } from "../services/ItemService";
+import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
 export declare class Items {
     private itemService;
     private inventoryService;

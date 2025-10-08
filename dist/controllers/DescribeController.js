@@ -27,3 +27,4 @@ __decorate([
 exports.DescribeController = DescribeController = __decorate([
     (0, inversify_express_utils_1.controller)("/describe")
 ], DescribeController);
+

@@ -14,3 +14,4 @@ export declare class DatabaseService implements IDatabaseService {
     destroy(): Promise<void>;
 }
 export default DatabaseService;
+

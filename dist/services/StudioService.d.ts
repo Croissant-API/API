@@ -1,6 +1,6 @@
-import { IDatabaseService } from "./DatabaseService";
 import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
 import { User } from "../interfaces/User";
+import { IDatabaseService } from "./DatabaseService";
 import { IUserService } from "./UserService";
 export interface IStudioService {
     getStudio(user_id: string): Promise<Studio | null>;

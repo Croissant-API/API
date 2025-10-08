@@ -62,3 +62,4 @@ exports.LoggedCheck = LoggedCheck = __decorate([
     __param(0, (0, inversify_1.inject)("StudioService")),
     __metadata("design:paramtypes", [Object])
 ], LoggedCheck);
+

@@ -25,11 +25,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateGameBodySchema = exports.createGameBodySchema = exports.gameIdParamSchema = void 0;
 const yup = __importStar(require("yup"));
-// Schema for validating :gameId param (string, e.g., UUID)
+
 exports.gameIdParamSchema = yup.object({
     gameId: yup.string().required("gameId is required"),
 });
-// Schema for creating a game (fields as per Game interface and controller/service usage)
+
 exports.createGameBodySchema = yup.object({
     name: yup.string().required("Game name is required"),
     description: yup.string().required("Description is required"),
@@ -49,7 +49,7 @@ exports.createGameBodySchema = yup.object({
     trailer_link: yup.string().url("Trailer link must be a valid URL").nullable(),
     multiplayer: yup.boolean().default(false)
 });
-// Schema for updating a game (all fields optional, as per updateGame)
+
 exports.updateGameBodySchema = yup.object({
     name: yup.string(),
     description: yup.string(),
@@ -69,3 +69,4 @@ exports.updateGameBodySchema = yup.object({
     trailer_link: yup.string().url("Trailer link must be a valid URL").nullable(),
     multiplayer: yup.boolean()
 }).noUnknown();
+

@@ -37,7 +37,7 @@ let Users = class Users {
         this.studioService = studioService;
         this.steamOAuthService = steamOAuthService;
     }
-    // --- HELPERS ---
+    
     sendError(res, status, message) {
         return res.status(status).send({ message });
     }
@@ -76,7 +76,7 @@ let Users = class Users {
             admin: !!user.admin,
             disabled: !!user.disabled,
             badges: user.badges || [],
-            created_at: user.created_at, // <-- Ajout ici
+            created_at: user.created_at, 
         };
     }
     mapUserSearch(user) {
@@ -89,10 +89,10 @@ let Users = class Users {
             admin: !!user.admin,
             badges: user.badges || [],
             disabled: !!user.disabled,
-            created_at: user.created_at, // <-- Ajout ici
+            created_at: user.created_at, 
         };
     }
-    // --- AUTHENTIFICATION & INSCRIPTION ---
+    
     async loginOAuth(req, res) {
         const { provider, code } = req.body;
         if (!provider || !code) {
@@ -276,7 +276,7 @@ let Users = class Users {
             });
         }
     }
-    // --- PROFIL UTILISATEUR ---
+    
     async getMe(req, res) {
         const userId = req.user?.user_id;
         if (!userId) {
@@ -421,7 +421,7 @@ let Users = class Users {
         await this.createLog(req, "isValidResetToken", "users", 200, user.user_id);
         res.status(200).send({ message: "Valid reset token", user });
     }
-    // --- STEAM ---
+    
     async steamRedirect(req, res) {
         const url = this.steamOAuthService.getAuthUrl();
         await this.createLog(req, "steamRedirect", "users", 200);
@@ -470,7 +470,7 @@ let Users = class Users {
             this.sendError(res, 500, "Error unlinking Steam account");
         }
     }
-    // --- RECHERCHE UTILISATEUR ---
+    
     async searchUsers(req, res) {
         const query = req.query.q?.trim();
         if (!query) {
@@ -478,10 +478,10 @@ let Users = class Users {
             return this.sendError(res, 400, "Missing search query");
         }
         try {
-            // Only return non-disabled users (assume disabled is present if returned from service)
+            
             const usersRaw = await this.userService.searchUsersByUsername(query);
             const users = usersRaw.filter(user => {
-                // Accept if disabled is not present or is falsy
+                
                 return !("disabled" in user) || !user["disabled"];
             });
             await this.createLog(req, "searchUsers", "users", 200);
@@ -502,7 +502,7 @@ let Users = class Users {
         }
         const { userId } = req.params;
         const userWithData = await this.userService.getUserWithPublicProfile(userId);
-        // Only allow non-disabled users
+        
         if (!userWithData || ("disabled" in userWithData && userWithData["disabled"])) {
             await this.createLog(req, "getUser", "users", 404);
             return this.sendError(res, 404, "User not found");
@@ -515,7 +515,7 @@ let Users = class Users {
             createdGames: userWithData.createdGames || [],
         });
     }
-    // --- ADMINISTRATION ---
+    
     async adminSearchUsers(req, res) {
         if (!req.user?.admin) {
             await this.createLog(req, "adminSearchUsers", "users", 403, req.user?.user_id);
@@ -609,7 +609,7 @@ let Users = class Users {
             createdGames: userWithData.createdGames || [],
         });
     }
-    // --- CRÉDITS ---
+    
     async transferCredits(req, res) {
         const { targetUserId, amount } = req.body;
         if (!targetUserId || isNaN(amount) || amount <= 0) {
@@ -645,7 +645,7 @@ let Users = class Users {
             this.sendError(res, 500, "Error transferring credits");
         }
     }
-    // --- VÉRIFICATION ---
+    
     async checkVerificationKey(req, res) {
         const { userId, verificationKey } = req.body;
         if (!userId || !verificationKey) {
@@ -662,7 +662,7 @@ let Users = class Users {
         await this.createLog(req, "checkVerificationKey", "users", isValid ? 200 : 401, userId);
         res.send({ success: isValid });
     }
-    // --- RÔLES ---
+    
     async changeRole(req, res) {
         const userId = req.originalUser?.user_id;
         const { role } = req.body;
@@ -695,7 +695,7 @@ let Users = class Users {
             this.sendError(res, 500, "Error setting role cookie");
         }
     }
-    // Ajouter ces méthodes de vérification OAuth
+    
     async verifyDiscordToken(accessToken) {
         try {
             const response = await fetch("https://discord.com/api/users/@me", {
@@ -956,3 +956,4 @@ exports.Users = Users = __decorate([
         StudioService_1.StudioService,
         SteamOAuthService_1.SteamOAuthService])
 ], Users);
+

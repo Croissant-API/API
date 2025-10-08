@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import { User } from "../interfaces/User";
 import { IStudioService } from "../services/StudioService";
 export interface AuthenticatedRequest extends Request {

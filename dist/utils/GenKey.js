@@ -13,7 +13,7 @@ const IV_LENGTH = 16;
 function encryptUserId(userId) {
     const SECRET = process.env.HASH_SECRET;
     const iv = crypto_1.default.randomBytes(IV_LENGTH);
-    const key = crypto_1.default.createHash("sha256").update(SECRET).digest(); // 32 bytes
+    const key = crypto_1.default.createHash("sha256").update(SECRET).digest(); 
     const cipher = crypto_1.default.createCipheriv(ALGO, key, iv);
     let encrypted = cipher.update(userId, "utf8", "hex");
     encrypted += cipher.final("hex");
@@ -25,7 +25,7 @@ function decryptUserId(apiKey) {
         const SECRET = process.env.HASH_SECRET;
         const [ivHex, encrypted] = apiKey.split(":");
         const iv = Buffer.from(ivHex, "hex");
-        const key = crypto_1.default.createHash("sha256").update(SECRET).digest(); // 32 bytes
+        const key = crypto_1.default.createHash("sha256").update(SECRET).digest(); 
         const decipher = crypto_1.default.createDecipheriv(ALGO, key, iv);
         let decrypted = decipher.update(encrypted, "hex", "utf8");
         decrypted += decipher.final("utf8");
@@ -47,7 +47,7 @@ function createHash(userId, secret) {
         .digest("hex");
 }
 function genKey(userId) {
-    // return createHash(userId, process.env.HASH_SECRET);
+    
     const encryptedUserId = encryptUserId(userId);
     return encryptedUserId;
 }
@@ -56,3 +56,4 @@ function genVerificationKey(userId) {
     return createHash(userId, process.env.VERIFICATION_SECRET);
 }
 exports.genVerificationKey = genVerificationKey;
+

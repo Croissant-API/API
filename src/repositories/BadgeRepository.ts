@@ -1,5 +1,5 @@
+import { Badge, BadgeType } from "../interfaces/Badge";
 import { IDatabaseService } from "../services/DatabaseService";
-import { Badge, GameBadge, BadgeType } from "../interfaces/Badge";
 
 export class BadgeRepository {
   constructor(private databaseService: IDatabaseService) {}
@@ -51,3 +51,4 @@ export class BadgeRepository {
     return result.length > 0 ? result[0] : null;
   }
 }
+

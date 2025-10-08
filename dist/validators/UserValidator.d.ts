@@ -20,3 +20,4 @@ export declare const userIdParamValidator: yup.ObjectSchema<{
 }, yup.AnyObject, {
     userId: undefined;
 }, "">;
+

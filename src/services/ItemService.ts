@@ -1,7 +1,7 @@
 import { Item } from "interfaces/Item";
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
 import { ItemRepository } from "../repositories/ItemRepository";
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IItemService {
   createItem(item: Omit<Item, "id">): Promise<void>;

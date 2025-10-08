@@ -19,12 +19,12 @@ const webauthnService_1 = require("../lib/webauthnService");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
 let WebAuthn = class WebAuthn {
-    constructor(userService, logService // Injection LogService
+    constructor(userService, logService 
     ) {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs (uniformisé)
+    
     async createLog(req, action, tableName, statusCode, userId, metadata) {
         try {
             const requestBody = { ...req.body };
@@ -42,7 +42,7 @@ let WebAuthn = class WebAuthn {
             });
         }
         catch (error) {
-            // Ne jamais bloquer la route sur une erreur de log
+            
             console.error("Error creating log:", error);
         }
     }
@@ -54,9 +54,9 @@ let WebAuthn = class WebAuthn {
         }
         try {
             const options = await (0, webauthnService_1.getRegistrationOptions)(userId);
-            // Encode challenge en base64 pour le front
+            
             const challengeBase64 = Buffer.from(options.challenge).toString("base64");
-            await this.userService.updateWebauthnChallenge(userId, challengeBase64); // <-- stocke en base64
+            await this.userService.updateWebauthnChallenge(userId, challengeBase64); 
             options.challenge = challengeBase64;
             options.user.id = Buffer.from(options.user.id).toString("base64");
             await this.createLog(req, "getRegistrationOptions", "users", 200, userId);
@@ -80,7 +80,7 @@ let WebAuthn = class WebAuthn {
                 await this.createLog(req, "verifyRegistration", "users", 400, userId);
                 return res.status(400).json({ message: "No challenge found" });
             }
-            // Si tu stockes en base64, il faut le convertir en base64url si le front utilise base64url
+            
             function base64ToBase64url(str) {
                 return str.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
             }
@@ -117,7 +117,7 @@ let WebAuthn = class WebAuthn {
                 credentials = JSON.parse(user?.webauthn_credentials || "[]");
             }
             else {
-                // Si pas d'userId, retourne les options sans credentials (découverte par le navigateur)
+                
                 credentials = [];
             }
             const options = await (0, webauthnService_1.getAuthenticationOptions)(credentials);
@@ -142,8 +142,8 @@ let WebAuthn = class WebAuthn {
             return res.status(400).json({ message: "Credential is required" });
         }
         try {
-            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); // Assure que l'ID est en base64url
-            // Si pas d'userId, retrouve l'utilisateur par credential.id
+            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); 
+            
             let user;
             if (userId) {
                 user = await this.userService.getUser(userId);
@@ -197,3 +197,4 @@ exports.WebAuthn = WebAuthn = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], WebAuthn);
+

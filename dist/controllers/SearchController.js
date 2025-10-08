@@ -120,3 +120,4 @@ exports.SearchController = SearchController = __decorate([
     __param(4, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object, Object])
 ], SearchController);
+

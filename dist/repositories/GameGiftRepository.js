@@ -15,7 +15,7 @@ class GameGiftRepository {
     async updateGiftStatus(giftId, isActive) {
         await this.databaseService.request(`UPDATE game_gifts SET isActive = ? WHERE id = ?`, [isActive ? 1 : 0, giftId]);
     }
-    // Méthode générique pour récupérer les gifts selon des filtres
+    
     async getGifts(filters = {}, orderBy = "createdAt DESC") {
         let query = `SELECT * FROM game_gifts WHERE 1=1`;
         const params = [];
@@ -53,7 +53,7 @@ class GameGiftRepository {
             message: row.message
         }));
     }
-    // Surcharges utilisant la méthode générique
+    
     async getGiftByCode(giftCode) {
         const gifts = await this.getGifts({ giftCode });
         return gifts[0] || null;
@@ -73,3 +73,4 @@ class GameGiftRepository {
     }
 }
 exports.GameGiftRepository = GameGiftRepository;
+

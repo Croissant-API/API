@@ -1,10 +1,10 @@
+import { inject, injectable } from 'inversify';
 import { v4 as uuidv4 } from 'uuid';
 import { InventoryItem } from '../interfaces/Inventory';
-import { MarketListing, MarketListingStatus, EnrichedMarketListing } from '../interfaces/MarketListing';
-import { DatabaseService } from './DatabaseService';
+import { EnrichedMarketListing, MarketListing, MarketListingStatus } from '../interfaces/MarketListing';
 import { MarketListingRepository } from '../repositories/MarketListingRepository';
-import { inject, injectable } from 'inversify';
 import { IBuyOrderService } from "./BuyOrderService";
+import { DatabaseService } from './DatabaseService';
 
 export interface IMarketListingService {
     createMarketListing(sellerId: string, inventoryItem: InventoryItem, sellingPrice: number): Promise<MarketListing>;

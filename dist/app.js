@@ -59,10 +59,11 @@ server.setConfig((app) => {
     app.use((0, cors_1.default)());
     app.use(express_1.default.static(path.join(__dirname, "public")));
 });
-// 404 handler
+
 server.setErrorConfig((app) => {
     app.use((req, res) => {
         res.status(404).json({ message: "Not Found" });
     });
 });
 exports.app = server.build();
+

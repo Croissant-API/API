@@ -19,7 +19,7 @@ const InventoryValidator_1 = require("../validators/InventoryValidator");
 const describe_1 = require("../decorators/describe");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const yup_1 = require("yup");
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -207,3 +207,4 @@ exports.Inventories = Inventories = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Inventories);
+

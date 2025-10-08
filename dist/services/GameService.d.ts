@@ -1,5 +1,5 @@
-import { IDatabaseService } from "./DatabaseService";
 import { Game } from "../interfaces/Game";
+import { IDatabaseService } from "./DatabaseService";
 export interface IGameService {
     getUserGames(userId: string): Promise<Game[]>;
     getGame(gameId: string): Promise<Game | null>;
@@ -51,3 +51,4 @@ export declare class GameService implements IGameService {
         reason?: string;
     }>;
 }
+

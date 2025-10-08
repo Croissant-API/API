@@ -16,3 +16,4 @@ export declare class StudioRepository {
     }[]>;
     createStudio(user_id: string, admin_id: string): Promise<void>;
 }
+

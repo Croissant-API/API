@@ -43,9 +43,10 @@ exports.tradeStatusSchema = yup.object({
     status: yup.string().oneOf(["pending", "completed", "canceled"]).required(),
 });
 exports.tradeApproveSchema = yup.object({
-// No body expected
+
 });
 exports.tradeItemActionSchema = yup.object({
     userKey: yup.string().oneOf(["fromUserItems", "toUserItems"]).required(),
     tradeItem: exports.tradeItemSchema.required(),
 });
+

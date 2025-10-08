@@ -1,7 +1,7 @@
 import { Response } from "express";
+import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { IBuyOrderService } from "../services/BuyOrderService";
 import { IItemService } from "../services/ItemService";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { ILogService } from "../services/LogService";
 export declare class BuyOrderController {
     private buyOrderService;
@@ -14,3 +14,4 @@ export declare class BuyOrderController {
     getBuyOrdersByUser(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getActiveBuyOrdersForItem(req: AuthenticatedRequest, res: Response): Promise<void>;
 }
+

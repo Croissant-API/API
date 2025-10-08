@@ -22,3 +22,4 @@ export declare class ItemRepository {
     deleteItem(itemId: string): Promise<void>;
     searchItemsByName(query: string): Promise<Item[]>;
 }
+

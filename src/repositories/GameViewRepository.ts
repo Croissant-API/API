@@ -1,5 +1,5 @@
+import { GameViewStats } from "../interfaces/GameView";
 import { IDatabaseService } from "../services/DatabaseService";
-import { GameView, GameViewStats } from "../interfaces/GameView";
 
 export class GameViewRepository {
   constructor(private databaseService: IDatabaseService) {}

@@ -73,3 +73,4 @@ function buildUpdateFields(obj, skip = []) {
     }
     return { fields, values };
 }
+

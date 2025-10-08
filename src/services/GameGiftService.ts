@@ -1,9 +1,9 @@
-import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { GameGiftRepository } from "../repositories/GameGiftRepository";
-import { GameGift } from "../interfaces/GameGift";
-import { v4 } from "uuid";
 import crypto from "crypto";
+import { inject, injectable } from "inversify";
+import { v4 } from "uuid";
+import { GameGift } from "../interfaces/GameGift";
+import { GameGiftRepository } from "../repositories/GameGiftRepository";
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IGameGiftService {
   createGift(gameId: string, fromUserId: string, message?: string): Promise<GameGift>;

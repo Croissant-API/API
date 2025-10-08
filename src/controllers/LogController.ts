@@ -1,8 +1,8 @@
 import { Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet } from "inversify-express-utils";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);

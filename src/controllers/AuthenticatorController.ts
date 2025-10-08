@@ -1,12 +1,12 @@
-import { controller, httpPost } from "inversify-express-utils";
-import { inject } from "inversify";
 import { Request, Response } from "express";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { inject } from "inversify";
+import { controller, httpPost } from "inversify-express-utils";
 import * as qrcode from "qrcode";
 import { Totp } from "time2fa";
-import { genKey } from "../utils/GenKey";
-import { IUserService } from "../services/UserService";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
+import { genKey } from "../utils/GenKey";
 import { generateUserJwt } from "../utils/Jwt";
 
 // --- UTILS ---

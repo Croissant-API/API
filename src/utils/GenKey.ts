@@ -10,7 +10,7 @@ export function encryptUserId(userId: string): string {
     const SECRET = process.env.HASH_SECRET!;
 
     const iv = crypto.randomBytes(IV_LENGTH);
-    const key = crypto.createHash("sha256").update(SECRET).digest(); // 32 bytes
+    const key = crypto.createHash("sha256").update(SECRET).digest(); 
     const cipher = crypto.createCipheriv(ALGO, key, iv);
     let encrypted = cipher.update(userId, "utf8", "hex");
     encrypted += cipher.final("hex");
@@ -22,7 +22,7 @@ export function decryptUserId(apiKey: string): string | null {
         const SECRET = process.env.HASH_SECRET!;
         const [ivHex, encrypted] = apiKey.split(":");
         const iv = Buffer.from(ivHex, "hex");
-        const key = crypto.createHash("sha256").update(SECRET).digest(); // 32 bytes
+        const key = crypto.createHash("sha256").update(SECRET).digest(); 
         const decipher = crypto.createDecipheriv(ALGO, key, iv);
         let decrypted = decipher.update(encrypted, "hex", "utf8");
         decrypted += decipher.final("utf8");
@@ -42,7 +42,7 @@ function createHash(userId: string, secret: string | undefined): string {
 }
 
 export function genKey(userId: string): string {
-    // return createHash(userId, process.env.HASH_SECRET);
+    
     const encryptedUserId = encryptUserId(userId);
     return encryptedUserId;
 }

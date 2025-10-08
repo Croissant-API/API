@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { inject } from "inversify";
-import { controller, httpPost, httpGet, httpDelete, httpPatch } from "inversify-express-utils";
-import { IOAuth2Service } from "../services/OAuth2Service";
-import { ILogService } from "../services/LogService";
+import { controller, httpDelete, httpGet, httpPatch, httpPost } from "inversify-express-utils";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { IOAuth2Service } from "../services/OAuth2Service";
 import { genVerificationKey } from "../utils/GenKey";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {

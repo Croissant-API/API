@@ -43,7 +43,7 @@ const qrcode = __importStar(require("qrcode"));
 const time2fa_1 = require("time2fa");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -186,3 +186,4 @@ exports.Authenticator = Authenticator = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], Authenticator);
+

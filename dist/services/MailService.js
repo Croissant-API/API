@@ -12,7 +12,7 @@ class MailService {
         this.transporter = nodemailer_1.default.createTransport({
             host: process.env.SMTP_HOST || "mail.croissant-api.fr",
             port: Number(process.env.SMTP_PORT) || 587,
-            secure: false, // true for 465, false for other ports
+            secure: false, 
             auth: {
                 user: process.env.SMTP_USER || "noreply@croissant-api.fr",
                 pass: process.env.SMTP_PASS,
@@ -41,3 +41,4 @@ class MailService {
     }
 }
 exports.MailService = MailService;
+

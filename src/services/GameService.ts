@@ -1,10 +1,10 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { GameRepository } from "../repositories/GameRepository";
-import { Game } from "../interfaces/Game";
 import { Badge } from "../interfaces/Badge";
+import { Game } from "../interfaces/Game";
 import { GameViewStats } from "../interfaces/GameView";
+import { GameRepository } from "../repositories/GameRepository";
 import { BadgeService } from "./BadgeService";
+import { IDatabaseService } from "./DatabaseService";
 import { GameViewService } from "./GameViewService";
 
 export interface IGameService {

@@ -1,11 +1,11 @@
+import crypto from "crypto";
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { StudioRepository } from "../repositories/StudioRepository";
 import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
 import { User } from "../interfaces/User";
-import { IUserService } from "./UserService";
-import crypto from "crypto";
+import { StudioRepository } from "../repositories/StudioRepository";
 import { genKey } from "../utils/GenKey";
+import { IDatabaseService } from "./DatabaseService";
+import { IUserService } from "./UserService";
 
 export interface IStudioService {
   getStudio(user_id: string): Promise<Studio | null>;

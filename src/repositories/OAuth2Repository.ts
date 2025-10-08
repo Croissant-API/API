@@ -1,7 +1,7 @@
-import { OAuth2App } from "../interfaces/OAuth2App";
-import { IDatabaseService } from "../services/DatabaseService";
-import { Oauth2User } from "../interfaces/User";
 import { v4 } from "uuid";
+import { OAuth2App } from "../interfaces/OAuth2App";
+import { Oauth2User } from "../interfaces/User";
+import { IDatabaseService } from "../services/DatabaseService";
 
 export class OAuth2Repository {
   constructor(private db: IDatabaseService) { }

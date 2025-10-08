@@ -1,10 +1,10 @@
-import { controller, httpGet, httpPost } from "inversify-express-utils";
-import { inject } from "inversify";
 import { Request, Response } from "express";
-import { IStudioService } from "../services/StudioService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { inject } from "inversify";
+import { controller, httpGet, httpPost } from "inversify-express-utils";
 import { describe } from "../decorators/describe";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { ILogService } from "../services/LogService";
+import { IStudioService } from "../services/StudioService";
 
 @controller("/studios")
 export class Studios {

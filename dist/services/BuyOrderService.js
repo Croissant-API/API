@@ -52,3 +52,4 @@ exports.BuyOrderService = BuyOrderService = __decorate([
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], BuyOrderService);
+

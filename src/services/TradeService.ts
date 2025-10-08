@@ -1,11 +1,11 @@
-import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { TradeRepository } from "../repositories/TradeRepository";
-import { Trade, TradeItem } from "../interfaces/Trade";
-import { v4 } from "uuid";
-import { IInventoryService } from "./InventoryService";
 import { InventoryItem } from "interfaces/Inventory";
 import { Item } from "interfaces/Item";
+import { inject, injectable } from "inversify";
+import { v4 } from "uuid";
+import { Trade, TradeItem } from "../interfaces/Trade";
+import { TradeRepository } from "../repositories/TradeRepository";
+import { IDatabaseService } from "./DatabaseService";
+import { IInventoryService } from "./InventoryService";
 
 export interface ITradeService {
   startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;

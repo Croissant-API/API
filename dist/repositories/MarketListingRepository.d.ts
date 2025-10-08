@@ -1,5 +1,5 @@
-import { MarketListing, EnrichedMarketListing } from '../interfaces/MarketListing';
 import { InventoryItem } from '../interfaces/Inventory';
+import { EnrichedMarketListing, MarketListing } from '../interfaces/MarketListing';
 import { IDatabaseService } from '../services/DatabaseService';
 export declare class MarketListingRepository {
     private databaseService;
@@ -25,3 +25,4 @@ export declare class MarketListingRepository {
     updateBuyOrderToFulfilled(buyOrderId: string, now: string): Promise<void>;
     addItemToInventory(inventoryItem: InventoryItem): Promise<void>;
 }
+

@@ -34,3 +34,4 @@ class TradeRepository {
     }
 }
 exports.TradeRepository = TradeRepository;
+

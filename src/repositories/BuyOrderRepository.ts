@@ -54,3 +54,4 @@ export class BuyOrderRepository {
         return await this.databaseService.read<BuyOrder>(query, params);
     }
 }
+

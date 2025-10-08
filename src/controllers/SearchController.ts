@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet } from "inversify-express-utils";
-import { IUserService } from "../services/UserService";
-import { IItemService } from "../services/ItemService";
+import { PublicUser, User, UserExtensions } from "../interfaces/User";
+import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { IGameService } from "../services/GameService";
 import { IInventoryService } from "../services/InventoryService";
+import { IItemService } from "../services/ItemService";
 import { ILogService } from "../services/LogService";
-import { sendError, filterGame } from "../utils/helpers";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { PublicUser, User, UserExtensions } from "../interfaces/User";
+import { IUserService } from "../services/UserService";
+import { filterGame, sendError } from "../utils/helpers";
 
 @controller("/search")
 export class SearchController {

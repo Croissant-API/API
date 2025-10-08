@@ -27,3 +27,4 @@ export declare class InventoryRepository {
     removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number, dataItemIndex?: number): Promise<void>;
     transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }
+

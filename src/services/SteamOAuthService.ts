@@ -1,5 +1,5 @@
-import { injectable } from "inversify";
 import axios from "axios";
+import { injectable } from "inversify";
 import querystring from "querystring";
 
 const STEAM_API_KEY =

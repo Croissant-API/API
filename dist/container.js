@@ -33,3 +33,4 @@ container.bind("GameGiftService").to(GameGiftService_1.GameGiftService).inSingle
 container.bind("MarketListingService").to(MarketListingService_1.MarketListingService).inSingletonScope();
 container.bind("BuyOrderService").to(BuyOrderService_1.BuyOrderService).inSingletonScope();
 exports.default = container;
+

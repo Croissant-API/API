@@ -1,6 +1,6 @@
-import { IDatabaseService } from "./DatabaseService";
-import { InventoryRepository } from "../repositories/InventoryRepository";
 import { Inventory } from "../interfaces/Inventory";
+import { InventoryRepository } from "../repositories/InventoryRepository";
+import { IDatabaseService } from "./DatabaseService";
 import { IUserService } from "./UserService";
 export interface IInventoryService {
     getInventory(userId: string): Promise<Inventory>;
@@ -36,3 +36,4 @@ export declare class InventoryService implements IInventoryService {
     removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void>;
     transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }
+

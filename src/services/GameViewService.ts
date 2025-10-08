@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { GameViewRepository } from "../repositories/GameViewRepository";
 import { GameViewStats } from "../interfaces/GameView";
+import { GameViewRepository } from "../repositories/GameViewRepository";
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IGameViewService {
   addView(gameId: string, viewerCookie: string, ipAddress: string, userAgent?: string): Promise<void>;

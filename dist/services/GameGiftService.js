@@ -61,16 +61,16 @@ let GameGiftService = class GameGiftService {
         };
     }
     async getGift(giftCode) {
-        // Utilise la surcharge générique
+        
         const gifts = await this.gameGiftRepository.getGifts({ giftCode });
         return gifts[0] || null;
     }
     async getUserSentGifts(userId) {
-        // Utilise la surcharge générique
+        
         return await this.gameGiftRepository.getGifts({ fromUserId: userId }, "createdAt DESC");
     }
     async getUserReceivedGifts(userId) {
-        // Utilise la surcharge générique
+        
         return await this.gameGiftRepository.getGifts({ toUserId: userId }, "claimedAt DESC");
     }
     async revokeGift(giftId, userId) {
@@ -85,7 +85,7 @@ let GameGiftService = class GameGiftService {
         await this.gameGiftRepository.updateGiftStatus(giftId, false);
     }
     generateGiftCode() {
-        // Génère un code de 16 caractères alphanumériques
+        
         return crypto_1.default.randomBytes(8).toString('hex').toUpperCase();
     }
 };
@@ -95,3 +95,4 @@ exports.GameGiftService = GameGiftService = __decorate([
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], GameGiftService);
+

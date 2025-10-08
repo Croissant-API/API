@@ -1,9 +1,9 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { InventoryRepository } from "../repositories/InventoryRepository";
-import { Inventory } from "../interfaces/Inventory";
-import { IUserService } from "./UserService";
 import { v4 as uuidv4 } from "uuid";
+import { Inventory } from "../interfaces/Inventory";
+import { InventoryRepository } from "../repositories/InventoryRepository";
+import { IDatabaseService } from "./DatabaseService";
+import { IUserService } from "./UserService";
 
 export interface IInventoryService {
   getInventory(userId: string): Promise<Inventory>;

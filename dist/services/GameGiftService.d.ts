@@ -1,5 +1,5 @@
-import { IDatabaseService } from "./DatabaseService";
 import { GameGift } from "../interfaces/GameGift";
+import { IDatabaseService } from "./DatabaseService";
 export interface IGameGiftService {
     createGift(gameId: string, fromUserId: string, message?: string): Promise<GameGift>;
     claimGift(giftCode: string, userId: string): Promise<GameGift>;
@@ -20,3 +20,4 @@ export declare class GameGiftService implements IGameGiftService {
     revokeGift(giftId: string, userId: string): Promise<void>;
     private generateGiftCode;
 }
+

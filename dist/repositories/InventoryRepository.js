@@ -12,7 +12,7 @@ class InventoryRepository {
          SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
        )`, [userId]);
     }
-    // Méthode générique pour récupérer les items selon des filtres
+    
     async getInventory(filters = {}) {
         let query = `
       SELECT 
@@ -77,7 +77,7 @@ class InventoryRepository {
         }));
         return items;
     }
-    // Surcharges utilisant la méthode générique
+    
     async getInventoryItems(userId) {
         return this.getInventory({ userId, minAmount: 1 });
     }
@@ -132,7 +132,7 @@ class InventoryRepository {
     }
     async removeItem(userId, itemId, amount, dataItemIndex) {
         const items = await this.getInventory({ userId, itemId });
-        // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+        
         if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
@@ -145,7 +145,7 @@ class InventoryRepository {
             }
             return;
         }
-        // Sinon, comportement classique (réparti sur tous les stacks)
+        
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -183,7 +183,7 @@ class InventoryRepository {
     }
     async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice, dataItemIndex) {
         const items = await this.getInventory({ userId, itemId, sellable: true, purchasePrice });
-        // Si dataItemIndex est défini, on ne retire que sur ce stack précis
+        
         if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
@@ -196,7 +196,7 @@ class InventoryRepository {
             }
             return;
         }
-        // Sinon, comportement classique (réparti sur tous les stacks)
+        
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -217,3 +217,4 @@ class InventoryRepository {
     }
 }
 exports.InventoryRepository = InventoryRepository;
+

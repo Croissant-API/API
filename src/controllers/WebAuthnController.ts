@@ -1,21 +1,21 @@
-import { controller, httpPost } from "inversify-express-utils";
-import { inject } from "inversify";
-import { Request, Response } from "express";
-import { IUserService } from "../services/UserService";
-import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } from "../lib/webauthnService";
-import { genKey } from "../utils/GenKey";
-import { ILogService } from "../services/LogService"; // Ajout import LogService
 import { WebAuthnCredential } from "@simplewebauthn/server/script/types";
+import { Request, Response } from "express";
+import { inject } from "inversify";
+import { controller, httpPost } from "inversify-express-utils";
+import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } from "../lib/webauthnService";
+import { ILogService } from "../services/LogService"; 
+import { IUserService } from "../services/UserService";
+import { genKey } from "../utils/GenKey";
 import { generateUserJwt } from "../utils/Jwt";
 
 @controller("/webauthn")
 export class WebAuthn {
     constructor(
         @inject("UserService") private userService: IUserService,
-        @inject("LogService") private logService: ILogService // Injection LogService
+        @inject("LogService") private logService: ILogService 
     ) { }
 
-    // Helper pour créer des logs (uniformisé)
+    
     private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
         try {
             const requestBody = { ...req.body };
@@ -31,7 +31,7 @@ export class WebAuthn {
                 status_code: statusCode,
             });
         } catch (error) {
-            // Ne jamais bloquer la route sur une erreur de log
+            
             console.error("Error creating log:", error);
         }
     }
@@ -45,9 +45,9 @@ export class WebAuthn {
         }
         try {
             const options = await getRegistrationOptions(userId);
-            // Encode challenge en base64 pour le front
+            
             const challengeBase64 = Buffer.from(options.challenge).toString("base64");
-            await this.userService.updateWebauthnChallenge(userId, challengeBase64); // <-- stocke en base64
+            await this.userService.updateWebauthnChallenge(userId, challengeBase64); 
             options.challenge = challengeBase64;
             options.user.id = Buffer.from(options.user.id).toString("base64");
             await this.createLog(req, "getRegistrationOptions", "users", 200, userId);
@@ -73,7 +73,7 @@ export class WebAuthn {
                 return res.status(400).json({ message: "No challenge found" });
             }
 
-            // Si tu stockes en base64, il faut le convertir en base64url si le front utilise base64url
+            
             function base64ToBase64url(str: string) {
                 return str.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
             }
@@ -110,7 +110,7 @@ export class WebAuthn {
                 const user = await this.userService.getUser(userId);
                 credentials = JSON.parse(user?.webauthn_credentials || "[]");
             } else {
-                // Si pas d'userId, retourne les options sans credentials (découverte par le navigateur)
+                
                 credentials = [];
             }
             const options = await getAuthenticationOptions(credentials);
@@ -136,9 +136,9 @@ export class WebAuthn {
             return res.status(400).json({ message: "Credential is required" });
         }
         try {
-            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); // Assure que l'ID est en base64url
+            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); 
 
-            // Si pas d'userId, retrouve l'utilisateur par credential.id
+            
             let user;
             if (userId) {
                 user = await this.userService.getUser(userId);
@@ -161,3 +161,4 @@ export class WebAuthn {
         }
     }
 }
+

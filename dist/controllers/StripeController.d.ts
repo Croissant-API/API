@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
 export declare class StripeController {
     private userService;
     private logService;

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { IInventoryService } from "../services/InventoryService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { IInventoryService } from "../services/InventoryService";
 import { ILogService } from "../services/LogService";
 export declare class Inventories {
     private inventoryService;

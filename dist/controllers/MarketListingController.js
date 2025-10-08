@@ -20,7 +20,7 @@ function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
 }
-// Helper for pagination/search
+
 function getPagination(req) {
     return {
         limit: req.query.limit ? Number(req.query.limit) : 50,
@@ -33,7 +33,7 @@ let MarketListingController = class MarketListingController {
         this.marketListingService = marketListingService;
         this.logService = logService;
     }
-    // Helper pour les logs (uniformisé)
+    
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
@@ -230,3 +230,4 @@ exports.MarketListingController = MarketListingController = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], MarketListingController);
+

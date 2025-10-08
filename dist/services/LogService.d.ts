@@ -1,4 +1,4 @@
-import { Log, CreateLogData } from "../interfaces/Log";
+import { CreateLogData, Log } from "../interfaces/Log";
 export interface ILogService {
     createLog(logData: CreateLogData): Promise<void>;
     getLogs(limit?: number, offset?: number): Promise<Log[]>;
@@ -40,3 +40,4 @@ export declare class LogService implements ILogService {
         }[];
     }>;
 }
+

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { IOAuth2Service } from "../services/OAuth2Service";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { IOAuth2Service } from "../services/OAuth2Service";
 export declare class OAuth2 {
     private oauth2Service;
     private logService;

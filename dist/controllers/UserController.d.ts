@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 import { MailService } from "../services/MailService";
-import { StudioService } from "../services/StudioService";
 import { SteamOAuthService } from "../services/SteamOAuthService";
+import { StudioService } from "../services/StudioService";
+import { IUserService } from "../services/UserService";
 export declare class Users {
     private userService;
     private logService;

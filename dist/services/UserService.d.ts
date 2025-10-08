@@ -1,5 +1,5 @@
+import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from "../interfaces/User";
 import { IDatabaseService } from "./DatabaseService";
-import { User, PublicUser, UserExtensions, PublicUserAsAdmin } from "../interfaces/User";
 export interface IUserService {
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     searchUsersByUsername(query: string): Promise<PublicUser[]>;

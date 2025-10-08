@@ -24,3 +24,4 @@ export declare class GameRepository {
     addOwner(gameId: string, ownerId: string): Promise<void>;
     removeOwner(gameId: string, ownerId: string): Promise<void>;
 }
+

@@ -5,7 +5,7 @@ class GameRepository {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
-    // Méthode générique pour récupérer des jeux selon des filtres
+    
     async getGames(filters = {}, select = "*", orderBy = "", limit) {
         let query = `SELECT ${select} FROM games WHERE 1=1`;
         const params = [];
@@ -32,7 +32,7 @@ class GameRepository {
             query += ` LIMIT ${limit}`;
         return await this.databaseService.read(query, params);
     }
-    // Surcharges utilisant la méthode générique
+    
     async getGame(gameId) {
         const games = await this.getGames({ gameId });
         return games[0] || null;
@@ -131,3 +131,4 @@ class GameRepository {
     }
 }
 exports.GameRepository = GameRepository;
+

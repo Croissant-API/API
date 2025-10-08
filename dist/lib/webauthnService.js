@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAuthentication = exports.getAuthenticationOptions = exports.verifyRegistration = exports.getRegistrationOptions = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 const webcrypto_1 = require("@peculiar/webcrypto");
 if (!globalThis.crypto) {
     globalThis.crypto = new webcrypto_1.Crypto();
@@ -12,7 +12,7 @@ function getRegistrationOptions(user) {
     return (0, server_1.generateRegistrationOptions)({
         rpName: 'Croissant',
         rpID: 'croissant-api.fr',
-        userID: user.id, // doit être un Buffer/Uint8Array
+        userID: user.id, 
         userName: user.username,
         attestationType: 'none',
         authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
@@ -23,7 +23,7 @@ async function verifyRegistration(body, expectedChallenge) {
     return (0, server_1.verifyRegistrationResponse)({
         response: body.credential,
         expectedChallenge,
-        expectedOrigin: 'https://croissant-api.fr', // change to your domain in prod
+        expectedOrigin: 'https://croissant-api.fr', 
         expectedRPID: 'croissant-api.fr',
     });
 }
@@ -59,3 +59,4 @@ async function verifyAuthentication(body, expectedChallenge, credentials) {
     });
 }
 exports.verifyAuthentication = verifyAuthentication;
+

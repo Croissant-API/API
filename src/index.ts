@@ -1,9 +1,9 @@
 import { app } from "./app";
 
-import fs from "fs";
-import path from "path";
 import { exec } from "child_process";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 

@@ -16,7 +16,7 @@ exports.GameGifts = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -28,7 +28,7 @@ let GameGifts = class GameGifts {
         this.userService = userService;
         this.logService = logService;
     }
-    // Helper pour créer des logs (signature uniforme)
+    
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
@@ -269,3 +269,4 @@ exports.GameGifts = GameGifts = __decorate([
     __param(3, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], GameGifts);
+

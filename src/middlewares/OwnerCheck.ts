@@ -1,10 +1,10 @@
+import { NextFunction, Request, Response } from "express";
 import container from "../container";
-import { Request, Response, NextFunction } from "express";
 import { Item } from "../interfaces/Item";
 import { User } from "../interfaces/User";
 import { IItemService } from "../services/ItemService";
-import { IUserService } from "../services/UserService";
 import { IStudioService } from "../services/StudioService";
+import { IUserService } from "../services/UserService";
 
 export interface AuthenticatedRequestWithOwner extends Request {
   owner: User;

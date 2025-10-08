@@ -48,3 +48,4 @@ exports.OAuth2Service = OAuth2Service = __decorate([
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], OAuth2Service);
+

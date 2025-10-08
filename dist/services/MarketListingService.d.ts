@@ -1,7 +1,7 @@
 import { InventoryItem } from '../interfaces/Inventory';
-import { MarketListing, EnrichedMarketListing } from '../interfaces/MarketListing';
-import { DatabaseService } from './DatabaseService';
+import { EnrichedMarketListing, MarketListing } from '../interfaces/MarketListing';
 import { IBuyOrderService } from "./BuyOrderService";
+import { DatabaseService } from './DatabaseService';
 export interface IMarketListingService {
     createMarketListing(sellerId: string, inventoryItem: InventoryItem, sellingPrice: number): Promise<MarketListing>;
     cancelMarketListing(listingId: string, sellerId: string): Promise<void>;

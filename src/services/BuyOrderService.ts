@@ -1,8 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
 import { inject, injectable } from "inversify";
+import { v4 as uuidv4 } from "uuid";
 import { BuyOrder } from "../interfaces/BuyOrder";
-import { IDatabaseService } from "./DatabaseService";
 import { BuyOrderRepository } from "../repositories/BuyOrderRepository";
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IBuyOrderService {
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;

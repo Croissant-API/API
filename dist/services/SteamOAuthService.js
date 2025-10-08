@@ -24,9 +24,7 @@ let SteamOAuthService = class SteamOAuthService {
         const match = claimedId.match(/\/(id|profiles)\/(\d+)$/);
         return match ? match[2] : null;
     }
-    /**
-     * Génère l'URL d'authentification Steam (OpenID)
-     */
+    
     getAuthUrl() {
         const params = {
             "openid.ns": "http://specs.openid.net/auth/2.0",
@@ -38,9 +36,7 @@ let SteamOAuthService = class SteamOAuthService {
         };
         return `https://steamcommunity.com/openid/login?${querystring_1.default.stringify(params)}`;
     }
-    /**
-     * Vérifie la réponse OpenID de Steam et retourne le steamid si succès
-     */
+    
     async verifySteamOpenId(query) {
         const body = { ...query, "openid.mode": "check_authentication" };
         try {
@@ -54,13 +50,11 @@ let SteamOAuthService = class SteamOAuthService {
         }
         catch (e) {
             console.error("Error verifying Steam OpenID", e);
-            // Optionally log error
+            
         }
         return null;
     }
-    /**
-     * Récupère les infos publiques Steam d'un utilisateur via l'API Steam Web
-     */
+    
     async getSteamProfile(steamid) {
         const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`;
         try {
@@ -85,3 +79,4 @@ exports.SteamOAuthService = SteamOAuthService;
 exports.SteamOAuthService = SteamOAuthService = __decorate([
     (0, inversify_1.injectable)()
 ], SteamOAuthService);
+

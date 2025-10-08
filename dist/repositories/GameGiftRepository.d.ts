@@ -19,3 +19,4 @@ export declare class GameGiftRepository {
     getUserReceivedGifts(userId: string): Promise<GameGift[]>;
     revokeGift(giftId: string): Promise<void>;
 }
+

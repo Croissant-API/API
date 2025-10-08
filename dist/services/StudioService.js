@@ -87,3 +87,4 @@ exports.StudioService = StudioService = __decorate([
     __param(1, (0, inversify_1.inject)("UserService")),
     __metadata("design:paramtypes", [Object, Object])
 ], StudioService);
+

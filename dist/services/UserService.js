@@ -48,7 +48,7 @@ let UserService = class UserService {
             }
         });
     }
-    // All DB access is now delegated to UserRepository
+    
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
         await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
     }
@@ -74,7 +74,7 @@ let UserService = class UserService {
     }
     async searchUsersByUsername(query) {
         const users = await this.adminSearchUsers(query);
-        // we return users as PublicUser[]
+        
         return users.filter((u) => !u.disabled).map((u) => ({
             user_id: u.user_id,
             username: u.username,
@@ -83,7 +83,7 @@ let UserService = class UserService {
             admin: !!u.admin,
             beta_user: !!u.beta_user,
             badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
-            disabled: !!u.disabled, // <-- Ajout ici
+            disabled: !!u.disabled, 
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {
@@ -156,7 +156,7 @@ let UserService = class UserService {
             return this.getUser(jwtPayload.user_id);
         }
         const apiKey = tokenOrApiKey;
-        // Déchiffre l'user_id depuis la clé API
+        
         const userId = (0, GenKey_1.decryptUserId)(apiKey);
         if (!userId)
             return null;
@@ -304,7 +304,7 @@ let UserService = class UserService {
         const user = await this.getUserWithCompleteProfile(user_id);
         if (!user)
             return null;
-        // complete profile filtered to keep only public information
+        
         const publicProfile = {
             user_id: user.user_id,
             username: user.username,
@@ -353,3 +353,4 @@ exports.UserService = UserService = __decorate([
     __param(0, (0, inversify_1.inject)("DatabaseService")),
     __metadata("design:paramtypes", [Object])
 ], UserService);
+

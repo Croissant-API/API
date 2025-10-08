@@ -1,11 +1,9 @@
 import * as yup from 'yup';
 
-// Schema for validating :gameId param (string, e.g., UUID)
 export const gameIdParamSchema = yup.object({
     gameId: yup.string().required("gameId is required"),
 });
 
-// Schema for creating a game (fields as per Game interface and controller/service usage)
 export const createGameBodySchema = yup.object({
     name: yup.string().required("Game name is required"),
     description: yup.string().required("Description is required"),
@@ -26,7 +24,6 @@ export const createGameBodySchema = yup.object({
     multiplayer: yup.boolean().default(false)
 });
 
-// Schema for updating a game (all fields optional, as per updateGame)
 export const updateGameBodySchema = yup.object({
     name: yup.string(),
     description: yup.string(),

@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet } from "inversify-express-utils";
-import { IInventoryService } from "../services/InventoryService";
-import { userIdParamSchema } from "../validators/InventoryValidator";
+import { Schema, ValidationError } from "yup";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { ValidationError, Schema } from "yup";
+import { IInventoryService } from "../services/InventoryService";
 import { ILogService } from "../services/LogService";
+import { userIdParamSchema } from "../validators/InventoryValidator";
 
 // --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {

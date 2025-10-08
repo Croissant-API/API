@@ -1,10 +1,10 @@
-import container from "../container";
-import { Request, Response, NextFunction } from "express";
-import { User } from "../interfaces/User";
-import { IUserService } from "../services/UserService";
+import { NextFunction, Request, Response } from "express";
 import { inject } from "inversify";
-import { IStudioService } from "../services/StudioService";
+import container from "../container";
 import { Studio } from "../interfaces/Studio";
+import { User } from "../interfaces/User";
+import { IStudioService } from "../services/StudioService";
+import { IUserService } from "../services/UserService";
 
 export interface AuthenticatedRequest extends Request {
   user: User;

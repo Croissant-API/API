@@ -78,3 +78,4 @@ export declare const updateGameBodySchema: yup.ObjectSchema<{
     trailer_link: undefined;
     multiplayer: undefined;
 }, "">;
+

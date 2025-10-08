@@ -1,22 +1,22 @@
 import { Container } from "inversify";
 
-import { IDatabaseService, DatabaseService } from "./services/DatabaseService";
+import { BadgeService, IBadgeService } from "./services/BadgeService";
+import { BuyOrderService, IBuyOrderService } from "./services/BuyOrderService";
+import { DatabaseService, IDatabaseService } from "./services/DatabaseService";
+import { GameGiftService, IGameGiftService } from "./services/GameGiftService";
+import { GameService, IGameService } from "./services/GameService";
+import { GameViewService, IGameViewService } from "./services/GameViewService";
 import { IInventoryService, InventoryService } from "./services/InventoryService";
 import { IItemService, ItemService } from "./services/ItemService";
-import { IUserService, UserService } from "./services/UserService";
 import { ILobbyService, LobbyService } from "./services/LobbyService";
-import { ITradeService, TradeService } from "./services/TradeService";
-import { IGameService, GameService } from "./services/GameService";
+import { ILogService, LogService } from "./services/LogService";
+import { IMailService, MailService } from "./services/MailService";
+import { IMarketListingService, MarketListingService } from "./services/MarketListingService";
 import { IOAuth2Service, OAuth2Service } from "./services/OAuth2Service";
 import { ISteamOAuthService, SteamOAuthService } from "./services/SteamOAuthService";
-import { IMailService, MailService } from "./services/MailService";
 import { IStudioService, StudioService } from "./services/StudioService";
-import { ILogService, LogService } from "./services/LogService";
-import { IGameGiftService, GameGiftService } from "./services/GameGiftService";
-import { IMarketListingService, MarketListingService } from "./services/MarketListingService";
-import { IBuyOrderService, BuyOrderService } from "./services/BuyOrderService";
-import { IBadgeService, BadgeService } from "./services/BadgeService";
-import { IGameViewService, GameViewService } from "./services/GameViewService";
+import { ITradeService, TradeService } from "./services/TradeService";
+import { IUserService, UserService } from "./services/UserService";
 
 const container = new Container();
 

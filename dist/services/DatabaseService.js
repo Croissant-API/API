@@ -51,7 +51,7 @@ let DatabaseService = class DatabaseService {
     async read(query, params = []) {
         try {
             const result = await this.db.raw(query, params);
-            // Pour MySQL, result = [rows, fields]
+            
             const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
             return rows.map((row) => {
                 for (const key in row) {
@@ -59,10 +59,10 @@ let DatabaseService = class DatabaseService {
                         try {
                             const parsed = JSON.parse(row[key]);
                             row[key] = parsed;
-                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                            
                         }
                         catch (e) {
-                            // Not a JSON string, leave as is
+                            
                         }
                     }
                 }
@@ -84,3 +84,4 @@ exports.DatabaseService = DatabaseService = __decorate([
     __metadata("design:paramtypes", [])
 ], DatabaseService);
 exports.default = DatabaseService;
+

@@ -1,6 +1,6 @@
-import { IDatabaseService } from "../services/DatabaseService";
 import { Lobby } from "../interfaces/Lobbies";
 import { PublicUser } from "../interfaces/User";
+import { IDatabaseService } from "../services/DatabaseService";
 
 export class LobbyRepository {
   constructor(private databaseService: IDatabaseService) { }

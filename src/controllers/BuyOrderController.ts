@@ -1,9 +1,9 @@
 import { Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { IBuyOrderService } from "../services/BuyOrderService";
 import { IItemService } from "../services/ItemService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { ILogService } from "../services/LogService";
 
 // --- UTILS ---

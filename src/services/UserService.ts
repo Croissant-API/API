@@ -1,15 +1,15 @@
-import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { UserRepository } from "../repositories/UserRepository";
-import { User, PublicUser, UserExtensions, PublicUserAsAdmin } from "../interfaces/User";
-import { config } from "dotenv";
-import path from "path";
 import crypto from "crypto";
-import { genKey, decryptUserId } from "../utils/GenKey";
 import removeDiacritics from "diacritics";
+import { config } from "dotenv";
 import { InventoryItem } from "interfaces/Inventory";
-import { verifyUserJwt } from "../utils/Jwt";
 import { Item } from "interfaces/Item";
+import { inject, injectable } from "inversify";
+import path from "path";
+import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from "../interfaces/User";
+import { UserRepository } from "../repositories/UserRepository";
+import { decryptUserId, genKey } from "../utils/GenKey";
+import { verifyUserJwt } from "../utils/Jwt";
+import { IDatabaseService } from "./DatabaseService";
 
 function slugify(str: string): string {
   str = str.normalize("NFKD");

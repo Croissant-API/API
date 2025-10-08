@@ -12,7 +12,7 @@ export interface PublicUser {
   beta_user: boolean;
   created_at?: string;
   updated_at?: string;
-  disabled?: boolean; // <-- Ajout ici
+  disabled?: boolean; 
 }
 
 export interface User extends PublicUser {
@@ -63,3 +63,4 @@ export interface Friend {
   datetime?: string;
   status: 'pending' | 'approved';
 }
+

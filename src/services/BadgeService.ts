@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
-import { IDatabaseService } from "./DatabaseService";
-import { BadgeRepository } from "../repositories/BadgeRepository";
 import { Badge, BadgeType } from "../interfaces/Badge";
+import { BadgeRepository } from "../repositories/BadgeRepository";
+import { IDatabaseService } from "./DatabaseService";
 
 export interface IBadgeService {
   getActiveBadgesForGame(gameId: string): Promise<Badge[]>;

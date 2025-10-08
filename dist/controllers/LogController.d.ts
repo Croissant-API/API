@@ -1,6 +1,6 @@
 import { Response } from "express";
-import { ILogService } from "../services/LogService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 export declare class LogController {
     private logService;
     constructor(logService: ILogService);

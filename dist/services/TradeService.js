@@ -118,7 +118,7 @@ let TradeService = class TradeService {
             throw new Error("Trade not found");
         this.assertPending(trade);
         const userKey = this.getUserKey(trade, userId);
-        // Vérification de la possession de l'item
+        
         if (tradeItem.metadata?._unique_id) {
             const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories 
          WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, tradeItem.itemId, tradeItem.metadata._unique_id]);
@@ -230,7 +230,7 @@ let TradeService = class TradeService {
             updatedAt: now
         });
     }
-    // Échange les items et passe la trade à completed
+    
     async exchangeTradeItems(trade) {
         for (const item of trade.fromUserItems) {
             if (item.metadata?._unique_id) {
@@ -280,3 +280,4 @@ exports.TradeService = TradeService = __decorate([
     __param(1, (0, inversify_1.inject)("InventoryService")),
     __metadata("design:paramtypes", [Object, Object])
 ], TradeService);
+

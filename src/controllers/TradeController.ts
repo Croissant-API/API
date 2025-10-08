@@ -1,11 +1,11 @@
 import { Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
-import { ITradeService } from "../services/TradeService";
-import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { TradeItem } from "../interfaces/Trade";
 import { describe } from "../decorators/describe";
+import { TradeItem } from "../interfaces/Trade";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { ITradeService } from "../services/TradeService";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
 	const msg = error instanceof Error ? error.message : String(error);

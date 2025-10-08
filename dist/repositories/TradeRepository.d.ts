@@ -10,3 +10,4 @@ export declare class TradeRepository {
     updateTradeField(tradeId: string, field: string, value: unknown, updatedAt: string): Promise<void>;
     updateTradeFields(tradeId: string, fields: Record<string, unknown>): Promise<void>;
 }
+

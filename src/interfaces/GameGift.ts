@@ -2,7 +2,7 @@ export interface GameGift {
   id: string;
   gameId: string;
   fromUserId: string;
-  toUserId?: string; // null si pas encore réclamé
+  toUserId?: string; 
   giftCode: string;
   createdAt: Date;
   claimedAt?: Date;

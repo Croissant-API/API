@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { IUserService } from "../services/UserService";
-import { IItemService } from "../services/ItemService";
 import { IGameService } from "../services/GameService";
 import { IInventoryService } from "../services/InventoryService";
+import { IItemService } from "../services/ItemService";
 import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
 export declare class SearchController {
     private userService;
     private itemService;

@@ -12,7 +12,7 @@ class OAuth2Repository {
         await this.db.request("INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)", [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
         return { owner_id, client_id, client_secret, name, redirect_urls };
     }
-    // Méthode générique pour récupérer les apps selon des filtres
+    
     async getApps(filters = {}, select = "*") {
         let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
         const params = [];
@@ -25,7 +25,7 @@ class OAuth2Repository {
             params.push(filters.client_id);
         }
         const apps = await this.db.read(query, params);
-        // Always parse redirect_urls if present
+        
         return apps.map(app => ({
             ...app,
             redirect_urls: typeof app.redirect_urls === "string"
@@ -98,3 +98,4 @@ function buildUpdateFields(obj, mapping = {}) {
     }
     return { fields, values };
 }
+

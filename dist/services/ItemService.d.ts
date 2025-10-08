@@ -25,3 +25,4 @@ export declare class ItemService implements IItemService {
     searchItemsByName(query: string): Promise<Item[]>;
     transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
 }
+

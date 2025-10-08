@@ -1,5 +1,5 @@
-import { Knex, knex } from "knex";
 import { injectable } from "inversify";
+import { Knex, knex } from "knex";
 import "reflect-metadata";
 
 export interface IDatabaseService {

@@ -1,6 +1,6 @@
-import { IDatabaseService } from "./DatabaseService";
 import { OAuth2App } from "../interfaces/OAuth2App";
 import { Oauth2User } from "../interfaces/User";
+import { IDatabaseService } from "./DatabaseService";
 export interface IOAuth2Service {
     createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App>;
     getAppsByOwner(owner_id: string): Promise<OAuth2App[]>;

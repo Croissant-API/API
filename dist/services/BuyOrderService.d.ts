@@ -25,3 +25,4 @@ export declare class BuyOrderService implements IBuyOrderService {
     }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
     matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null>;
 }
+

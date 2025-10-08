@@ -1,10 +1,10 @@
 import { Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet, httpPost, httpPut } from "inversify-express-utils";
-import { IMarketListingService } from "../services/MarketListingService";
-import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { InventoryItem } from "../interfaces/Inventory";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { IMarketListingService } from "../services/MarketListingService";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);

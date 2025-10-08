@@ -1,21 +1,22 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Request, Response } from "express";
+
+
 import bcrypt from "bcryptjs";
-import { inject } from "inversify";
 import crypto from "crypto";
+import { Request, Response } from "express";
+import { inject } from "inversify";
 import { controller, httpGet, httpPost } from "inversify-express-utils";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
-import { userIdParamValidator } from "../validators/UserValidator";
 import { describe } from "../decorators/describe";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { genKey, genVerificationKey } from "../utils/GenKey";
 import { PublicUser, PublicUserAsAdmin, User } from "../interfaces/User";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
 import { MailService } from "../services/MailService";
-import { StudioService } from "../services/StudioService";
 import { SteamOAuthService } from "../services/SteamOAuthService";
+import { StudioService } from "../services/StudioService";
+import { IUserService } from "../services/UserService";
+import { genKey, genVerificationKey } from "../utils/GenKey";
 import { requireFields } from "../utils/helpers";
 import { generateUserJwt } from "../utils/Jwt";
+import { userIdParamValidator } from "../validators/UserValidator";
 
 @controller("/users")
 export class Users {
@@ -27,7 +28,7 @@ export class Users {
     @inject("SteamOAuthService") private steamOAuthService: SteamOAuthService,
   ) { }
 
-  // --- HELPERS ---
+  
 
   private sendError(res: Response, status: number, message: string) {
     return res.status(status).send({ message });
@@ -77,7 +78,7 @@ export class Users {
       admin: !!user.admin,
       disabled: !!user.disabled,
       badges: user.badges || [],
-      created_at: user.created_at, // <-- Ajout ici
+      created_at: user.created_at, 
     };
   }
 
@@ -91,11 +92,11 @@ export class Users {
       admin: !!user.admin,
       badges: user.badges || [],
       disabled: !!user.disabled,
-      created_at: user.created_at, // <-- Ajout ici
+      created_at: user.created_at, 
     };
   }
 
-  // --- AUTHENTIFICATION & INSCRIPTION ---
+  
 
   @httpPost("/login-oauth")
   public async loginOAuth(req: Request, res: Response) {
@@ -337,7 +338,7 @@ export class Users {
     }
   }
 
-  // --- PROFIL UTILISATEUR ---
+  
 
   @describe({
     endpoint: "/users/@me",
@@ -550,7 +551,7 @@ export class Users {
     res.status(200).send({ message: "Valid reset token", user });
   }
 
-  // --- STEAM ---
+  
 
   @httpGet("/steam-redirect")
   public async steamRedirect(req: Request, res: Response) {
@@ -615,7 +616,7 @@ export class Users {
     }
   }
 
-  // --- RECHERCHE UTILISATEUR ---
+  
 
   @describe({
     endpoint: "/users/search",
@@ -647,10 +648,10 @@ export class Users {
       return this.sendError(res, 400, "Missing search query");
     }
     try {
-      // Only return non-disabled users (assume disabled is present if returned from service)
+      
       const usersRaw = await this.userService.searchUsersByUsername(query);
       const users = usersRaw.filter((user) => {
-        // Accept if disabled is not present or is falsy
+        
         return !("disabled" in user) || !user["disabled"];
       });
       await this.createLog(req, "searchUsers", "users", 200);
@@ -694,7 +695,7 @@ export class Users {
     const { userId } = req.params;
     const userWithData =
       await this.userService.getUserWithPublicProfile(userId);
-    // Only allow non-disabled users
+    
     if (
       !userWithData ||
       ("disabled" in userWithData && userWithData["disabled"])
@@ -721,7 +722,7 @@ export class Users {
     });
   }
 
-  // --- ADMINISTRATION ---
+  
 
   @httpGet("/admin/search", LoggedCheck.middleware)
   public async adminSearchUsers(req: AuthenticatedRequest, res: Response) {
@@ -869,7 +870,7 @@ export class Users {
     });
   }
 
-  // --- CRÉDITS ---
+  
 
   @describe({
     endpoint: "/users/transfer-credits",
@@ -962,7 +963,7 @@ export class Users {
     }
   }
 
-  // --- VÉRIFICATION ---
+  
 
   @describe({
     endpoint: "/users/auth-verification",
@@ -1000,7 +1001,7 @@ export class Users {
     res.send({ success: isValid });
   }
 
-  // --- RÔLES ---
+  
 
   @httpPost("/change-role", LoggedCheck.middleware)
   async changeRole(req: AuthenticatedRequest, res: Response) {
@@ -1035,7 +1036,7 @@ export class Users {
     }
   }
 
-  // Ajouter ces méthodes de vérification OAuth
+  
   private async verifyDiscordToken(accessToken: string) {
     try {
       const response = await fetch("https://discord.com/api/users/@me", {
@@ -1080,3 +1081,5 @@ export class Users {
     }
   }
 }
+
+

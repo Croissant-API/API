@@ -1,9 +1,9 @@
 import { Response } from "express";
+import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
 import { IGameGiftService } from "../services/GameGiftService";
 import { IGameService } from "../services/GameService";
-import { IUserService } from "../services/UserService";
 import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { IUserService } from "../services/UserService";
 export declare class GameGifts {
     private giftService;
     private gameService;

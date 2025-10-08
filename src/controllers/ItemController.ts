@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
 import { inject } from "inversify";
 import { controller, httpDelete, httpGet, httpPost, httpPut } from "inversify-express-utils";
-import { IItemService } from "../services/ItemService";
-import { createItemValidator, updateItemValidator, itemIdParamValidator } from "../validators/ItemValidator";
-import { IInventoryService } from "../services/InventoryService";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
+import { v4 } from "uuid";
+import { Schema, ValidationError } from "yup";
+import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { AuthenticatedRequestWithOwner, OwnerCheck } from "../middlewares/OwnerCheck";
-import { v4 } from "uuid";
-import { describe } from "../decorators/describe";
-import { ValidationError, Schema } from "yup";
+import { IInventoryService } from "../services/InventoryService";
+import { IItemService } from "../services/ItemService";
+import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
+import { createItemValidator, itemIdParamValidator, updateItemValidator } from "../validators/ItemValidator";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);

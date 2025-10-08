@@ -1,7 +1,7 @@
 import { Response } from "express";
-import { IItemService } from "../services/ItemService";
-import { User } from "../interfaces/User";
 import { Game } from "../interfaces/Game";
+import { User } from "../interfaces/User";
+import { IItemService } from "../services/ItemService";
 
 export function sendError(
     res: Response,

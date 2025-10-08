@@ -25,7 +25,7 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const stream_1 = require("stream");
 const util_1 = require("util");
 const streamPipeline = (0, util_1.promisify)(stream_1.pipeline);
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -63,7 +63,7 @@ let Games = class Games {
             console.error("Error creating log:", error);
         }
     }
-    // --- LISTING & SEARCH ---
+    
     async listGames(req, res) {
         try {
             const games = await this.gameService.getStoreGames();
@@ -155,7 +155,7 @@ let Games = class Games {
             handleError(res, error, "Error fetching game details");
         }
     }
-    // --- CREATION & MODIFICATION ---
+    
     async createGame(req, res) {
         if (!(await validateOr400(GameValidator_1.createGameBodySchema, req.body, res))) {
             await this.createLog(req, "createGame", "games", 400, req.user?.user_id);
@@ -203,7 +203,7 @@ let Games = class Games {
             handleError(res, error, "Error updating game");
         }
     }
-    // --- ACHAT ---
+    
     async buyGame(req, res) {
         const { gameId } = req.params;
         const userId = req.user.user_id;
@@ -248,7 +248,7 @@ let Games = class Games {
             handleError(res, error, "Error purchasing game");
         }
     }
-    // --- PROPRIÉTÉ ---
+    
     async transferOwnership(req, res) {
         const { gameId } = req.params;
         const { newOwnerId } = req.body;
@@ -351,7 +351,7 @@ let Games = class Games {
                 return res.status(404).send({ message: "No download link available" });
             const githubMatch = link.match(/^https:\/\/github.com\/([^/]+)\/([^/]+)(?:\.git)?$/i);
             if (githubMatch) {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                
                 const [_, owner, repo] = githubMatch;
                 const zipUrl = `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`;
                 return res.redirect(zipUrl);
@@ -367,7 +367,7 @@ let Games = class Games {
             if (fileRes.body) {
                 try {
                     await streamPipeline(fileRes.body, res);
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    
                 }
                 catch (err) {
                     res.status(500).send({ message: "Error streaming the file." });
@@ -468,3 +468,4 @@ exports.Games = Games = __decorate([
     __param(2, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object])
 ], Games);
+

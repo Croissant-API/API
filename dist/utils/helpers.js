@@ -110,3 +110,4 @@ async function formatInventory(inventory, itemService) {
     }))).filter(Boolean);
 }
 exports.formatInventory = formatInventory;
+

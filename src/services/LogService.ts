@@ -1,8 +1,8 @@
-import { injectable } from "inversify";
-import { Log, CreateLogData } from "../interfaces/Log";
-import * as fs from "fs/promises";
-import * as path from "path";
 import { parse } from "csv-parse/sync";
+import * as fs from "fs/promises";
+import { injectable } from "inversify";
+import * as path from "path";
+import { CreateLogData, Log } from "../interfaces/Log";
 
 const LOG_FILE = path.join(__dirname, "../../logs.csv");
 

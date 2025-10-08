@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
 import { inject } from "inversify";
 import { controller, httpGet, httpPost } from "inversify-express-utils";
-import { ILobbyService } from "../services/LobbyService";
-import { lobbyIdParamSchema, userIdParamSchema } from "../validators/LobbyValidator";
-import { ValidationError, Schema } from "yup";
 import { v4 } from "uuid";
+import { Schema, ValidationError } from "yup";
 import { describe } from "../decorators/describe";
 import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILobbyService } from "../services/LobbyService";
 import { ILogService } from "../services/LogService"; // Ajout import LogService
+import { lobbyIdParamSchema, userIdParamSchema } from "../validators/LobbyValidator";
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
 	const msg = error instanceof Error ? error.message : String(error);

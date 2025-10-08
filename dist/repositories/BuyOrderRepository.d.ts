@@ -12,3 +12,4 @@ export declare class BuyOrderRepository {
         minPrice?: number;
     }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
 }
+

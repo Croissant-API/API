@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { ILobbyService } from "../services/LobbyService";
 import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
+import { ILobbyService } from "../services/LobbyService";
 import { ILogService } from "../services/LogService";
 export declare class Lobbies {
     private lobbyService;
@@ -14,3 +14,4 @@ export declare class Lobbies {
     joinLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
     leaveLobby(req: AuthenticatedRequest, res: Response): Promise<void>;
 }
+

@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
+import { inject } from "inversify";
 import { controller, httpGet, httpPost } from "inversify-express-utils";
 import Stripe from "stripe";
-import { inject } from "inversify";
-import { IUserService } from "../services/UserService";
-import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
-import { ValidationError, Schema } from "yup";
 import * as yup from "yup";
+import { Schema, ValidationError } from "yup";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { ILogService } from "../services/LogService";
+import { IUserService } from "../services/UserService";
 
 // --- CONSTANTS ---
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;

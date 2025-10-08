@@ -65,7 +65,7 @@ let Items = class Items {
             console.error("Failed to log action:", error);
         }
     }
-    // --- LECTURE ---
+    
     async getAllItems(req, res) {
         try {
             const items = await this.itemService.getStoreItems();
@@ -137,7 +137,7 @@ let Items = class Items {
             handleError(res, error, "Error fetching item");
         }
     }
-    // --- CREATION / MODIFICATION / SUPPRESSION ---
+    
     async createItem(req, res) {
         if (!(await validateOr400(ItemValidator_1.createItemValidator, req.body, res, "Invalid item data"))) {
             await this.createLog(req, "items", 400);
@@ -216,7 +216,7 @@ let Items = class Items {
             handleError(res, error, "Error deleting item");
         }
     }
-    // --- ACTIONS INVENTAIRE ---
+    
     async buyItem(req, res) {
         const { itemId } = req.params;
         const { amount } = req.body;
@@ -293,7 +293,7 @@ let Items = class Items {
                 res.status(200).send({ message: "Item sold", totalValue: Math.round(sellValue), itemsSold: amount });
                 return;
             }
-            // Vente sans prix spécifique
+            
             const items = await repo.getInventory({ userId: correctedUserId, itemId, sellable: true });
             const totalAvailable = items.filter(i => !i.metadata).reduce((sum, i) => sum + i.amount, 0);
             if (totalAvailable < amount) {
@@ -626,3 +626,4 @@ exports.Items = Items = __decorate([
     __param(3, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], Items);
+

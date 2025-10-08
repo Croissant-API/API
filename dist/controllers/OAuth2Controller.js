@@ -27,7 +27,7 @@ let OAuth2 = class OAuth2 {
         this.oauth2Service = oauth2Service;
         this.logService = logService;
     }
-    // Helper pour les logs (uniformisé)
+    
     async createLog(req, tableName, statusCode, userId, metadata) {
         try {
             const requestBody = { ...req.body };
@@ -48,7 +48,7 @@ let OAuth2 = class OAuth2 {
             console.error("Failed to log action:", error);
         }
     }
-    // --- Application Management ---
+    
     async getAppByClientId(req, res) {
         const { client_id } = req.params;
         try {
@@ -147,7 +147,7 @@ let OAuth2 = class OAuth2 {
             handleError(res, error, "Error deleting app");
         }
     }
-    // --- Authorization & User ---
+    
     async authorize(req, res) {
         const { client_id, redirect_uri } = req.query;
         const userId = req.user?.user_id;
@@ -365,3 +365,4 @@ exports.OAuth2 = OAuth2 = __decorate([
     __param(1, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object])
 ], OAuth2);
+

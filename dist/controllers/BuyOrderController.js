@@ -16,7 +16,7 @@ exports.BuyOrderController = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-// --- UTILS ---
+
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -143,3 +143,4 @@ exports.BuyOrderController = BuyOrderController = __decorate([
     __param(2, (0, inversify_1.inject)("LogService")),
     __metadata("design:paramtypes", [Object, Object, Object])
 ], BuyOrderController);
+

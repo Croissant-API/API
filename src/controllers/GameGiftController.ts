@@ -1,11 +1,11 @@
 import { Response } from "express";
 import { inject } from "inversify";
-import { controller, httpGet, httpPost, httpDelete } from "inversify-express-utils";
+import { controller, httpDelete, httpGet, httpPost } from "inversify-express-utils";
+import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
 import { IGameGiftService } from "../services/GameGiftService";
 import { IGameService } from "../services/GameService";
-import { IUserService } from "../services/UserService";
 import { ILogService } from "../services/LogService";
-import { AuthenticatedRequest, LoggedCheck } from "../middlewares/LoggedCheck";
+import { IUserService } from "../services/UserService";
 
 // --- UTILS ---
 function handleError(res: Response, error: unknown, message: string, status = 500) {
