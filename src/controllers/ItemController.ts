@@ -33,7 +33,7 @@ async function validateOr400(schema: Schema<unknown>, data: unknown, res: Respon
 
 const createItemRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 
-  max: 500,
+  max: 50,
   message: 'Too many item creations, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -41,7 +41,7 @@ const createItemRateLimit = rateLimit({
 
 const updateItemRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 
-  max: 1000, 
+  max: 100, 
   message: 'Too many item updates, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -49,7 +49,7 @@ const updateItemRateLimit = rateLimit({
 
 const deleteItemRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 
-  max: 500, 
+  max: 50, 
   message: 'Too many item deletions, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -57,7 +57,7 @@ const deleteItemRateLimit = rateLimit({
 
 const buyItemRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 
-  max: 2000, 
+  max: 200, 
   message: 'Too many item purchases, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -65,7 +65,7 @@ const buyItemRateLimit = rateLimit({
 
 const sellItemRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 
-  max: 2000, 
+  max: 200, 
   message: 'Too many item sales, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
