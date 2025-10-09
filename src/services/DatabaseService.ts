@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+ 
 import { injectable } from 'inversify';
 import { Knex, knex } from 'knex';
 import 'reflect-metadata';
@@ -67,7 +69,9 @@ export class DatabaseService implements IDatabaseService {
             try {
               const parsed = JSON.parse(row[key]);
               row[key] = parsed;
-            } catch (e: unknown) {}
+            } catch (e: unknown) {
+              // Not JSON, leave as string
+            }
           }
         }
         return row as T;
