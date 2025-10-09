@@ -38,7 +38,7 @@
     "knex": "^3.1.0",
     "mysql": "^2.18.1",
     "node-fetch": "^2.7.0",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^7.0.7",
     "passport": "^0.7.0",
     "passport-steam": "^1.0.18",
     "qrcode": "^1.5.4",
