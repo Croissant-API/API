@@ -35177,25 +35177,6 @@ var app = server.build();
 console.log("App built successfully");
 
 // src/worker.ts
-app.get("/", (c3) => {
-  return c3.json({
-    message: "Croissant API is running with Hono + Inversify",
-    version: "1.0.0",
-    framework: "Hono",
-    di: "Inversify",
-    endpoints: [
-      "/test/hello",
-      "/test/echo",
-      "/test/headers"
-      // TODO: Add other endpoints as controllers are migrated
-      // '/api/users',
-      // '/api/games',   
-      // '/api/inventory',
-      // '/api/trades',
-      // '/api/auth'
-    ]
-  });
-});
 var worker_default = app;
 
 // ../../../Users/Lucas/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
