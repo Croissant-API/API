@@ -1,5 +1,5 @@
-import { BuyOrder } from "../interfaces/BuyOrder";
-import { IDatabaseService } from "./DatabaseService";
+import { BuyOrder } from '../interfaces/BuyOrder';
+import { IDatabaseService } from './DatabaseService';
 export interface IBuyOrderService {
     createBuyOrder(buyerId: string, itemId: string, price: number): Promise<BuyOrder>;
     cancelBuyOrder(orderId: string, buyerId: string): Promise<void>;
@@ -25,4 +25,3 @@ export declare class BuyOrderService implements IBuyOrderService {
     }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
     matchSellOrder(itemId: string, sellPrice: number): Promise<BuyOrder | null>;
 }
-

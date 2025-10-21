@@ -1,17 +1,17 @@
-import { Knex } from "knex";
-import "reflect-metadata";
+import 'reflect-metadata';
 export interface IDatabaseService {
     request(query: string, params?: unknown[]): Promise<void>;
     read<T>(query: string, params?: unknown[]): Promise<T[]>;
-    getKnex(): Knex;
 }
 export declare class DatabaseService implements IDatabaseService {
-    private db;
+    private readonly workerUrl;
+    private readonly authHeader;
     constructor();
-    getKnex(): Knex;
+    private testConnection;
+    private runQuery;
+    private interpolateParams;
     request(query: string, params?: unknown[]): Promise<void>;
     read<T>(query: string, params?: unknown[]): Promise<T[]>;
     destroy(): Promise<void>;
 }
 export default DatabaseService;
-

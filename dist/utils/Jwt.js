@@ -27,8 +27,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyUserJwt = exports.generateUserJwt = void 0;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const dotenv = __importStar(require("dotenv"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 function generateUserJwt(user, apiKey) {
@@ -37,7 +37,7 @@ function generateUserJwt(user, apiKey) {
         username: user.username,
         email: user.email,
         apiKey,
-    }, JWT_SECRET, { expiresIn: "30d" });
+    }, JWT_SECRET, { expiresIn: '30d' });
 }
 exports.generateUserJwt = generateUserJwt;
 function verifyUserJwt(token) {
@@ -49,4 +49,3 @@ function verifyUserJwt(token) {
     }
 }
 exports.verifyUserJwt = verifyUserJwt;
-

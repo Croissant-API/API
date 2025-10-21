@@ -1,5 +1,7 @@
-import { Game } from "../interfaces/Game";
-import { IDatabaseService } from "./DatabaseService";
+import { Badge } from '../interfaces/Badge';
+import { Game } from '../interfaces/Game';
+import { GameViewStats } from '../interfaces/GameView';
+import { IDatabaseService } from './DatabaseService';
 export interface IGameService {
     getUserGames(userId: string): Promise<Game[]>;
     getGame(gameId: string): Promise<Game | null>;
@@ -7,8 +9,8 @@ export interface IGameService {
     getStoreGames(): Promise<Game[]>;
     getMyCreatedGames(userId: string): Promise<Game[]>;
     getUserOwnedGames(userId: string): Promise<Game[]>;
-    createGame(game: Omit<Game, "id">): Promise<void>;
-    updateGame(gameId: string, game: Partial<Omit<Game, "id" | "gameId">>): Promise<void>;
+    createGame(game: Omit<Game, 'id'>): Promise<void>;
+    updateGame(gameId: string, game: Partial<Omit<Game, 'id' | 'gameId'>>): Promise<void>;
     deleteGame(gameId: string): Promise<void>;
     addOwner(gameId: string, ownerId: string): Promise<void>;
     removeOwner(gameId: string, ownerId: string): Promise<void>;
@@ -23,10 +25,20 @@ export interface IGameService {
         canTransfer: boolean;
         reason?: string;
     }>;
+    getGameWithBadgesAndViews(gameId: string): Promise<(Game & {
+        badges: Badge[];
+        views: GameViewStats;
+    }) | null>;
+    getGamesWithBadgesAndViews(gameIds: string[]): Promise<(Game & {
+        badges: Badge[];
+        views: GameViewStats;
+    })[]>;
 }
 export declare class GameService implements IGameService {
     private databaseService;
     private gameRepository;
+    private badgeService;
+    private gameViewService;
     constructor(databaseService: IDatabaseService);
     getGame(gameId: string): Promise<Game | null>;
     getGameForPublic(gameId: string): Promise<Game | null>;
@@ -37,8 +49,8 @@ export declare class GameService implements IGameService {
     getMyCreatedGames(userId: string): Promise<Game[]>;
     getUserOwnedGames(userId: string): Promise<Game[]>;
     searchGames(query: string): Promise<Game[]>;
-    createGame(game: Omit<Game, "id">): Promise<void>;
-    updateGame(gameId: string, game: Partial<Omit<Game, "id" | "gameId">>): Promise<void>;
+    createGame(game: Omit<Game, 'id'>): Promise<void>;
+    updateGame(gameId: string, game: Partial<Omit<Game, 'id' | 'gameId'>>): Promise<void>;
     deleteGame(gameId: string): Promise<void>;
     addOwner(gameId: string, ownerId: string): Promise<void>;
     removeOwner(gameId: string, ownerId: string): Promise<void>;
@@ -50,5 +62,12 @@ export declare class GameService implements IGameService {
         canTransfer: boolean;
         reason?: string;
     }>;
+    getGameWithBadgesAndViews(gameId: string): Promise<(Game & {
+        badges: Badge[];
+        views: GameViewStats;
+    }) | null>;
+    getGamesWithBadgesAndViews(gameIds: string[]): Promise<(Game & {
+        badges: Badge[];
+        views: GameViewStats;
+    })[]>;
 }
-

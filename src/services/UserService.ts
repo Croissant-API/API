@@ -73,7 +73,7 @@ export class UserService implements IUserService {
     });
   }
 
-  // All DB access is now delegated to UserRepository
+  
 
   async updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void> {
     await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
@@ -105,7 +105,7 @@ export class UserService implements IUserService {
 
   async searchUsersByUsername(query: string): Promise<PublicUser[]> {
     const users = await this.adminSearchUsers(query);
-    // we return users as PublicUser[]
+    
     return users
       .filter((u: PublicUser) => !u.disabled)
       .map((u: PublicUser) => ({
@@ -116,7 +116,7 @@ export class UserService implements IUserService {
         admin: !!u.admin,
         beta_user: !!u.beta_user,
         badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
-        disabled: !!u.disabled, // <-- Ajout ici
+        disabled: !!u.disabled, 
       }));
   }
 
@@ -204,7 +204,7 @@ export class UserService implements IUserService {
     }
     const apiKey = tokenOrApiKey;
 
-    // Déchiffre l'user_id depuis la clé API
+    
     const userId = decryptUserId(apiKey);
     if (!userId) return null;
 
@@ -246,9 +246,9 @@ export class UserService implements IUserService {
     const query = `
       SELECT 
         u.*,
-        CONCAT('[', GROUP_CONCAT(
+        COALESCE(json_group_array(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            JSON_OBJECT(
+            json_object(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
               'itemId', i.itemId,
@@ -256,16 +256,16 @@ export class UserService implements IUserService {
               'description', i.description,
               'amount', inv.amount,
               'iconHash', i.iconHash,
-              'sellable', IF(inv.sellable = 1, 1, 0),
+              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
               'purchasePrice', inv.purchasePrice,
               'rarity', inv.rarity,
               'custom_url_link', inv.custom_url_link,
               'metadata', inv.metadata
             )
           END
-        ), ']') as inventory,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
+        ), '[]') as inventory,
+        (SELECT COALESCE(json_group_array(
+          json_object(
             'itemId', oi.itemId,
             'name', oi.name,
             'description', oi.description,
@@ -274,9 +274,9 @@ export class UserService implements IUserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
+        ), '[]') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
+        (SELECT COALESCE(json_group_array(
+          json_object(
             'gameId', g.gameId,
             'name', g.name,
             'description', g.description,
@@ -297,7 +297,7 @@ export class UserService implements IUserService {
             'multiplayer', g.multiplayer,
             'download_link', g.download_link
           )
-        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+        ), '[]') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
@@ -362,7 +362,7 @@ export class UserService implements IUserService {
   async getUserWithPublicProfile(user_id: string): Promise<(PublicUser & UserExtensions) | null> {
     const user = await this.getUserWithCompleteProfile(user_id);
     if (!user) return null;
-    // complete profile filtered to keep only public information
+    
     const publicProfile: PublicUser & UserExtensions = {
       user_id: user.user_id,
       username: user.username,
@@ -408,3 +408,5 @@ export class UserService implements IUserService {
     return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
   }
 }
+
+

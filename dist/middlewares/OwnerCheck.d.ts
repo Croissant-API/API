@@ -1,5 +1,5 @@
-import { NextFunction, Request, Response } from "express";
-import { User } from "../interfaces/User";
+import { NextFunction, Request, Response } from 'express';
+import { User } from '../interfaces/User';
 export interface AuthenticatedRequestWithOwner extends Request {
     owner: User;
     originalUser?: User;

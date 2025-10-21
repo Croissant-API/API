@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { Game } from "../interfaces/Game";
-import { User } from "../interfaces/User";
-import { IItemService } from "../services/ItemService";
+import { Response } from 'express';
+import { Game } from '../interfaces/Game';
+import { User } from '../interfaces/User';
+import { IItemService } from '../services/ItemService';
 export declare function sendError(res: Response, status: number, message: string, error?: unknown): Response<any, Record<string, any>>;
 export declare function findUserByResetToken(users: User[], reset_token: string): User | undefined;
 export declare function requireFields(obj: object, fields: string[]): string | null;
@@ -78,4 +78,3 @@ export declare function formatInventory(inventory: Array<{
     amount: number;
     iconHash: string;
 } | null)[]>;
-

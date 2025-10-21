@@ -32,19 +32,19 @@ let LobbyService = class LobbyService {
         const lobby = await this.getLobby(lobbyId);
         const user = await this.userService.getUser(userId);
         if (!lobby)
-            throw new Error("Lobby not found");
+            throw new Error('Lobby not found');
         if (!user)
-            throw new Error("User not found");
+            throw new Error('User not found');
         const users = [...new Set([...lobby.users, user])];
         await this.lobbyRepository.updateLobbyUsers(lobbyId, users);
     }
     async leaveLobby(lobbyId, userId) {
         const lobby = await this.getLobby(lobbyId);
         if (!lobby)
-            throw new Error("Lobby not found");
-        const newUsers = lobby.users.filter((u) => u.user_id !== userId);
+            throw new Error('Lobby not found');
+        const newUsers = lobby.users.filter(u => u.user_id !== userId);
         if (newUsers.length === 0) {
-            
+            // await this.deleteLobby(lobbyId);
         }
         else {
             await this.lobbyRepository.updateLobbyUsers(lobbyId, newUsers);
@@ -78,8 +78,7 @@ let LobbyService = class LobbyService {
 exports.LobbyService = LobbyService;
 exports.LobbyService = LobbyService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __param(1, (0, inversify_1.inject)("UserService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
+    __param(1, (0, inversify_1.inject)('UserService')),
     __metadata("design:paramtypes", [Object, UserService_1.UserService])
 ], LobbyService);
-

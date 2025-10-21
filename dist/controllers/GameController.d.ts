@@ -1,14 +1,17 @@
-import { Request, Response } from "express";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { IGameService } from "../services/GameService";
-import { ILogService } from "../services/LogService";
-import { IUserService } from "../services/UserService";
+import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { IGameService } from '../services/GameService';
+import { IGameViewService } from '../services/GameViewService';
+import { ILogService } from '../services/LogService';
+import { IUserService } from '../services/UserService';
 export declare class Games {
     private gameService;
     private userService;
     private logService;
-    constructor(gameService: IGameService, userService: IUserService, logService: ILogService);
+    private gameViewService;
+    constructor(gameService: IGameService, userService: IUserService, logService: ILogService, gameViewService: IGameViewService);
     private createLog;
+    private logUnexpectedStatus;
     listGames(req: Request, res: Response): Promise<void>;
     searchGames(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     getMyCreatedGames(req: AuthenticatedRequest, res: Response): Promise<void>;
@@ -21,5 +24,6 @@ export declare class Games {
     transferOwnership(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     transferGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     canTransferGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    downloadGame(req: AuthenticatedRequest, res: Response): Promise<void | Response<any, Record<string, any>>>;
+    downloadGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    headDownloadGame(req: AuthenticatedRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 }

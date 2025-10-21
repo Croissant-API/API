@@ -13,25 +13,23 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebAuthn = void 0;
-const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
+const inversify_express_utils_1 = require("inversify-express-utils");
 const webauthnService_1 = require("../lib/webauthnService");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
 let WebAuthn = class WebAuthn {
-    constructor(userService, logService 
-    ) {
+    constructor(userService, logService) {
         this.userService = userService;
         this.logService = logService;
     }
-    
     async createLog(req, action, tableName, statusCode, userId, metadata) {
         try {
             const requestBody = { ...req.body };
             if (metadata)
                 requestBody.metadata = metadata;
             await this.logService.createLog({
-                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
+                ip_address: req.headers['x-real-ip'] || req.socket.remoteAddress,
                 table_name: tableName,
                 controller: `WebAuthnController.${action}`,
                 original_path: req.originalUrl,
@@ -42,47 +40,44 @@ let WebAuthn = class WebAuthn {
             });
         }
         catch (error) {
-            
-            console.error("Error creating log:", error);
+            console.error('Error creating log:', error);
         }
     }
     async getRegistrationOptions(req, res) {
         const userId = req.body.userId;
         if (!userId) {
-            await this.createLog(req, "getRegistrationOptions", "users", 400);
-            return res.status(400).json({ message: "User ID is required" });
+            await this.createLog(req, 'getRegistrationOptions', 'users', 400);
+            return res.status(400).json({ message: 'User ID is required' });
         }
         try {
             const options = await (0, webauthnService_1.getRegistrationOptions)(userId);
-            
-            const challengeBase64 = Buffer.from(options.challenge).toString("base64");
-            await this.userService.updateWebauthnChallenge(userId, challengeBase64); 
+            const challengeBase64 = Buffer.from(options.challenge).toString('base64');
+            await this.userService.updateWebauthnChallenge(userId, challengeBase64);
             options.challenge = challengeBase64;
-            options.user.id = Buffer.from(options.user.id).toString("base64");
-            await this.createLog(req, "getRegistrationOptions", "users", 200, userId);
+            options.user.id = Buffer.from(options.user.id).toString('base64');
+            await this.createLog(req, 'getRegistrationOptions', 'users', 200, userId);
             res.status(200).json(options);
         }
         catch (e) {
-            await this.createLog(req, "getRegistrationOptions", "users", 500, undefined, { error: e.message });
-            res.status(500).json({ message: "Error generating registration options" });
+            await this.createLog(req, 'getRegistrationOptions', 'users', 500, undefined, { error: e.message });
+            res.status(500).json({ message: 'Error generating registration options' });
         }
     }
     async verifyRegistration(req, res) {
         const { credential, userId } = req.body;
         if (!credential) {
-            await this.createLog(req, "verifyRegistration", "users", 400, userId);
-            return res.status(400).json({ message: "Credential is required" });
+            await this.createLog(req, 'verifyRegistration', 'users', 400, userId);
+            return res.status(400).json({ message: 'Credential is required' });
         }
         try {
             const user = await this.userService.getUser(userId);
             const expectedChallenge = user?.webauthn_challenge;
             if (!expectedChallenge) {
-                await this.createLog(req, "verifyRegistration", "users", 400, userId);
-                return res.status(400).json({ message: "No challenge found" });
+                await this.createLog(req, 'verifyRegistration', 'users', 400, userId);
+                return res.status(400).json({ message: 'No challenge found' });
             }
-            
             function base64ToBase64url(str) {
-                return str.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+                return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             }
             const expectedChallengeBase64url = base64ToBase64url(expectedChallenge);
             const verification = await (0, webauthnService_1.verifyRegistration)({ credential }, expectedChallengeBase64url);
@@ -90,22 +85,22 @@ let WebAuthn = class WebAuthn {
                 await this.userService.updateWebauthnChallenge(credential.id, null);
                 await this.userService.addWebauthnCredential(userId, {
                     id: credential.id,
-                    name: credential.name || "Default Name",
+                    name: credential.name || 'Default Name',
                     created_at: new Date(),
                 });
-                await this.createLog(req, "verifyRegistration", "users", 200, userId);
-                return res.status(200).json({ message: "Registration successful" });
+                await this.createLog(req, 'verifyRegistration', 'users', 200, userId);
+                return res.status(200).json({ message: 'Registration successful' });
             }
             else {
-                await this.createLog(req, "verifyRegistration", "users", 400, userId);
-                return res.status(400).json({ message: "Registration verification failed" });
+                await this.createLog(req, 'verifyRegistration', 'users', 400, userId);
+                return res.status(400).json({ message: 'Registration verification failed' });
             }
         }
         catch (error) {
-            await this.createLog(req, "verifyRegistration", "users", 500, userId, {
+            await this.createLog(req, 'verifyRegistration', 'users', 500, userId, {
                 error: error.message,
             });
-            res.status(500).json({ message: "Error verifying registration" });
+            res.status(500).json({ message: 'Error verifying registration' });
         }
     }
     async getAuthenticationOptionsHandler(req, res) {
@@ -114,36 +109,34 @@ let WebAuthn = class WebAuthn {
         try {
             if (userId) {
                 const user = await this.userService.getUser(userId);
-                credentials = JSON.parse(user?.webauthn_credentials || "[]");
+                credentials = JSON.parse(user?.webauthn_credentials || '[]');
             }
             else {
-                
                 credentials = [];
             }
             const options = await (0, webauthnService_1.getAuthenticationOptions)(credentials);
-            const challengeBase64 = Buffer.from(options.challenge).toString("base64");
+            const challengeBase64 = Buffer.from(options.challenge).toString('base64');
             if (userId) {
                 await this.userService.updateWebauthnChallenge(userId, challengeBase64);
             }
             options.challenge = challengeBase64;
-            await this.createLog(req, "getAuthenticationOptionsHandler", "users", 200, userId);
+            await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 200, userId);
             res.status(200).json(options);
         }
         catch (error) {
-            console.error("Error generating authentication options:", error);
-            await this.createLog(req, "getAuthenticationOptionsHandler", "users", 500, userId, { error: error.message });
-            res.status(500).json({ message: "Error generating authentication options" });
+            console.error('Error generating authentication options:', error);
+            await this.createLog(req, 'getAuthenticationOptionsHandler', 'users', 500, userId, { error: error.message });
+            res.status(500).json({ message: 'Error generating authentication options' });
         }
     }
     async verifyAuthenticationHandler(req, res) {
         const { credential, userId } = req.body;
         if (!credential) {
-            await this.createLog(req, "verifyAuthenticationHandler", "users", 400, userId);
-            return res.status(400).json({ message: "Credential is required" });
+            await this.createLog(req, 'verifyAuthenticationHandler', 'users', 400, userId);
+            return res.status(400).json({ message: 'Credential is required' });
         }
         try {
-            credential.id = credential.id.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); 
-            
+            credential.id = credential.id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             let user;
             if (userId) {
                 user = await this.userService.getUser(userId);
@@ -152,49 +145,48 @@ let WebAuthn = class WebAuthn {
                 user = await this.userService.getUserByCredentialId(credential.id);
             }
             if (!user) {
-                await this.createLog(req, "verifyAuthenticationHandler", "users", 404, userId);
-                return res.status(404).json({ message: "User not found" });
+                await this.createLog(req, 'verifyAuthenticationHandler', 'users', 404, userId);
+                return res.status(404).json({ message: 'User not found' });
             }
             const apiKey = (0, GenKey_1.genKey)(user.user_id);
             const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
-            await this.createLog(req, "verifyAuthenticationHandler", "users", 200, user.user_id);
-            res.status(200).json({ message: "Authentication successful", token: jwtToken });
+            await this.createLog(req, 'verifyAuthenticationHandler', 'users', 200, user.user_id);
+            res.status(200).json({ message: 'Authentication successful', token: jwtToken });
         }
         catch (error) {
-            await this.createLog(req, "verifyAuthenticationHandler", "users", 500, userId, { error: error.message });
-            res.status(500).json({ message: "Error verifying authentication" });
+            await this.createLog(req, 'verifyAuthenticationHandler', 'users', 500, userId, { error: error.message });
+            res.status(500).json({ message: 'Error verifying authentication' });
         }
     }
 };
 exports.WebAuthn = WebAuthn;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/register/options"),
+    (0, inversify_express_utils_1.httpPost)('/register/options'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WebAuthn.prototype, "getRegistrationOptions", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/register/verify"),
+    (0, inversify_express_utils_1.httpPost)('/register/verify'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WebAuthn.prototype, "verifyRegistration", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/authenticate/options"),
+    (0, inversify_express_utils_1.httpPost)('/authenticate/options'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WebAuthn.prototype, "getAuthenticationOptionsHandler", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/authenticate/verify"),
+    (0, inversify_express_utils_1.httpPost)('/authenticate/verify'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WebAuthn.prototype, "verifyAuthenticationHandler", null);
 exports.WebAuthn = WebAuthn = __decorate([
-    (0, inversify_express_utils_1.controller)("/webauthn"),
-    __param(0, (0, inversify_1.inject)("UserService")),
-    __param(1, (0, inversify_1.inject)("LogService")),
+    (0, inversify_express_utils_1.controller)('/webauthn'),
+    __param(0, (0, inversify_1.inject)('UserService')),
+    __param(1, (0, inversify_1.inject)('LogService')),
     __metadata("design:paramtypes", [Object, Object])
 ], WebAuthn);
-

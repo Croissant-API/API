@@ -1,6 +1,6 @@
-import { Trade, TradeItem } from "../interfaces/Trade";
-import { IDatabaseService } from "./DatabaseService";
-import { IInventoryService } from "./InventoryService";
+import { Trade, TradeItem } from '../interfaces/Trade';
+import { IDatabaseService } from './DatabaseService';
+import { IInventoryService } from './InventoryService';
 export interface ITradeService {
     startOrGetPendingTrade(fromUserId: string, toUserId: string): Promise<Trade>;
     getTradeById(id: string): Promise<Trade | null>;

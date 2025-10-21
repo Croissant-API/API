@@ -47,16 +47,16 @@ let ItemService = class ItemService {
     async transferOwnership(itemId, newOwnerId) {
         const item = await this.getItem(itemId);
         if (!item)
-            throw new Error("Item not found");
+            throw new Error('Item not found');
         if (item.deleted)
-            throw new Error("Cannot transfer deleted item");
+            throw new Error('Cannot transfer deleted item');
         await this.updateItem(itemId, { owner: newOwnerId });
     }
 };
 exports.ItemService = ItemService;
 exports.ItemService = ItemService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
     __metadata("design:paramtypes", [Object])
 ], ItemService);
 function toDbBool(val) {
@@ -69,8 +69,7 @@ function buildUpdateFields(obj, skip = []) {
         if (skip.includes(key))
             continue;
         fields.push(`${key} = ?`);
-        values.push(["showInStore", "deleted"].includes(key) ? toDbBool(obj[key]) : obj[key]);
+        values.push(['showInStore', 'deleted'].includes(key) ? toDbBool(obj[key]) : obj[key]);
     }
     return { fields, values };
 }
-

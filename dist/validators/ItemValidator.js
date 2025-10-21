@@ -25,20 +25,19 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.itemIdParamValidator = exports.updateItemValidator = exports.createItemValidator = void 0;
 const yup = __importStar(require("yup"));
-
+// Validator pour la création d'un item
 exports.createItemValidator = yup.object().shape({
     name: yup.string().required(),
     description: yup.string().optional(),
-    price: yup.number().required()
+    price: yup.number().required(),
 });
-
+// Validator pour la mise à jour d'un item
 exports.updateItemValidator = yup.object().shape({
     name: yup.string().optional(),
     description: yup.string().optional(),
     price: yup.number().optional(),
 });
-
+// Validator pour la suppression et la récupération d'un item (paramètre itemId)
 exports.itemIdParamValidator = yup.object().shape({
     itemId: yup.string().required(),
 });
-

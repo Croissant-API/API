@@ -19,12 +19,11 @@ let DescribeController = class DescribeController {
 };
 exports.DescribeController = DescribeController;
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/"),
+    (0, inversify_express_utils_1.httpGet)('/'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], DescribeController.prototype, "getDescriptions", null);
 exports.DescribeController = DescribeController = __decorate([
-    (0, inversify_express_utils_1.controller)("/describe")
+    (0, inversify_express_utils_1.controller)('/describe')
 ], DescribeController);
-

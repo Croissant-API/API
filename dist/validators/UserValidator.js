@@ -25,19 +25,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userIdParamValidator = exports.updateUserValidator = exports.createUserValidator = void 0;
 const yup = __importStar(require("yup"));
-
+// Validator for creating a user
 exports.createUserValidator = yup.object().shape({
     userId: yup.string().required(),
     username: yup.string().required(),
     balance: yup.number().required(),
 });
-
+// Validator for updating a user
 exports.updateUserValidator = yup.object().shape({
     username: yup.string().optional(),
     balance: yup.number().optional(),
 });
-
+// Validator for userId param
 exports.userIdParamValidator = yup.object().shape({
     userId: yup.string().required(),
 });
-

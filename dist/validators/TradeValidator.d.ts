@@ -1,4 +1,4 @@
-import * as yup from "yup";
+import * as yup from 'yup';
 export declare const tradeItemSchema: yup.ObjectSchema<{
     itemId: string;
     amount: number;
@@ -50,4 +50,3 @@ export declare const tradeItemActionSchema: yup.ObjectSchema<{
         amount: undefined;
     };
 }, "">;
-

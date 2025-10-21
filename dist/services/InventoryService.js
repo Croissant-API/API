@@ -14,8 +14,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryService = void 0;
 const inversify_1 = require("inversify");
-const InventoryRepository_1 = require("../repositories/InventoryRepository");
 const uuid_1 = require("uuid");
+const InventoryRepository_1 = require("../repositories/InventoryRepository");
 let InventoryService = class InventoryService {
     constructor(databaseService, userService) {
         this.databaseService = databaseService;
@@ -56,8 +56,7 @@ let InventoryService = class InventoryService {
 exports.InventoryService = InventoryService;
 exports.InventoryService = InventoryService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __param(1, (0, inversify_1.inject)("UserService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
+    __param(1, (0, inversify_1.inject)('UserService')),
     __metadata("design:paramtypes", [Object, Object])
 ], InventoryService);
-

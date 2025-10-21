@@ -1,4 +1,4 @@
-import * as yup from "yup";
+import * as yup from 'yup';
 export declare const lobbyIdParamSchema: yup.ObjectSchema<{
     lobbyId: string;
 }, yup.AnyObject, {
@@ -9,4 +9,3 @@ export declare const userIdParamSchema: yup.ObjectSchema<{
 }, yup.AnyObject, {
     userId: undefined;
 }, "">;
-

@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { ILogService } from "../services/LogService";
-import { IStudioService } from "../services/StudioService";
+import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { ILogService } from '../services/LogService';
+import { IStudioService } from '../services/StudioService';
 export declare class Studios {
     private studioService;
     private logService;

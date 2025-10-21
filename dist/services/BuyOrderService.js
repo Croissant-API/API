@@ -13,8 +13,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuyOrderService = void 0;
-const uuid_1 = require("uuid");
 const inversify_1 = require("inversify");
+const uuid_1 = require("uuid");
 const BuyOrderRepository_1 = require("../repositories/BuyOrderRepository");
 let BuyOrderService = class BuyOrderService {
     constructor(databaseService) {
@@ -28,9 +28,9 @@ let BuyOrderService = class BuyOrderService {
             buyer_id: buyerId,
             item_id: itemId,
             price,
-            status: "active",
+            status: 'active',
             created_at: now,
-            updated_at: now
+            updated_at: now,
         };
         await this.buyOrderRepository.insertBuyOrder(order);
         return order;
@@ -38,18 +38,17 @@ let BuyOrderService = class BuyOrderService {
     async cancelBuyOrder(orderId, buyerId) {
         await this.buyOrderRepository.updateBuyOrderStatusToCancelled(orderId, buyerId, new Date().toISOString());
     }
-    async getBuyOrders(filters = {}, orderBy = "created_at DESC", limit) {
+    async getBuyOrders(filters = {}, orderBy = 'created_at DESC', limit) {
         return await this.buyOrderRepository.getBuyOrders(filters, orderBy, limit);
     }
     async matchSellOrder(itemId, sellPrice) {
-        const orders = await this.buyOrderRepository.getBuyOrders({ itemId, status: "active", minPrice: sellPrice }, "price DESC, created_at ASC", 1);
+        const orders = await this.buyOrderRepository.getBuyOrders({ itemId, status: 'active', minPrice: sellPrice }, 'price DESC, created_at ASC', 1);
         return orders.length > 0 ? orders[0] : null;
     }
 };
 exports.BuyOrderService = BuyOrderService;
 exports.BuyOrderService = BuyOrderService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
     __metadata("design:paramtypes", [Object])
 ], BuyOrderService);
-

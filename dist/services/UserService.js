@@ -16,39 +16,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
-const inversify_1 = require("inversify");
-const UserRepository_1 = require("../repositories/UserRepository");
-const dotenv_1 = require("dotenv");
-const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
-const GenKey_1 = require("../utils/GenKey");
 const diacritics_1 = __importDefault(require("diacritics"));
+const dotenv_1 = require("dotenv");
+const inversify_1 = require("inversify");
+const path_1 = __importDefault(require("path"));
+const UserRepository_1 = require("../repositories/UserRepository");
+const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
 function slugify(str) {
-    str = str.normalize("NFKD");
+    str = str.normalize('NFKD');
     str = diacritics_1.default.remove(str);
-    const substitutions = { "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l", "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f", "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l" };
+    const substitutions = { α: 'a', β: 'b', γ: 'g', δ: 'd', ε: 'e', θ: 'o', λ: 'l', μ: 'm', ν: 'v', π: 'p', ρ: 'r', σ: 's', τ: 't', φ: 'f', χ: 'x', ψ: 'ps', ω: 'w', ℓ: 'l', '𝓁': 'l', '𝔩': 'l' };
     str = str
-        .split("")
-        .map((c) => substitutions[c] ?? c)
-        .join("");
-    str = str.replace(/[^a-zA-Z0-9]/g, "");
+        .split('')
+        .map(c => substitutions[c] ?? c)
+        .join('');
+    str = str.replace(/[^a-zA-Z0-9]/g, '');
     return str.toLowerCase();
 }
-(0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
+(0, dotenv_1.config)({ path: path_1.default.join(__dirname, '..', '..', '.env') });
 let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
         this.apiKeyUserCache = new Map();
         this.userRepository = new UserRepository_1.UserRepository(this.databaseService);
-        this.getAllUsersWithDisabled().then((users) => {
+        this.getAllUsersWithDisabled().then(users => {
             for (const user of users) {
                 const key = (0, GenKey_1.genKey)(user.user_id);
                 this.apiKeyUserCache.set(key, user);
             }
         });
     }
-    
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
         await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
     }
@@ -61,29 +60,30 @@ let UserService = class UserService {
     async disableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
-            throw new Error("Unauthorized: not admin");
+            throw new Error('Unauthorized: not admin');
         }
         await this.userRepository.disableAccount(targetUserId);
     }
     async reenableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
-            throw new Error("Unauthorized: not admin");
+            throw new Error('Unauthorized: not admin');
         }
         await this.userRepository.reenableAccount(targetUserId);
     }
     async searchUsersByUsername(query) {
         const users = await this.adminSearchUsers(query);
-        
-        return users.filter((u) => !u.disabled).map((u) => ({
+        return users
+            .filter((u) => !u.disabled)
+            .map((u) => ({
             user_id: u.user_id,
             username: u.username,
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
             beta_user: !!u.beta_user,
-            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
-            disabled: !!u.disabled, 
+            badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
+            disabled: !!u.disabled,
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {
@@ -120,7 +120,7 @@ let UserService = class UserService {
             isStudio: !!u.isStudio,
             admin: !!u.admin,
             beta_user: !!u.beta_user,
-            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+            badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
             disabled: !!u.disabled,
         }));
     }
@@ -143,7 +143,7 @@ let UserService = class UserService {
         return await this.userRepository.getUserBySteamId(steamId);
     }
     async generatePasswordResetToken(email) {
-        const token = crypto_1.default.randomBytes(32).toString("hex");
+        const token = crypto_1.default.randomBytes(32).toString('hex');
         await this.userRepository.generatePasswordResetToken(email, token);
         return token;
     }
@@ -156,7 +156,6 @@ let UserService = class UserService {
             return this.getUser(jwtPayload.user_id);
         }
         const apiKey = tokenOrApiKey;
-        
         const userId = (0, GenKey_1.decryptUserId)(apiKey);
         if (!userId)
             return null;
@@ -168,9 +167,9 @@ let UserService = class UserService {
     async addWebauthnCredential(userId, credential) {
         const existing = await this.getUser(userId);
         if (!existing) {
-            throw new Error("User not found");
+            throw new Error('User not found');
         }
-        const credentials = JSON.parse(existing.webauthn_credentials || "[]");
+        const credentials = JSON.parse(existing.webauthn_credentials || '[]');
         credentials.push({
             id: credential.id,
             name: credential.name,
@@ -192,9 +191,9 @@ let UserService = class UserService {
         const query = `
       SELECT 
         u.*,
-        CONCAT('[', GROUP_CONCAT(
+        COALESCE(json_group_array(
           CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            JSON_OBJECT(
+            json_object(
               'user_id', inv.user_id,
               'item_id', inv.item_id,
               'itemId', i.itemId,
@@ -202,16 +201,16 @@ let UserService = class UserService {
               'description', i.description,
               'amount', inv.amount,
               'iconHash', i.iconHash,
-              'sellable', IF(inv.sellable = 1, 1, 0),
+              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
               'purchasePrice', inv.purchasePrice,
               'rarity', inv.rarity,
               'custom_url_link', inv.custom_url_link,
               'metadata', inv.metadata
             )
           END
-        ), ']') as inventory,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
+        ), '[]') as inventory,
+        (SELECT COALESCE(json_group_array(
+          json_object(
             'itemId', oi.itemId,
             'name', oi.name,
             'description', oi.description,
@@ -220,9 +219,9 @@ let UserService = class UserService {
             'iconHash', oi.iconHash,
             'showInStore', oi.showInStore
           )
-        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
+        ), '[]') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
+        (SELECT COALESCE(json_group_array(
+          json_object(
             'gameId', g.gameId,
             'name', g.name,
             'description', g.description,
@@ -243,7 +242,7 @@ let UserService = class UserService {
             'multiplayer', g.multiplayer,
             'download_link', g.download_link
           )
-        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+        ), '[]') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
@@ -266,14 +265,14 @@ let UserService = class UserService {
             return null;
         const user = results[0];
         if (user.beta_user) {
-            user.badges = ["early_user", ...user.badges];
+            user.badges = ['early_user', ...user.badges];
         }
         if (user.inventory) {
             user.inventory = user.inventory
                 .filter((item) => item !== null)
                 .map((item) => ({
                 ...item,
-                metadata: typeof item.metadata === "string" && item.metadata
+                metadata: typeof item.metadata === 'string' && item.metadata
                     ? (() => {
                         try {
                             return JSON.parse(item.metadata);
@@ -287,14 +286,14 @@ let UserService = class UserService {
         }
         if (user.ownedItems) {
             user.ownedItems = user.ownedItems.sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
+                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
                 return 0;
             });
         }
         if (user.badges) {
-            const badgeOrder = ["early_user", "staff", "bug_hunter", "contributor", "moderator", "community_manager", "partner"];
+            const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
             user.badges = user.badges.filter(badge => badgeOrder.includes(badge));
             user.badges.sort((a, b) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
         }
@@ -304,7 +303,6 @@ let UserService = class UserService {
         const user = await this.getUserWithCompleteProfile(user_id);
         if (!user)
             return null;
-        
         const publicProfile = {
             user_id: user.user_id,
             username: user.username,
@@ -344,13 +342,12 @@ let UserService = class UserService {
     }
     getSteamAuthUrl() {
         const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
-        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || "")}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
+        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
     }
 };
 exports.UserService = UserService;
 exports.UserService = UserService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
     __metadata("design:paramtypes", [Object])
 ], UserService);
-

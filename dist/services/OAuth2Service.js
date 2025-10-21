@@ -45,7 +45,6 @@ let OAuth2Service = class OAuth2Service {
 exports.OAuth2Service = OAuth2Service;
 exports.OAuth2Service = OAuth2Service = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
     __metadata("design:paramtypes", [Object])
 ], OAuth2Service);
-

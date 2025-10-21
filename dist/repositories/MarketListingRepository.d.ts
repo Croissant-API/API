@@ -25,4 +25,3 @@ export declare class MarketListingRepository {
     updateBuyOrderToFulfilled(buyOrderId: string, now: string): Promise<void>;
     addItemToInventory(inventoryItem: InventoryItem): Promise<void>;
 }
-

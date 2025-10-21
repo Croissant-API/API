@@ -1,6 +1,6 @@
-import { NextFunction, Request, Response } from "express";
-import { User } from "../interfaces/User";
-import { IStudioService } from "../services/StudioService";
+import { NextFunction, Request, Response } from 'express';
+import { User } from '../interfaces/User';
+import { IStudioService } from '../services/StudioService';
 export interface AuthenticatedRequest extends Request {
     user: User;
     originalUser?: User;

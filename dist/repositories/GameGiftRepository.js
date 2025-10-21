@@ -15,8 +15,8 @@ class GameGiftRepository {
     async updateGiftStatus(giftId, isActive) {
         await this.databaseService.request(`UPDATE game_gifts SET isActive = ? WHERE id = ?`, [isActive ? 1 : 0, giftId]);
     }
-    
-    async getGifts(filters = {}, orderBy = "createdAt DESC") {
+    // Méthode générique pour récupérer les gifts selon des filtres
+    async getGifts(filters = {}, orderBy = 'createdAt DESC') {
         let query = `SELECT * FROM game_gifts WHERE 1=1`;
         const params = [];
         if (filters.giftCode) {
@@ -41,7 +41,7 @@ class GameGiftRepository {
         }
         query += ` ORDER BY ${orderBy}`;
         const rows = await this.databaseService.read(query, params);
-        return rows.map((row) => ({
+        return rows.map(row => ({
             id: row.id,
             gameId: row.gameId,
             fromUserId: row.fromUserId,
@@ -50,10 +50,10 @@ class GameGiftRepository {
             createdAt: new Date(row.createdAt),
             claimedAt: row.claimedAt ? new Date(row.claimedAt) : undefined,
             isActive: Boolean(row.isActive),
-            message: row.message
+            message: row.message,
         }));
     }
-    
+    // Surcharges utilisant la méthode générique
     async getGiftByCode(giftCode) {
         const gifts = await this.getGifts({ giftCode });
         return gifts[0] || null;
@@ -63,14 +63,13 @@ class GameGiftRepository {
         return gifts[0] || null;
     }
     async getUserSentGifts(userId) {
-        return await this.getGifts({ fromUserId: userId }, "createdAt DESC");
+        return await this.getGifts({ fromUserId: userId }, 'createdAt DESC');
     }
     async getUserReceivedGifts(userId) {
-        return await this.getGifts({ toUserId: userId }, "claimedAt DESC");
+        return await this.getGifts({ toUserId: userId }, 'claimedAt DESC');
     }
     async revokeGift(giftId) {
         await this.updateGiftStatus(giftId, false);
     }
 }
 exports.GameGiftRepository = GameGiftRepository;
-

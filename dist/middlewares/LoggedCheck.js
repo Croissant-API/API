@@ -16,8 +16,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoggedCheck = void 0;
-const container_1 = __importDefault(require("../container"));
 const inversify_1 = require("inversify");
+const container_1 = __importDefault(require("../container"));
 let LoggedCheck = class LoggedCheck {
     constructor(studioService) {
         this.studioService = studioService;
@@ -25,26 +25,24 @@ let LoggedCheck = class LoggedCheck {
 };
 exports.LoggedCheck = LoggedCheck;
 LoggedCheck.middleware = async (req, res, next) => {
-    const authHeader = req.headers["authorization"] ||
-        "Bearer " +
-            req.headers["cookie"]?.toString().split("token=")[1]?.split(";")[0];
-    const roleCookie = req.headers["cookie"]?.toString().split("role=")[1]?.split(";")[0];
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).send({ message: "Unauthorized" });
+    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
+    const roleCookie = req.headers['cookie']?.toString().split('role=')[1]?.split(';')[0];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).send({ message: 'Unauthorized' });
     }
-    const token = authHeader.split("Bearer ")[1];
+    const token = authHeader.split('Bearer ')[1];
     if (!token) {
-        return res.status(401).send({ message: "Unauthorized" });
+        return res.status(401).send({ message: 'Unauthorized' });
     }
-    const userService = container_1.default.get("UserService");
+    const userService = container_1.default.get('UserService');
     const user = await userService.authenticateUser(token);
     if (!user) {
-        return res.status(401).send({ message: "Unauthorized" });
+        return res.status(401).send({ message: 'Unauthorized' });
     }
     if (user.disabled && !user.admin) {
-        return res.status(403).send({ message: "Account is disabled" });
+        return res.status(403).send({ message: 'Account is disabled' });
     }
-    const studioService = container_1.default.get("StudioService");
+    const studioService = container_1.default.get('StudioService');
     const studios = await studioService.getUserStudios(user.user_id);
     const roles = [user.user_id, ...studios.map((s) => s.user_id)];
     let roleUser = null;
@@ -59,7 +57,6 @@ LoggedCheck.middleware = async (req, res, next) => {
     next();
 };
 exports.LoggedCheck = LoggedCheck = __decorate([
-    __param(0, (0, inversify_1.inject)("StudioService")),
+    __param(0, (0, inversify_1.inject)('StudioService')),
     __metadata("design:paramtypes", [Object])
 ], LoggedCheck);
-

@@ -15,10 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GameService = void 0;
 const inversify_1 = require("inversify");
 const GameRepository_1 = require("../repositories/GameRepository");
+const BadgeService_1 = require("./BadgeService");
+const GameViewService_1 = require("./GameViewService");
 let GameService = class GameService {
     constructor(databaseService) {
         this.databaseService = databaseService;
         this.gameRepository = new GameRepository_1.GameRepository(this.databaseService);
+        this.badgeService = new BadgeService_1.BadgeService(this.databaseService);
+        this.gameViewService = new GameViewService_1.GameViewService(this.databaseService);
     }
     async getGame(gameId) {
         return this.gameRepository.getGame(gameId);
@@ -52,11 +56,27 @@ let GameService = class GameService {
     }
     async createGame(game) {
         await this.gameRepository.createGame(game);
+        // Ajouter le badge "nouveau" pour 10 jours
+        try {
+            await this.badgeService.addBadgeToGame(game.gameId, 'nouveau');
+        }
+        catch (error) {
+            console.error("Error adding 'nouveau' badge to game:", error);
+        }
     }
     async updateGame(gameId, game) {
-        const { fields, values } = buildUpdateFields(game, ["owners"]);
+        const { fields, values } = buildUpdateFields(game, ['owners', 'markAsUpdated']);
         if (fields.length)
             await this.gameRepository.updateGame(gameId, fields, values);
+        // Si markAsUpdated est true, ajouter le badge "mise-a-jour"
+        if (game.markAsUpdated) {
+            try {
+                await this.badgeService.addBadgeToGame(gameId, 'mise-a-jour');
+            }
+            catch (error) {
+                console.error("Error adding 'mise-a-jour' badge to game:", error);
+            }
+        }
     }
     async deleteGame(gameId) {
         await this.gameRepository.deleteGame(gameId);
@@ -70,7 +90,7 @@ let GameService = class GameService {
     async transferOwnership(gameId, newOwnerId) {
         const game = await this.getGame(gameId);
         if (!game)
-            throw new Error("Game not found");
+            throw new Error('Game not found');
         await this.updateGame(gameId, { owner_id: newOwnerId });
     }
     async canUserGiftGame() {
@@ -81,43 +101,72 @@ let GameService = class GameService {
         return games.some(game => game.gameId === gameId);
     }
     async transferGameCopy(gameId, fromUserId, toUserId) {
-        const [fromOwns, toOwns, game] = await Promise.all([
-            this.userOwnsGame(gameId, fromUserId),
-            this.userOwnsGame(gameId, toUserId),
-            this.getGame(gameId)
-        ]);
+        const [fromOwns, toOwns, game] = await Promise.all([this.userOwnsGame(gameId, fromUserId), this.userOwnsGame(gameId, toUserId), this.getGame(gameId)]);
         if (!fromOwns)
             throw new Error("You don't own this game");
         if (toOwns)
-            throw new Error("Recipient already owns this game");
+            throw new Error('Recipient already owns this game');
         if (!game)
-            throw new Error("Game not found");
+            throw new Error('Game not found');
         if (game.owner_id === fromUserId)
-            throw new Error("Game creator cannot transfer their copy");
+            throw new Error('Game creator cannot transfer their copy');
         await this.removeOwner(gameId, fromUserId);
         await this.addOwner(gameId, toUserId);
     }
     async canTransferGame(gameId, fromUserId, toUserId) {
-        const [fromOwns, toOwns, game] = await Promise.all([
-            this.userOwnsGame(gameId, fromUserId),
-            this.userOwnsGame(gameId, toUserId),
-            this.getGame(gameId)
-        ]);
+        const [fromOwns, toOwns, game] = await Promise.all([this.userOwnsGame(gameId, fromUserId), this.userOwnsGame(gameId, toUserId), this.getGame(gameId)]);
         if (!fromOwns)
             return { canTransfer: false, reason: "You don't own this game" };
         if (toOwns)
-            return { canTransfer: false, reason: "Recipient already owns this game" };
+            return { canTransfer: false, reason: 'Recipient already owns this game' };
         if (!game)
-            return { canTransfer: false, reason: "Game not found" };
+            return { canTransfer: false, reason: 'Game not found' };
         if (game.owner_id === fromUserId)
-            return { canTransfer: false, reason: "Game creator cannot transfer their copy" };
+            return { canTransfer: false, reason: 'Game creator cannot transfer their copy' };
         return { canTransfer: true };
+    }
+    async getGameWithBadgesAndViews(gameId) {
+        const game = await this.getGame(gameId);
+        if (!game)
+            return null;
+        const [badges, views] = await Promise.all([this.badgeService.getActiveBadgesForGame(gameId), this.gameViewService.getGameViewStats(gameId)]);
+        return {
+            ...game,
+            badges,
+            views,
+        };
+    }
+    async getGamesWithBadgesAndViews(gameIds) {
+        if (gameIds.length === 0)
+            return [];
+        const [games, viewsMap] = await Promise.all([Promise.all(gameIds.map(id => this.getGame(id))), this.gameViewService.getViewsForGames(gameIds)]);
+        const results = [];
+        for (let i = 0; i < games.length; i++) {
+            const game = games[i];
+            if (game) {
+                const badges = await this.badgeService.getActiveBadgesForGame(game.gameId);
+                const views = viewsMap[game.gameId] || {
+                    gameId: game.gameId,
+                    total_views: 0,
+                    unique_views: 0,
+                    views_today: 0,
+                    views_this_week: 0,
+                    views_this_month: 0,
+                };
+                results.push({
+                    ...game,
+                    badges,
+                    views,
+                });
+            }
+        }
+        return results;
     }
 };
 exports.GameService = GameService;
 exports.GameService = GameService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
     __metadata("design:paramtypes", [Object])
 ], GameService);
 function toDbBool(val) {
@@ -130,10 +179,7 @@ function buildUpdateFields(obj, skip = []) {
         if (skip.includes(key))
             continue;
         fields.push(`${key} = ?`);
-        values.push(["showInStore", "multiplayer"].includes(key)
-            ? toDbBool(obj[key])
-            : obj[key]);
+        values.push(['showInStore', 'multiplayer'].includes(key) ? toDbBool(obj[key]) : obj[key]);
     }
     return { fields, values };
 }
-

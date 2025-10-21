@@ -15,7 +15,7 @@ export class BadgeRepository {
         b.id, b.name, b.display_name, b.color, b.icon, gb.expires_at
       FROM game_badges gb
       JOIN badge_types b ON gb.badge_id = b.id
-      WHERE gb.game_id = ? AND gb.expires_at > NOW()
+      WHERE gb.game_id = ? AND gb.expires_at > datetime('now')
       ORDER BY gb.created_at DESC`,
       [gameId]
     );
@@ -28,15 +28,15 @@ export class BadgeRepository {
 
     await this.databaseService.request(
       `INSERT INTO game_badges (game_id, badge_id, created_at, expires_at)
-       VALUES (?, ?, NOW(), ?)
-       ON DUPLICATE KEY UPDATE 
-       created_at = NOW(), expires_at = ?`,
+       VALUES (?, ?, datetime('now'), ?)
+       ON CONFLICT (game_id, badge_id) DO UPDATE SET 
+       created_at = datetime('now'), expires_at = ?`,
       [gameId, badgeId, expiresAt, expiresAt]
     );
   }
 
   async removeExpiredBadges(): Promise<void> {
-    await this.databaseService.request('DELETE FROM game_badges WHERE expires_at < NOW()');
+    await this.databaseService.request('DELETE FROM game_badges WHERE expires_at < datetime("now")');
   }
 
   async getBadgeTypeByName(name: string): Promise<BadgeType | null> {
@@ -44,3 +44,5 @@ export class BadgeRepository {
     return result.length > 0 ? result[0] : null;
   }
 }
+
+

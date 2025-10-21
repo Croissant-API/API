@@ -16,9 +16,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudioService = void 0;
+const crypto_1 = __importDefault(require("crypto"));
 const inversify_1 = require("inversify");
 const StudioRepository_1 = require("../repositories/StudioRepository");
-const crypto_1 = __importDefault(require("crypto"));
 const GenKey_1 = require("../utils/GenKey");
 let StudioService = class StudioService {
     constructor(db, userService) {
@@ -42,7 +42,7 @@ let StudioService = class StudioService {
         return Promise.all(studios.map(async (s) => {
             const userIds = [...s.users, s.admin_id];
             const users = await this.getUsersByIds(userIds);
-            const me = await this.userService.getUser(s.user_id);
+            const me = (await this.userService.getUser(s.user_id));
             return {
                 user_id: s.user_id,
                 admin_id: s.admin_id,
@@ -60,7 +60,7 @@ let StudioService = class StudioService {
     async addUserToStudio(studioId, user) {
         const studio = await this.getStudio(studioId);
         if (!studio)
-            throw new Error("Studio not found");
+            throw new Error('Studio not found');
         if (!studio.users.some(u => u.user_id === user.user_id)) {
             await this.setStudioProperties(studioId, studio.admin_id, [...studio.users, user]);
         }
@@ -68,7 +68,7 @@ let StudioService = class StudioService {
     async removeUserFromStudio(studioId, userId) {
         const studio = await this.getStudio(studioId);
         if (!studio)
-            throw new Error("Studio not found");
+            throw new Error('Studio not found');
         await this.setStudioProperties(studioId, studio.admin_id, studio.users.filter(u => u.user_id !== userId));
     }
     async getUser(user_id) {
@@ -77,14 +77,13 @@ let StudioService = class StudioService {
     async getUsersByIds(userIds) {
         if (!userIds.length)
             return [];
-        return this.db.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => "?").join(",")})`, userIds);
+        return this.db.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
     }
 };
 exports.StudioService = StudioService;
 exports.StudioService = StudioService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __param(1, (0, inversify_1.inject)("UserService")),
+    __param(0, (0, inversify_1.inject)('DatabaseService')),
+    __param(1, (0, inversify_1.inject)('UserService')),
     __metadata("design:paramtypes", [Object, Object])
 ], StudioService);
-

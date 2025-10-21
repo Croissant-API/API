@@ -7,7 +7,7 @@ export class GameViewRepository {
   async addView(gameId: string, viewerCookie: string, ipAddress: string, userAgent?: string): Promise<void> {
     await this.databaseService.request(
       `INSERT INTO game_views (game_id, viewer_cookie, ip_address, viewed_at, user_agent)
-       VALUES (?, ?, ?, NOW(), ?)`,
+       VALUES (?, ?, ?, datetime('now'), ?)`,
       [gameId, viewerCookie, ipAddress, userAgent || null]
     );
   }
@@ -16,7 +16,7 @@ export class GameViewRepository {
     const result = await this.databaseService.read<{ count: number }>(
       `SELECT COUNT(*) as count FROM game_views 
        WHERE game_id = ? AND viewer_cookie = ? 
-       AND DATE(viewed_at) = CURDATE()`,
+       AND date(viewed_at) = date('now')`,
       [gameId, viewerCookie]
     );
     return result.length > 0 && result[0].count > 0;
@@ -28,9 +28,9 @@ export class GameViewRepository {
         ? as gameId,
         COUNT(*) as total_views,
         COUNT(DISTINCT viewer_cookie) as unique_views,
-        COUNT(CASE WHEN DATE(viewed_at) = CURDATE() THEN 1 END) as views_today,
-        COUNT(CASE WHEN viewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as views_this_week,
-        COUNT(CASE WHEN viewed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as views_this_month
+        COUNT(CASE WHEN date(viewed_at) = date('now') THEN 1 END) as views_today,
+        COUNT(CASE WHEN viewed_at >= datetime('now', '-7 days') THEN 1 END) as views_this_week,
+        COUNT(CASE WHEN viewed_at >= datetime('now', '-30 days') THEN 1 END) as views_this_month
       FROM game_views 
       WHERE game_id = ?`,
       [gameId, gameId]
@@ -47,9 +47,9 @@ export class GameViewRepository {
         game_id as gameId,
         COUNT(*) as total_views,
         COUNT(DISTINCT viewer_cookie) as unique_views,
-        COUNT(CASE WHEN DATE(viewed_at) = CURDATE() THEN 1 END) as views_today,
-        COUNT(CASE WHEN viewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as views_this_week,
-        COUNT(CASE WHEN viewed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as views_this_month
+        COUNT(CASE WHEN date(viewed_at) = date('now') THEN 1 END) as views_today,
+        COUNT(CASE WHEN viewed_at >= datetime('now', '-7 days') THEN 1 END) as views_this_week,
+        COUNT(CASE WHEN viewed_at >= datetime('now', '-30 days') THEN 1 END) as views_this_month
       FROM game_views 
       WHERE game_id IN (${placeholders})
       GROUP BY game_id`,
@@ -78,6 +78,8 @@ export class GameViewRepository {
   }
 
   async cleanupOldViews(daysToKeep: number = 365): Promise<void> {
-    await this.databaseService.request('DELETE FROM game_views WHERE viewed_at < DATE_SUB(NOW(), INTERVAL ? DAY)', [daysToKeep]);
+    await this.databaseService.request('DELETE FROM game_views WHERE viewed_at < datetime("now", "-" || ? || " days")', [daysToKeep]);
   }
 }
+
+

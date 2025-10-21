@@ -65,7 +65,7 @@ export class UserRepository {
   }
 
   async createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string, created_at?: string): Promise<void> {
-    await this.databaseService.request('INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)', [user_id, username, email, password, provider === 'discord' ? providerId : null, provider === 'google' ? providerId : null, created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+    await this.databaseService.request('INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, COALESCE(?, datetime("now")))', [user_id, username, email, password, provider === 'discord' ? providerId : null, provider === 'google' ? providerId : null, created_at]);
   }
 
   async createBrandUser(user_id: string, username: string): Promise<void> {
@@ -111,3 +111,5 @@ export class UserRepository {
     return users.length > 0 ? users[0] : null;
   }
 }
+
+

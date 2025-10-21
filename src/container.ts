@@ -39,3 +39,4 @@ container.bind<IBadgeService>('BadgeService').to(BadgeService).inSingletonScope(
 container.bind<IGameViewService>('GameViewService').to(GameViewService).inSingletonScope();
 
 export default container;
+

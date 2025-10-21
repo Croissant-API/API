@@ -1,7 +1,7 @@
-import { Studio, StudioUser, StudioWithApiKey } from "../interfaces/Studio";
-import { User } from "../interfaces/User";
-import { IDatabaseService } from "./DatabaseService";
-import { IUserService } from "./UserService";
+import { Studio, StudioUser, StudioWithApiKey } from '../interfaces/Studio';
+import { User } from '../interfaces/User';
+import { IDatabaseService } from './DatabaseService';
+import { IUserService } from './UserService';
 export interface IStudioService {
     getStudio(user_id: string): Promise<Studio | null>;
     setStudioProperties(user_id: string, admin_id: string, users: User[]): Promise<void>;

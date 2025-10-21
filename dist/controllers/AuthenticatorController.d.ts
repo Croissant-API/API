@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { ILogService } from "../services/LogService";
-import { IUserService } from "../services/UserService";
+import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { ILogService } from '../services/LogService';
+import { IUserService } from '../services/UserService';
 export declare class Authenticator {
     private userService;
     private logService;
