@@ -128,9 +128,9 @@ export class Lobbies {
       }
       await this.createLog(c, 'getLobby', 'lobbies', 200);
       return c.json(lobby);
-    } catch (error) {
+    } catch (error: any) {
       await this.createLog(c, 'getLobby', 'lobbies', 500);
-      return this.sendError(c, 500, 'Error fetching lobby');
+      return this.sendError(c, 500, error?.message || 'Error fetching lobby');
     }
   }
 

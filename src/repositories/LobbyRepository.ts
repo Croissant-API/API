@@ -3,7 +3,7 @@ import { PublicUser } from '../interfaces/User';
 import { IDatabaseService } from '../services/DatabaseService';
 
 export class LobbyRepository {
-  constructor(private databaseService: IDatabaseService) {}
+  constructor(private databaseService: IDatabaseService) { }
 
   async getLobbies(filters: { lobbyId?: string; userId?: string } = {}): Promise<Lobby[]> {
     const query = 'SELECT lobbyId, users FROM lobbies WHERE 1=1';
@@ -58,9 +58,13 @@ export class LobbyRepository {
 
   private async getUsersByIds(userIds: string[]): Promise<PublicUser[]> {
     if (userIds.length === 0) return [];
+    if (!Array.isArray(userIds))
+      userIds = JSON.parse(userIds);
+    console.log('Fetching users for IDs:', userIds);
 
     return await this.databaseService.read<PublicUser>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')}) AND disabled = 0`, userIds);
   }
+
 
   private async getUsersIdOnly(users: PublicUser[]): Promise<string[]> {
     return users.map(user => user.user_id);
