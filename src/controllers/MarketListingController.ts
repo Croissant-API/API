@@ -1,24 +1,13 @@
-import { Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
-import { InventoryItem } from '../interfaces/Inventory';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Context } from 'hono';
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
+import { controller, httpGet, httpPost, httpPut } from '../hono-inversify';
 import { ILogService } from '../services/LogService';
 import { IMarketListingService } from '../services/MarketListingService';
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
-}
-
-function getPagination(req: AuthenticatedRequest) {
-  return {
-    limit: req.query.limit ? Number(req.query.limit) : 50,
-    offset: req.query.offset ? Number(req.query.offset) : 0,
-    search: req.query.q as string,
-  };
-}
-
+@injectable()
 @controller('/market-listings')
 export class MarketListingController {
   constructor(
@@ -26,16 +15,24 @@ export class MarketListingController {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async createLog(req: AuthenticatedRequest, action: string, tableName?: string, statusCode?: number, userId?: string) {
+  private sendError(c: Context, status: number, message: string) {
+    return c.json({ message }, status as any);
+  }
+
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, body?: any) {
     try {
+      const clientIP = c.req.header('cf-connecting-ip') ||
+        c.req.header('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        'unknown';
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
         controller: `MarketListingController.${action}`,
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: req.body,
-        user_id: userId ?? req.user?.user_id,
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(body || {}),
+        user_id: userId,
         status_code: statusCode,
       });
     } catch (error) {
@@ -43,137 +40,143 @@ export class MarketListingController {
     }
   }
 
-  @httpPost('/', LoggedCheck.middleware)
-  public async createMarketListing(req: AuthenticatedRequest, res: Response) {
-    const sellerId = req.user.user_id;
-    const { inventoryItem, sellingPrice } = req.body as { inventoryItem: InventoryItem; sellingPrice: number };
+  private getUserFromContext(c: Context) {
+    return c.get('user');
+  }
 
+  @httpPost('/', LoggedCheck)
+  public async createMarketListing(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const body = await c.req.json();
+    const { inventoryItem, sellingPrice } = body;
     if (!inventoryItem || typeof sellingPrice !== 'number') {
-      await this.createLog(req, 'createMarketListing', 'market_listings', 400, sellerId);
-      return res.status(400).send({ message: 'inventoryItem and sellingPrice are required' });
+      await this.createLog(c, 'createMarketListing', 'market_listings', 400, user.user_id, body);
+      return this.sendError(c, 400, 'inventoryItem and sellingPrice are required');
     }
-
     try {
-      const listing = await this.marketListingService.createMarketListing(sellerId, inventoryItem, sellingPrice);
-      await this.createLog(req, 'createMarketListing', 'market_listings', 201, sellerId);
-      res.status(201).send(listing);
+      const listing = await this.marketListingService.createMarketListing(user.user_id, inventoryItem, sellingPrice);
+      await this.createLog(c, 'createMarketListing', 'market_listings', 201, user.user_id, body);
+      return c.json(listing, 201);
     } catch (error) {
-      await this.createLog(req, 'createMarketListing', 'market_listings', 500, sellerId);
-      handleError(res, error, 'Error while creating the market listing');
+      await this.createLog(c, 'createMarketListing', 'market_listings', 500, user.user_id, body);
+      return this.sendError(c, 500, 'Error while creating the market listing');
     }
   }
 
-  @httpPut('/:id/cancel', LoggedCheck.middleware)
-  public async cancelMarketListing(req: AuthenticatedRequest, res: Response) {
-    const sellerId = req.user.user_id;
-    const listingId = req.params.id;
-
+  @httpPut('/:id/cancel', LoggedCheck)
+  public async cancelMarketListing(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const listingId = c.req.param('id');
     try {
-      await this.marketListingService.cancelMarketListing(listingId, sellerId);
-      await this.createLog(req, 'cancelMarketListing', 'market_listings', 200, sellerId);
-      res.status(200).send({ message: 'Market listing cancelled' });
+      await this.marketListingService.cancelMarketListing(listingId, user.user_id);
+      await this.createLog(c, 'cancelMarketListing', 'market_listings', 200, user.user_id);
+      return c.json({ message: 'Market listing cancelled' });
     } catch (error) {
-      await this.createLog(req, 'cancelMarketListing', 'market_listings', 500, sellerId);
-      handleError(res, error, 'Error while cancelling the market listing');
+      await this.createLog(c, 'cancelMarketListing', 'market_listings', 500, user.user_id);
+      return this.sendError(c, 500, 'Error while cancelling the market listing');
     }
   }
 
-  @httpGet('/user/:userId', LoggedCheck.middleware)
-  public async getMarketListingsByUser(req: AuthenticatedRequest, res: Response) {
-    const userId = req.params.userId;
-    if (userId !== req.user.user_id) {
-      await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 403, req.user.user_id);
-      return res.status(403).send({ message: 'Forbidden' });
+  @httpGet('/user/:userId', LoggedCheck)
+  public async getMarketListingsByUser(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const userId = c.req.param('userId');
+    if (userId !== user.user_id) {
+      await this.createLog(c, 'getMarketListingsByUser', 'market_listings', 403, user.user_id);
+      return this.sendError(c, 403, 'Forbidden');
     }
     try {
       const listings = await this.marketListingService.getMarketListingsByUser(userId);
-      await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 200, userId);
-      res.send(listings);
+      await this.createLog(c, 'getMarketListingsByUser', 'market_listings', 200, userId);
+      return c.json(listings);
     } catch (error) {
-      await this.createLog(req, 'getMarketListingsByUser', 'market_listings', 500, userId);
-      handleError(res, error, 'Error while fetching market listings');
+      await this.createLog(c, 'getMarketListingsByUser', 'market_listings', 500, userId);
+      return this.sendError(c, 500, 'Error while fetching market listings');
     }
   }
 
   @httpGet('/item/:itemId')
-  public async getActiveListingsForItem(req: AuthenticatedRequest, res: Response) {
-    const itemId = req.params.itemId;
+  public async getActiveListingsForItem(c: Context) {
+    const itemId = c.req.param('itemId');
     try {
       const listings = await this.marketListingService.getActiveListingsForItem(itemId);
-      await this.createLog(req, 'getActiveListingsForItem', 'market_listings', 200, req.user?.user_id);
-      res.send(listings);
+      await this.createLog(c, 'getActiveListingsForItem', 'market_listings', 200, undefined);
+      return c.json(listings);
     } catch (error) {
-      await this.createLog(req, 'getActiveListingsForItem', 'market_listings', 500, req.user?.user_id);
-      handleError(res, error, 'Error while fetching active market listings');
+      await this.createLog(c, 'getActiveListingsForItem', 'market_listings', 500, undefined);
+      return this.sendError(c, 500, 'Error while fetching active market listings');
     }
   }
 
   @httpGet('/:id')
-  public async getMarketListingById(req: AuthenticatedRequest, res: Response) {
-    const listingId = req.params.id;
+  public async getMarketListingById(c: Context) {
+    const listingId = c.req.param('id');
     try {
       const listing = await this.marketListingService.getMarketListingById(listingId);
       if (!listing) {
-        await this.createLog(req, 'getMarketListingById', 'market_listings', 404, req.user?.user_id);
-        return res.status(404).send({ message: 'Market listing not found' });
+        await this.createLog(c, 'getMarketListingById', 'market_listings', 404, undefined);
+        return this.sendError(c, 404, 'Market listing not found');
       }
-      await this.createLog(req, 'getMarketListingById', 'market_listings', 200, req.user?.user_id);
-      res.send(listing);
+      await this.createLog(c, 'getMarketListingById', 'market_listings', 200, undefined);
+      return c.json(listing);
     } catch (error) {
-      await this.createLog(req, 'getMarketListingById', 'market_listings', 500, req.user?.user_id);
-      handleError(res, error, 'Error while fetching the market listing');
+      await this.createLog(c, 'getMarketListingById', 'market_listings', 500, undefined);
+      return this.sendError(c, 500, 'Error while fetching the market listing');
     }
   }
 
   @httpGet('/')
-  public async getEnrichedMarketListings(req: AuthenticatedRequest, res: Response) {
-    const { limit, offset } = getPagination(req);
+  public async getEnrichedMarketListings(c: Context) {
+    const limit = c.req.query('limit');
+    const offset = c.req.query('offset');
     try {
-      const listings = await this.marketListingService.getEnrichedMarketListings(limit, offset);
-      await this.createLog(req, 'getEnrichedMarketListings', 'market_listings', 200, req.user?.user_id);
-      res.send(listings);
+      const listings = await this.marketListingService.getEnrichedMarketListings(Number(limit) || 50, Number(offset) || 0);
+      await this.createLog(c, 'getEnrichedMarketListings', 'market_listings', 200, undefined);
+      return c.json(listings);
     } catch (error) {
-      await this.createLog(req, 'getEnrichedMarketListings', 'market_listings', 500, req.user?.user_id);
-      handleError(res, error, 'Error while fetching enriched market listings');
+      await this.createLog(c, 'getEnrichedMarketListings', 'market_listings', 500, undefined);
+      return this.sendError(c, 500, 'Error while fetching enriched market listings');
     }
   }
 
   @httpGet('/search')
-  public async searchMarketListings(req: AuthenticatedRequest, res: Response) {
-    const { search, limit } = getPagination(req);
-    if (!search) {
-      await this.createLog(req, 'searchMarketListings', 'market_listings', 400, req.user?.user_id);
-      return res.status(400).send({ message: 'Parameter q is required' });
+  public async searchMarketListings(c: Context) {
+    const q = c.req.query('q');
+    const limit = c.req.query('limit');
+    if (!q) {
+      await this.createLog(c, 'searchMarketListings', 'market_listings', 400, undefined);
+      return this.sendError(c, 400, 'Parameter q is required');
     }
     try {
-      const listings = await this.marketListingService.searchMarketListings(search, limit);
-      await this.createLog(req, 'searchMarketListings', 'market_listings', 200, req.user?.user_id);
-      res.send(listings);
+      const listings = await this.marketListingService.searchMarketListings(String(q), Number(limit) || 50);
+      await this.createLog(c, 'searchMarketListings', 'market_listings', 200, undefined);
+      return c.json(listings);
     } catch (error) {
-      await this.createLog(req, 'searchMarketListings', 'market_listings', 500, req.user?.user_id);
-      handleError(res, error, 'Error while searching market listings');
+      await this.createLog(c, 'searchMarketListings', 'market_listings', 500, undefined);
+      return this.sendError(c, 500, 'Error while searching market listings');
     }
   }
 
-  @httpPost('/:id/buy', LoggedCheck.middleware)
-  public async buyMarketListing(req: AuthenticatedRequest, res: Response) {
-    if (!req.user || !req.user.user_id) {
-      await this.createLog(req, 'buyMarketListing', 'market_listings', 401, undefined);
-      return res.status(401).send({ message: 'Unauthorized' });
-    }
-    const listingId = req.params.id;
+  @httpPost('/:id/buy', LoggedCheck)
+  public async buyMarketListing(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const listingId = c.req.param('id');
     try {
       const listing = await this.marketListingService.getMarketListingById(listingId);
       if (!listing) {
-        await this.createLog(req, 'buyMarketListing', 'market_listings', 404, req.user.user_id);
-        return res.status(404).send({ message: 'Market listing not found' });
+        await this.createLog(c, 'buyMarketListing', 'market_listings', 404, user.user_id);
+        return this.sendError(c, 404, 'Market listing not found');
       }
-      const result = await this.marketListingService.buyMarketListing(listing.id, req.user.user_id);
-      await this.createLog(req, 'buyMarketListing', 'market_listings', 200, req.user.user_id);
-      res.send(result);
+      const result = await this.marketListingService.buyMarketListing(listing.id, user.user_id);
+      await this.createLog(c, 'buyMarketListing', 'market_listings', 200, user.user_id);
+      return c.json(result);
     } catch (error) {
-      await this.createLog(req, 'buyMarketListing', 'market_listings', 500, req.user.user_id);
-      handleError(res, error, 'Error while buying market listing');
+      await this.createLog(c, 'buyMarketListing', 'market_listings', 500, user.user_id);
+      return this.sendError(c, 500, 'Error while buying market listing');
     }
   }
 }

@@ -1,10 +1,10 @@
-import { Request, Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { controller, httpGet } from 'hono-inversify';
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
 import Stripe from 'stripe';
 import * as yup from 'yup';
-import { Schema, ValidationError } from 'yup';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 
@@ -49,27 +49,11 @@ const checkoutQuerySchema = yup.object({
     .required(),
 });
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
+function sendError(c: Context, status: number, message: string, error?: unknown) {
+  return c.json({ message, error: error instanceof Error ? error.message : error }, status as any);
 }
 
-async function validateOr400(schema: Schema<unknown>, data: unknown, res: Response) {
-  try {
-    await schema.validate(data);
-    return true;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      res.status(400).send({
-        message: 'Validation failed',
-        errors: error.errors,
-      });
-      return false;
-    }
-    throw error;
-  }
-}
-
+@injectable()
 @controller('/stripe')
 export class StripeController {
   private stripe: Stripe;
@@ -86,117 +70,119 @@ export class StripeController {
     });
   }
 
-  private async createLog(req: Request, tableName?: string, statusCode?: number, metadata?: object, user_id?: string) {
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object, body?: any) {
     try {
-      const requestBody = { ...req.body };
-      if (metadata) requestBody.metadata = metadata;
+      let requestBody: any = body || { note: 'Body not provided for logging' };
+      if (metadata) requestBody = { ...requestBody, metadata };
+      const clientIP = c.req.header('cf-connecting-ip') ||
+        c.req.header('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        'unknown';
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
-        controller: 'StripeController',
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: requestBody,
+        controller: `StripeController.${action}`,
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(requestBody),
+        user_id: userId,
         status_code: statusCode,
-        user_id: user_id,
       });
     } catch (error) {
-      console.error('Failed to log action:', error);
+      console.error('Error creating log:', error);
     }
   }
 
-  @httpPost('/webhook')
-  public async handleWebhook(req: Request, res: Response) {
-    if (!STRIPE_WEBHOOK_SECRET) {
-      await this.createLog(req, 'stripe_webhooks', 500);
-      return handleError(res, new Error('Webhook secret not configured'), 'Stripe webhook secret is not set', 500);
-    }
-
-    const sig = req.headers['stripe-signature'] as string;
-    if (!sig) {
-      await this.createLog(req, 'stripe_webhooks', 400);
-      return handleError(res, new Error('Missing signature'), 'Missing Stripe signature', 400);
-    }
-
-    let event: Stripe.Event;
-    try {
-      event = this.stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-      await this.createLog(req, 'stripe_webhooks', 400, { error: 'signature_verification_failed' });
-      return handleError(res, err, 'Webhook signature verification failed', 400);
-    }
-
-    try {
-      await this.processWebhookEvent(event);
-      await this.createLog(req, 'stripe_webhooks', 200, {
-        event_type: event.type,
-        event_id: event.id,
-      });
-      res.status(200).send({ received: true });
-    } catch (error) {
-      await this.createLog(req, 'stripe_webhooks', 500, {
-        event_type: event.type,
-        event_id: event.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      handleError(res, error, 'Error processing webhook event');
-    }
+  async getTiers(c: Context) {
+    await this.createLog(c, 'getTiers', undefined, 200);
+    return c.json(CREDIT_TIERS, 200);
   }
 
-  @httpGet('/checkout', LoggedCheck.middleware)
-  public async checkoutEndpoint(req: AuthenticatedRequest, res: Response) {
-    //res.send("This endpoint is temporarly disabled, please retry later")
-    //return;
-
-    if (!(await validateOr400(checkoutQuerySchema, req.query, res))) {
-      await this.createLog(req, 'stripe_sessions', 400);
-      return;
-    }
-
+  @httpGet('/checkout', LoggedCheck)
+  async checkout(c: Context) {
     try {
-      const { tier } = req.query as { tier: string };
-      const selectedTier = CREDIT_TIERS.find(t => t.id === tier);
+      const query = c.req.query();
+      try {
+        await checkoutQuerySchema.validate(query);
+      } catch (error) {
+        await this.createLog(c, 'checkout', 'stripe_sessions', 400, undefined, undefined, query);
+        return sendError(c, 400, 'Validation failed', error);
+      }
 
+      const user = c.get('user');
+      if (!user) {
+        await this.createLog(c, 'checkout', 'stripe_sessions', 401);
+        return sendError(c, 401, 'Unauthorized');
+      }
+
+      const selectedTier = CREDIT_TIERS.find(t => t.id === query.tier);
       if (!selectedTier) {
-        await this.createLog(req, 'stripe_sessions', 400, { tier, reason: 'invalid_tier' }, req.user?.user_id);
-        return res.status(400).send({
-          message: 'Invalid tier selected',
-          availableTiers: CREDIT_TIERS.map(t => t.id),
-        });
+        await this.createLog(c, 'checkout', 'stripe_sessions', 400, user.user_id, { tier: query.tier, reason: 'invalid_tier' }, query);
+        return sendError(c, 400, 'Invalid tier selected');
       }
 
-      const session = await this.createCheckoutSession(selectedTier, req.user.user_id);
-
+      const session = await this.createCheckoutSession(selectedTier, user.user_id);
       if (!session.url) {
-        await this.createLog(req, 'stripe_sessions', 500, {
-          tier: selectedTier.id,
-          reason: 'no_session_url',
-        });
-        return res.status(500).send({
-          message: 'Failed to create checkout session',
-          error: 'Stripe session URL is null',
-        });
+        await this.createLog(c, 'checkout', 'stripe_sessions', 500, user.user_id, { tier: selectedTier.id, reason: 'no_session_url' }, query);
+        return sendError(c, 500, 'Failed to create checkout session');
       }
 
-      await this.createLog(req, 'stripe_sessions', 200, {
+      await this.createLog(c, 'checkout', 'stripe_sessions', 200, user.user_id, {
         tier: selectedTier.id,
         credits: selectedTier.credits,
         price: selectedTier.price,
         session_id: session.id,
-      });
-      res.send({ url: session.url });
+      }, query);
+
+      return c.json({ url: session.url }, 200);
     } catch (error) {
-      await this.createLog(req, 'stripe_sessions', 500, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      handleError(res, error, 'Error creating checkout session');
+      const user = c.get('user');
+      await this.createLog(c, 'checkout', 'stripe_sessions', 500, user?.user_id, { error: error instanceof Error ? error.message : String(error) });
+      return sendError(c, 500, 'Error creating checkout session', error);
     }
   }
 
-  @httpGet('/tiers')
-  public async getTiers(req: Request, res: Response) {
-    await this.createLog(req, undefined, 200);
-    res.send(CREDIT_TIERS);
+  async webhook(c: Context) {
+    try {
+      if (!STRIPE_WEBHOOK_SECRET) {
+        await this.createLog(c, 'webhook', 'stripe_webhooks', 500);
+        return sendError(c, 500, 'Stripe webhook secret is not set');
+      }
+
+      const sig = c.req.header('stripe-signature');
+      if (!sig) {
+        await this.createLog(c, 'webhook', 'stripe_webhooks', 400);
+        return sendError(c, 400, 'Missing Stripe signature');
+      }
+
+      let event: Stripe.Event;
+      try {
+        const body = await c.req.text();
+        event = this.stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
+      } catch (err) {
+        await this.createLog(c, 'webhook', 'stripe_webhooks', 400, undefined, { error: 'signature_verification_failed' });
+        return sendError(c, 400, 'Webhook signature verification failed', err);
+      }
+
+      try {
+        await this.processWebhookEvent(event);
+        await this.createLog(c, 'webhook', 'stripe_webhooks', 200, undefined, {
+          event_type: event.type,
+          event_id: event.id,
+        });
+        return c.json({ received: true }, 200);
+      } catch (error) {
+        await this.createLog(c, 'webhook', 'stripe_webhooks', 500, undefined, {
+          event_type: event.type,
+          event_id: event.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return sendError(c, 500, 'Error processing webhook event', error);
+      }
+    } catch (error) {
+      await this.createLog(c, 'webhook', 'stripe_webhooks', 500);
+      return sendError(c, 500, 'Internal server error', error);
+    }
   }
 
   private async processWebhookEvent(event: Stripe.Event): Promise<void> {
@@ -217,26 +203,19 @@ export class StripeController {
 
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
     const { metadata } = session;
-
     if (!metadata?.user_id || !metadata?.credits) {
       throw new Error('Invalid session metadata: missing user_id or credits');
     }
-
     const user = await this.userService.getUser(metadata.user_id);
     if (!user) {
       throw new Error(`User not found: ${metadata.user_id}`);
     }
-
     const creditsToAdd = parseInt(metadata.credits, 10);
     if (isNaN(creditsToAdd) || creditsToAdd <= 0) {
       throw new Error(`Invalid credits amount: ${metadata.credits}`);
     }
-
-    const oldBalance = user.balance;
     await this.userService.updateUserBalance(user.user_id, user.balance + creditsToAdd);
-
     console.log(`Added ${creditsToAdd} credits to user ${user.user_id} (${user.username})`);
-    console.log(`Balance updated: ${oldBalance} -> ${oldBalance + creditsToAdd}`);
   }
 
   private async createCheckoutSession(tier: (typeof CREDIT_TIERS)[number], userId: string): Promise<Stripe.Checkout.Session> {

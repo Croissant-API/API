@@ -1,54 +1,34 @@
-import { NextFunction, Request, Response } from 'express';
-import { inject } from 'inversify';
+
+import { Context, Next } from 'hono';
+import { StudioService } from 'services/StudioService';
+import { UserService } from 'services/UserService';
 import container from '../container';
-import { Studio } from '../interfaces/Studio';
-import { User } from '../interfaces/User';
-import { IStudioService } from '../services/StudioService';
-import { IUserService } from '../services/UserService';
 
-export interface AuthenticatedRequest extends Request {
-  user: User;
-  originalUser?: User;
-}
+export const LoggedCheck = async (c: Context, next: Next) => {
+  const authHeader = c.req.header('authorization') || 'Bearer ' + (c.req.header('cookie')?.split('token=')[1]?.split(';')[0] ?? '');
+  const roleCookie = c.req.header('cookie')?.split('role=')[1]?.split(';')[0];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ message: 'Unauthorized' }, 401);
 
-export class LoggedCheck {
-  constructor(@inject('StudioService') private studioService: IStudioService) {}
-  static middleware = async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
-    const roleCookie = req.headers['cookie']?.toString().split('role=')[1]?.split(';')[0];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).send({ message: 'Unauthorized' });
-    }
+  const token = authHeader.split('Bearer ')[1];
+  if (!token) return c.json({ message: 'Unauthorized' }, 401);
 
-    const token = authHeader.split('Bearer ')[1];
-    if (!token) {
-      return res.status(401).send({ message: 'Unauthorized' });
-    }
+  const userService = container.get('UserService') as UserService;
+  const user = await userService.authenticateUser(token);
+  if (!user) return c.json({ message: 'Unauthorized' }, 401);
+  if (user.disabled && !user.admin) return c.json({ message: 'Account is disabled' }, 403);
 
-    const userService = container.get('UserService') as IUserService;
-    const user: User | null = await userService.authenticateUser(token);
+  const studioService = container.get('StudioService') as StudioService;
+  const studios = await studioService.getUserStudios(user.user_id);
+  const roles = [user.user_id, ...studios.map((s) => s.user_id)];
 
-    if (!user) {
-      return res.status(401).send({ message: 'Unauthorized' });
-    }
+  let roleUser = null;
+  if (roleCookie && roles.includes(roleCookie)) {
+    roleUser = await userService.getUser(roleCookie);
+  } else {
+    roleUser = user;
+  }
 
-    if (user.disabled && !user.admin) {
-      return res.status(403).send({ message: 'Account is disabled' });
-    }
-
-    const studioService = container.get('StudioService') as IStudioService;
-    const studios = await studioService.getUserStudios(user.user_id);
-    const roles = [user.user_id, ...studios.map((s: Studio) => s.user_id)];
-
-    let roleUser = null;
-    if (roleCookie && roles.includes(roleCookie)) {
-      roleUser = await userService.getUser(roleCookie);
-    } else {
-      roleUser = user;
-    }
-
-    (req as AuthenticatedRequest).user = roleUser || user;
-    (req as AuthenticatedRequest).originalUser = user;
-    next();
-  };
-}
+  c.set('user', roleUser || user);
+  c.set('originalUser', user);
+  await next();
+};

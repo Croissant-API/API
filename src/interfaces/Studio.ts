@@ -14,5 +14,6 @@ export interface StudioUser {
 }
 
 export interface StudioWithApiKey extends Studio {
+  isAdmin: boolean;
   apiKey?: string;
 }

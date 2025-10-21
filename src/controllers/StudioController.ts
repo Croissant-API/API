@@ -1,13 +1,15 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
 import { describe } from '../decorators/describe';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+import { controller, httpGet, httpPost } from '../hono-inversify';
+import { User } from '../interfaces/User';
+import { createRateLimit } from '../middlewares/hono/rateLimit';
 import { ILogService } from '../services/LogService';
 import { IStudioService } from '../services/StudioService';
 
-const createStudioRateLimit = rateLimit({
+const createStudioRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 3, 
   message: 'Too many studio creations, please try again later.',
@@ -15,7 +17,7 @@ const createStudioRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const addUserToStudioRateLimit = rateLimit({
+const addUserToStudioRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 10, 
   message: 'Too many add user requests, please try again later.',
@@ -23,7 +25,7 @@ const addUserToStudioRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const removeUserFromStudioRateLimit = rateLimit({
+const removeUserFromStudioRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 10, 
   message: 'Too many remove user requests, please try again later.',
@@ -31,6 +33,7 @@ const removeUserFromStudioRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+@injectable()
 @controller('/studios')
 export class Studios {
   constructor(
@@ -38,34 +41,51 @@ export class Studios {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async createLog(req: Request, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
+  private sendError(c: Context, status: number, message: string, error?: string) {
+    const response: any = { message };
+    if (error) {
+      response.error = error;
+    }
+    return c.json(response, status as any);
+  }
+
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object, body?: any) {
     try {
-      const requestBody = { ...req.body, ...(metadata && { metadata }) };
+      let requestBody: any = body || { note: 'Body not provided for logging' };
+      
+      if (metadata) {
+        requestBody = { ...requestBody, metadata };
+      }
+      
+      const clientIP = c.req.header('cf-connecting-ip') || 
+                      c.req.header('x-forwarded-for') || 
+                      c.req.header('x-real-ip') || 
+                      'unknown';
+      
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
-        controller: 'StudioController',
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: requestBody,
-        user_id: userId ?? ((req as AuthenticatedRequest).user?.user_id as string),
+        controller: `StudioController.${action}`,
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(requestBody),
+        user_id: userId,
         status_code: statusCode,
       });
     } catch (error) {
-      console.error('Failed to log action:', error);
+      console.error('Error creating log:', error);
     }
   }
 
-  private async handleError(res: Response, req: Request, table: string, status: number, error: unknown, msg: string) {
-    await this.createLog(req, table, status);
-    res.status(status).send({ message: msg, error: error instanceof Error ? error.message : String(error) });
+  // Helper pour récupérer l'utilisateur authentifié depuis le context
+  private getUserFromContext(c: Context) {
+    return c.get('user') as User | undefined;
   }
 
-  private async getStudioOrError(studioId: string, req: Request, res: Response) {
+  private async getStudioOrError(studioId: string, c: Context, userId?: string) {
     const studio = await this.studioService.getStudio(studioId);
     if (!studio) {
-      await this.createLog(req, 'studios', 404);
-      res.status(404).send({ message: 'Studio not found' });
+      await this.createLog(c, 'getStudioOrError', 'studios', 404, userId, { studio_id: studioId });
       return null;
     }
     return studio;
@@ -80,17 +100,45 @@ export class Studios {
     example: 'POST /api/studios {"studioName": "My Studio"}',
     requiresAuth: true,
   })
-  @httpPost('/', LoggedCheck.middleware, createStudioRateLimit)
-  async createStudio(req: AuthenticatedRequest, res: Response) {
-    if (req.user.isStudio) return res.status(403).send({ message: "A studio can't create another studio" });
-    const { studioName } = req.body;
-    if (!studioName) return res.status(400).send({ message: 'Missing required fields' });
+  @httpPost('/', LoggedCheck, createStudioRateLimit)
+  async createStudio(c: Context) {
     try {
-      await this.studioService.createStudio(studioName, req.user.user_id);
-      await this.createLog(req, 'studios', 201);
-      res.status(201).send({ message: 'Studio created' });
+      const user = this.getUserFromContext(c);
+      
+      if (!user) {
+        await this.createLog(c, 'createStudio', 'studios', 401);
+        return this.sendError(c, 401, 'Unauthorized');
+      }
+
+      if (user.isStudio) {
+        await this.createLog(c, 'createStudio', 'studios', 403, user.user_id, {
+          reason: 'studio_cannot_create_studio',
+        });
+        return this.sendError(c, 403, "A studio can't create another studio");
+      }
+
+      const body = await c.req.json();
+      const { studioName } = body;
+      
+      if (!studioName) {
+        await this.createLog(c, 'createStudio', 'studios', 400, user.user_id, undefined, body);
+        return this.sendError(c, 400, 'Missing required fields');
+      }
+
+      await this.studioService.createStudio(studioName, user.user_id);
+      await this.createLog(c, 'createStudio', 'studios', 201, user.user_id, {
+        studio_name: studioName,
+      }, body);
+      
+      return c.json({ message: 'Studio created' }, 201);
     } catch (error) {
-      await this.handleError(res, req, 'studios', 500, error, 'Error creating studio');
+      console.error('Error creating studio:', error);
+      const user = this.getUserFromContext(c);
+      const body = await c.req.json().catch(() => ({}));
+      await this.createLog(c, 'createStudio', 'studios', 500, user?.user_id, {
+        error: error instanceof Error ? error.message : String(error),
+      }, body);
+      return this.sendError(c, 500, 'Error creating studio', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -116,14 +164,29 @@ export class Studios {
     example: 'GET /api/studios/studio123',
   })
   @httpGet('/:studioId')
-  async getStudio(req: Request, res: Response) {
+  async getStudio(c: Context) {
     try {
-      const studio = await this.getStudioOrError(req.params.studioId, req, res);
-      if (!studio) return;
-      await this.createLog(req, 'studios', 200);
-      res.send(studio);
+      const { studioId } = c.req.param();
+      const studio = await this.getStudioOrError(studioId, c);
+      
+      if (!studio) {
+        return this.sendError(c, 404, 'Studio not found');
+      }
+
+      await this.createLog(c, 'getStudio', 'studios', 200, undefined, {
+        studio_id: studioId,
+        users_count: studio.users?.length || 0,
+      });
+      
+      return c.json(studio, 200);
     } catch (error) {
-      await this.handleError(res, req, 'studios', 500, error, 'Error fetching studio');
+      console.error('Error fetching studio:', error);
+      const { studioId } = c.req.param();
+      await this.createLog(c, 'getStudio', 'studios', 500, undefined, {
+        studio_id: studioId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(c, 500, 'Error fetching studio', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -152,23 +215,43 @@ export class Studios {
     example: 'GET /api/studios/user/@me',
     requiresAuth: true,
   })
-  @httpGet('/user/@me', LoggedCheck.middleware)
-  async getMyStudios(req: AuthenticatedRequest, res: Response) {
+  @httpGet('/user/@me')
+  async getMyStudios(c: Context) {
     try {
-      const studios = await this.studioService.getUserStudios(req.user.user_id);
-      await this.createLog(req, 'studios', 200);
-      res.send(studios);
+      const user = this.getUserFromContext(c);
+      
+      if (!user) {
+        await this.createLog(c, 'getMyStudios', 'studios', 401);
+        return this.sendError(c, 401, 'Unauthorized');
+      }
+
+      const studios = await this.studioService.getUserStudios(user.user_id);
+      await this.createLog(c, 'getMyStudios', 'studios', 200, user.user_id, {
+        studios_count: studios.length,
+        user_studios: studios.map(s => ({ id: s.user_id, isAdmin: s.isAdmin })),
+      });
+      
+      return c.json(studios, 200);
     } catch (error) {
-      await this.handleError(res, req, 'studios', 500, error, 'Error fetching user studios');
+      console.error('Error fetching user studios:', error);
+      const user = this.getUserFromContext(c);
+      await this.createLog(c, 'getMyStudios', 'studios', 500, user?.user_id, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendError(c, 500, 'Error fetching user studios', error instanceof Error ? error.message : String(error));
     }
   }
 
-  private async checkStudioAdmin(req: AuthenticatedRequest, res: Response, studioId: string) {
-    const studio = await this.getStudioOrError(studioId, req, res);
+  private async checkStudioAdmin(c: Context, user: User, studioId: string) {
+    const studio = await this.getStudioOrError(studioId, c, user.user_id);
     if (!studio) return null;
-    if (studio.admin_id !== req.user.user_id) {
-      await this.createLog(req, 'studio_users', 403);
-      res.status(403).send({ message: 'Only the studio admin can modify users' });
+    
+    if (studio.admin_id !== user.user_id) {
+      await this.createLog(c, 'checkStudioAdmin', 'studio_users', 403, user.user_id, {
+        studio_id: studioId,
+        reason: 'not_admin',
+        studio_admin_id: studio.admin_id,
+      });
       return null;
     }
     return studio;
@@ -184,21 +267,61 @@ export class Studios {
     example: 'POST /api/studios/studio123/add-user {"userId": "user456"}',
     requiresAuth: true,
   })
-  @httpPost('/:studioId/add-user', LoggedCheck.middleware, addUserToStudioRateLimit)
-  async addUserToStudio(req: AuthenticatedRequest, res: Response) {
-    const { studioId } = req.params;
-    const { userId } = req.body;
-    if (!userId) return res.status(400).send({ message: 'Missing userId' });
+  @httpPost('/:studioId/add-user', LoggedCheck, addUserToStudioRateLimit)
+  async addUserToStudio(c: Context) {
     try {
-      const user = await this.studioService.getUser(userId);
-      if (!user) return res.status(404).send({ message: 'User not found' });
-      const studio = await this.checkStudioAdmin(req, res, studioId);
-      if (!studio) return;
-      await this.studioService.addUserToStudio(studioId, user);
-      await this.createLog(req, 'studio_users', 200);
-      res.send({ message: 'User added to studio' });
+      const user = this.getUserFromContext(c);
+      
+      if (!user) {
+        await this.createLog(c, 'addUserToStudio', 'studio_users', 401);
+        return this.sendError(c, 401, 'Unauthorized');
+      }
+
+      const { studioId } = c.req.param();
+      const body = await c.req.json();
+      const { userId } = body;
+      
+      if (!userId) {
+        await this.createLog(c, 'addUserToStudio', 'studio_users', 400, user.user_id, {
+          studio_id: studioId,
+          reason: 'missing_user_id',
+        }, body);
+        return this.sendError(c, 400, 'Missing userId');
+      }
+
+      const targetUser = await this.studioService.getUser(userId);
+      if (!targetUser) {
+        await this.createLog(c, 'addUserToStudio', 'studio_users', 404, user.user_id, {
+          studio_id: studioId,
+          target_user_id: userId,
+          reason: 'user_not_found',
+        }, body);
+        return this.sendError(c, 404, 'User not found');
+      }
+
+      const studio = await this.checkStudioAdmin(c, user, studioId);
+      if (!studio) {
+        return this.sendError(c, 403, 'Only the studio admin can modify users');
+      }
+
+      await this.studioService.addUserToStudio(studioId, targetUser);
+      await this.createLog(c, 'addUserToStudio', 'studio_users', 200, user.user_id, {
+        studio_id: studioId,
+        target_user_id: userId,
+        target_username: targetUser.username,
+      }, body);
+      
+      return c.json({ message: 'User added to studio' }, 200);
     } catch (error) {
-      await this.handleError(res, req, 'studio_users', 500, error, 'Error adding user to studio');
+      console.error('Error adding user to studio:', error);
+      const user = this.getUserFromContext(c);
+      const { studioId } = c.req.param();
+      const body = await c.req.json().catch(() => ({}));
+      await this.createLog(c, 'addUserToStudio', 'studio_users', 500, user?.user_id, {
+        studio_id: studioId,
+        error: error instanceof Error ? error.message : String(error),
+      }, body);
+      return this.sendError(c, 500, 'Error adding user to studio', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -212,20 +335,59 @@ export class Studios {
     example: 'POST /api/studios/studio123/remove-user {"userId": "user456"}',
     requiresAuth: true,
   })
-  @httpPost('/:studioId/remove-user', LoggedCheck.middleware, removeUserFromStudioRateLimit)
-  async removeUserFromStudio(req: AuthenticatedRequest, res: Response) {
-    const { studioId } = req.params;
-    const { userId } = req.body;
-    if (!userId) return res.status(400).send({ message: 'Missing userId' });
+  @httpPost('/:studioId/remove-user', LoggedCheck, removeUserFromStudioRateLimit)
+  async removeUserFromStudio(c: Context) {
     try {
-      const studio = await this.checkStudioAdmin(req, res, studioId);
-      if (!studio) return;
-      if (studio.admin_id === userId) return res.status(403).send({ message: 'Cannot remove the studio admin' });
+      const user = this.getUserFromContext(c);
+      
+      if (!user) {
+        await this.createLog(c, 'removeUserFromStudio', 'studio_users', 401);
+        return this.sendError(c, 401, 'Unauthorized');
+      }
+
+      const { studioId } = c.req.param();
+      const body = await c.req.json();
+      const { userId } = body;
+      
+      if (!userId) {
+        await this.createLog(c, 'removeUserFromStudio', 'studio_users', 400, user.user_id, {
+          studio_id: studioId,
+          reason: 'missing_user_id',
+        }, body);
+        return this.sendError(c, 400, 'Missing userId');
+      }
+
+      const studio = await this.checkStudioAdmin(c, user, studioId);
+      if (!studio) {
+        return this.sendError(c, 403, 'Only the studio admin can modify users');
+      }
+
+      if (studio.admin_id === userId) {
+        await this.createLog(c, 'removeUserFromStudio', 'studio_users', 403, user.user_id, {
+          studio_id: studioId,
+          target_user_id: userId,
+          reason: 'cannot_remove_admin',
+        }, body);
+        return this.sendError(c, 403, 'Cannot remove the studio admin');
+      }
+
       await this.studioService.removeUserFromStudio(studioId, userId);
-      await this.createLog(req, 'studio_users', 200);
-      res.send({ message: 'User removed from studio' });
+      await this.createLog(c, 'removeUserFromStudio', 'studio_users', 200, user.user_id, {
+        studio_id: studioId,
+        target_user_id: userId,
+      }, body);
+      
+      return c.json({ message: 'User removed from studio' }, 200);
     } catch (error) {
-      await this.handleError(res, req, 'studio_users', 500, error, 'Error removing user from studio');
+      console.error('Error removing user from studio:', error);
+      const user = this.getUserFromContext(c);
+      const { studioId } = c.req.param();
+      const body = await c.req.json().catch(() => ({}));
+      await this.createLog(c, 'removeUserFromStudio', 'studio_users', 500, user?.user_id, {
+        studio_id: studioId,
+        error: error instanceof Error ? error.message : String(error),
+      }, body);
+      return this.sendError(c, 500, 'Error removing user from studio', error instanceof Error ? error.message : String(error));
     }
   }
 }

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Context } from 'hono';
 import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
 import { describe } from '../decorators/describe';
 import { controller, httpGet, httpPost } from '../hono-inversify';
 import { PublicUser, PublicUserAsAdmin, User } from '../interfaces/User';
@@ -452,7 +453,7 @@ export class Users {
     },
     example: 'GET /api/users/@me',
   })
-  @httpGet('/@me')
+  @httpGet('/@me', LoggedCheck)
   async getMe(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -502,7 +503,7 @@ export class Users {
     }
   }
 
-  @httpPost('/change-username', changeUsernameRateLimit)
+  @httpPost('/change-username', LoggedCheck, changeUsernameRateLimit)
   public async changeUsername(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -533,7 +534,7 @@ export class Users {
     }
   }
 
-  @httpPost('/change-password', changePasswordRateLimit)
+  @httpPost('/change-password', LoggedCheck, changePasswordRateLimit)
   public async changePassword(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -690,7 +691,7 @@ export class Users {
     }
   }
 
-  @httpGet('/steam-associate')
+  @httpGet('/steam-associate', LoggedCheck)
   public async steamAssociate(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -728,7 +729,7 @@ export class Users {
     }
   }
 
-  @httpPost('/unlink-steam', unlinkSteamRateLimit)
+  @httpPost('/unlink-steam', LoggedCheck, unlinkSteamRateLimit)
   public async unlinkSteam(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -861,7 +862,7 @@ export class Users {
     }
   }
 
-  @httpGet('/admin/search')
+  @httpGet('/admin/search', LoggedCheck)
   public async adminSearchUsers(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -891,7 +892,7 @@ export class Users {
     }
   }
 
-  @httpPost('/admin/disable/:userId')
+  @httpPost('/admin/disable/:userId', LoggedCheck)
   public async disableAccount(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -921,7 +922,7 @@ export class Users {
     }
   }
 
-  @httpPost('/admin/enable/:userId')
+  @httpPost('/admin/enable/:userId', LoggedCheck)
   public async reenableAccount(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -951,7 +952,7 @@ export class Users {
     }
   }
 
-  @httpGet('/admin/:userId')
+  @httpGet('/admin/:userId', LoggedCheck)
   public async adminGetUser(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -1005,7 +1006,7 @@ export class Users {
     example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }",
     requiresAuth: true,
   })
-  @httpPost('/transfer-credits', transferCreditsRateLimit)
+  @httpPost('/transfer-credits', LoggedCheck, transferCreditsRateLimit)
   public async transferCredits(c: Context) {
     try {
       const user = this.getUserFromContext(c);
@@ -1094,7 +1095,7 @@ export class Users {
     }
   }
 
-  @httpPost('/change-role', changeRoleRateLimit)
+  @httpPost('/change-role', LoggedCheck, changeRoleRateLimit)
   async changeRole(c: Context) {
     try {
       const originalUser = this.getOriginalUserFromContext(c);

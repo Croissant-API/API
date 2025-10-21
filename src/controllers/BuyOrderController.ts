@@ -1,16 +1,13 @@
-import { Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { inject, injectable } from 'inversify';
+import { controller, httpGet, httpPost, httpPut } from '../hono-inversify';
+import { LoggedCheck } from '../middlewares/LoggedCheck';
 import { IBuyOrderService } from '../services/BuyOrderService';
 import { IItemService } from '../services/ItemService';
 import { ILogService } from '../services/LogService';
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
-}
-
+@injectable()
 @controller('/buy-orders')
 export class BuyOrderController {
   constructor(
@@ -19,18 +16,18 @@ export class BuyOrderController {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async logAction(req: AuthenticatedRequest, action: string, statusCode: number, metadata?: object) {
+  private async logAction(c: Context, action: string, statusCode: number, metadata?: object) {
     try {
-      const requestBody = { ...req.body };
-      if (metadata) requestBody.metadata = metadata;
+      const requestBody = (await c.req.json().catch(() => ({}))) || {};
+      if (metadata) Object.assign(requestBody, { metadata });
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: c.req.header('x-real-ip') || c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown',
         table_name: 'buy_order',
         controller: `BuyOrderController.${action}`,
-        original_path: req.originalUrl,
-        http_method: req.method,
+        original_path: c.req.path,
+        http_method: c.req.method,
         request_body: requestBody,
-        user_id: req.user?.user_id,
+        user_id: this.getUserFromContext(c)?.user_id,
         status_code: statusCode,
       });
     } catch (error) {
@@ -38,73 +35,82 @@ export class BuyOrderController {
     }
   }
 
-  @httpPost('/', LoggedCheck.middleware)
-  public async createBuyOrder(req: AuthenticatedRequest, res: Response) {
-    const buyerId = req.user.user_id;
-    const { itemId, price } = req.body;
+  private sendError(c: Context, status: number, message: string, error?: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return c.json({ message, error: msg }, status as any);
+  }
+
+  private getUserFromContext(c: Context) {
+    return c.get('user');
+  }
+
+  @httpPost('/', LoggedCheck)
+  public async createBuyOrder(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const { itemId, price } = await c.req.json();
     if (!itemId || typeof price !== 'number' || price < 1) {
-      await this.logAction(req, 'createBuyOrder', 400);
-      return res.status(400).send({ message: 'itemId and price are required' });
+      await this.logAction(c, 'createBuyOrder', 400);
+      return this.sendError(c, 400, 'itemId and price are required');
     }
-
     const itemExists = await this.itemService.getItem(itemId);
-
     if (!itemExists) {
-      await this.logAction(req, 'createBuyOrder', 404);
-      return res.status(404).send({ message: 'Item not found' });
+      await this.logAction(c, 'createBuyOrder', 404);
+      return this.sendError(c, 404, 'Item not found');
     }
-
     try {
-      const order = await this.buyOrderService.createBuyOrder(buyerId, itemId, price);
-      await this.logAction(req, 'createBuyOrder', 201);
-      res.status(201).send(order);
+      const order = await this.buyOrderService.createBuyOrder(user.user_id, itemId, price);
+      await this.logAction(c, 'createBuyOrder', 201);
+      return c.json(order, 201);
     } catch (error) {
-      await this.logAction(req, 'createBuyOrder', 500, { error });
-      handleError(res, error, 'Error while creating buy order');
+      await this.logAction(c, 'createBuyOrder', 500, { error });
+      return this.sendError(c, 500, 'Error while creating buy order', error);
     }
   }
 
-  @httpPut('/:id/cancel', LoggedCheck.middleware)
-  public async cancelBuyOrder(req: AuthenticatedRequest, res: Response) {
-    const buyerId = req.user.user_id;
-    const orderId = req.params.id;
+  @httpPut('/:id/cancel', LoggedCheck)
+  public async cancelBuyOrder(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const orderId = c.req.param('id');
     try {
-      await this.buyOrderService.cancelBuyOrder(orderId, buyerId);
-      await this.logAction(req, 'cancelBuyOrder', 200);
-      res.status(200).send({ message: 'Buy order cancelled' });
+      await this.buyOrderService.cancelBuyOrder(orderId, user.user_id);
+      await this.logAction(c, 'cancelBuyOrder', 200);
+      return c.json({ message: 'Buy order cancelled' }, 200);
     } catch (error) {
-      await this.logAction(req, 'cancelBuyOrder', 500, { error });
-      handleError(res, error, 'Error while cancelling buy order');
+      await this.logAction(c, 'cancelBuyOrder', 500, { error });
+      return this.sendError(c, 500, 'Error while cancelling buy order', error);
     }
   }
 
-  @httpGet('/user/:userId', LoggedCheck.middleware)
-  public async getBuyOrdersByUser(req: AuthenticatedRequest, res: Response) {
-    const userId = req.params.userId;
-    if (userId !== req.user.user_id) {
-      await this.logAction(req, 'getBuyOrdersByUser', 403);
-      return res.status(403).send({ message: 'Forbidden' });
+  @httpGet('/user/:userId', LoggedCheck)
+  public async getBuyOrdersByUser(c: Context) {
+    const user = this.getUserFromContext(c);
+    const userId = c.req.param('userId');
+    if (!user || userId !== user.user_id) {
+      await this.logAction(c, 'getBuyOrdersByUser', 403);
+      return this.sendError(c, 403, 'Forbidden');
     }
     try {
       const orders = await this.buyOrderService.getBuyOrders({ userId });
-      await this.logAction(req, 'getBuyOrdersByUser', 200);
-      res.send(orders);
+      await this.logAction(c, 'getBuyOrdersByUser', 200);
+      return c.json(orders);
     } catch (error) {
-      await this.logAction(req, 'getBuyOrdersByUser', 500, { error });
-      handleError(res, error, 'Error while fetching buy orders');
+      await this.logAction(c, 'getBuyOrdersByUser', 500, { error });
+      return this.sendError(c, 500, 'Error while fetching buy orders', error);
     }
   }
 
   @httpGet('/item/:itemId')
-  public async getActiveBuyOrdersForItem(req: AuthenticatedRequest, res: Response) {
-    const itemId = req.params.itemId;
+  public async getActiveBuyOrdersForItem(c: Context) {
+    const itemId = c.req.param('itemId');
     try {
       const orders = await this.buyOrderService.getBuyOrders({ itemId, status: 'active' }, 'price DESC, created_at ASC');
-      await this.logAction(req, 'getActiveBuyOrdersForItem', 200);
-      res.send(orders);
+      await this.logAction(c, 'getActiveBuyOrdersForItem', 200);
+      return c.json(orders);
     } catch (error) {
-      await this.logAction(req, 'getActiveBuyOrdersForItem', 500, { error });
-      handleError(res, error, 'Error while fetching buy orders');
+      await this.logAction(c, 'getActiveBuyOrdersForItem', 500, { error });
+      return this.sendError(c, 500, 'Error while fetching buy orders', error);
     }
   }
 }

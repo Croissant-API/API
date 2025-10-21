@@ -1,15 +1,16 @@
-import { Request, Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpGet } from 'inversify-express-utils';
-import { PublicUser, User, UserExtensions } from '../interfaces/User';
-import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { controller, httpGet } from 'hono-inversify';
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
 import { IInventoryService } from '../services/InventoryService';
 import { IItemService } from '../services/ItemService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
-import { filterGame, sendError } from '../utils/helpers';
+import { filterGame } from '../utils/helpers';
 
+@injectable()
 @controller('/search')
 export class SearchController {
   constructor(
@@ -20,17 +21,22 @@ export class SearchController {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object, body?: any) {
     try {
-      const requestBody = { ...req.body, ...(metadata && { metadata }) };
+      let requestBody: any = body || { note: 'Body not provided for logging' };
+      if (metadata) requestBody = { ...requestBody, metadata };
+      const clientIP = c.req.header('cf-connecting-ip') ||
+        c.req.header('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        'unknown';
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
         controller: `SearchController.${action}`,
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: requestBody,
-        user_id: userId ?? ((req as AuthenticatedRequest).user?.user_id as string),
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(requestBody),
+        user_id: userId,
         status_code: statusCode,
       });
     } catch (error) {
@@ -38,28 +44,33 @@ export class SearchController {
     }
   }
 
-  private async handleSearch(req: Request | AuthenticatedRequest, res: Response, { admin = false, userId }: { admin?: boolean; userId?: string } = {}) {
-    const query = (req.query.q as string)?.trim();
+  private async handleSearch(c: Context, { admin = false, userId }: { admin?: boolean; userId?: string } = {}) {
+    const query = (c.req.query('q') || '').trim();
     if (!query) {
-      await this.createLog(req, admin ? 'adminSearch' : 'globalSearch', 'search', 400, userId, { reason: 'missing_query', ...(admin && { admin_search: true }) });
-      return sendError(res, 400, 'Missing search query');
+      await this.createLog(c, admin ? 'adminSearch' : 'globalSearch', 'search', 400, userId, { reason: 'missing_query', ...(admin && { admin_search: true }) });
+      return c.json({ message: 'Missing search query' }, 400);
     }
 
     try {
-      const users = admin ? await this.userService.adminSearchUsers(query) : await this.userService.searchUsersByUsername(query);
+      const users = admin
+        ? await this.userService.adminSearchUsers(query)
+        : await this.userService.searchUsersByUsername(query);
 
       const detailledUsers = await Promise.all(
-        users.map(async (user: PublicUser & UserExtensions) => {
-          const publicProfile = admin ? await this.userService.getUserWithCompleteProfile(user.user_id) : await this.userService.getUserWithPublicProfile(user.user_id);
-          console.log(publicProfile);
+        users.map(async (user: any) => {
+          const publicProfile = admin
+            ? await this.userService.getUserWithCompleteProfile(user.user_id)
+            : await this.userService.getUserWithPublicProfile(user.user_id);
           return { id: user.user_id, ...publicProfile };
         })
       );
 
       const items = await this.itemService.searchItemsByName(query);
-      const games = (await this.gameService.listGames()).filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase()))).map(game => filterGame(game));
+      const games = (await this.gameService.listGames())
+        .filter(g => g.showInStore && [g.name, g.description, g.genre].some(v => v && v.toLowerCase().includes(query.toLowerCase())))
+        .map(game => filterGame(game));
 
-      await this.createLog(req, admin ? 'adminSearch' : 'globalSearch', 'search', 200, userId, {
+      await this.createLog(c, admin ? 'adminSearch' : 'globalSearch', 'search', 200, userId, {
         query,
         ...(admin && { admin_search: true }),
         results_count: {
@@ -69,36 +80,37 @@ export class SearchController {
         },
       });
 
-      res.send({ users: detailledUsers, items, games });
+      return c.json({ users: detailledUsers, items, games }, 200);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      await this.createLog(req, admin ? 'adminSearch' : 'globalSearch', 'search', 500, userId, {
+      await this.createLog(c, admin ? 'adminSearch' : 'globalSearch', 'search', 500, userId, {
         query,
         ...(admin && { admin_search: true }),
         error: msg,
       });
-      res.status(500).send({ message: 'Error searching', error: msg });
+      return c.json({ message: 'Error searching', error: msg }, 500);
     }
   }
 
-  @httpGet('/')
-  public async globalSearch(req: Request, res: Response) {
-    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
+  @httpGet('/', LoggedCheck)
+  async globalSearch(c: Context) {
+    const authHeader = c.req.header('authorization') ||
+      'Bearer ' + (c.req.header('cookie')?.split('token=')[1]?.split(';')[0] || '');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
     const token = authHeader.split('Bearer ')[1];
     if (!token) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
-    const user: User | null = await this.userService.authenticateUser(token);
+    const user: any = await this.userService.authenticateUser(token);
     if (!user || !user.admin) {
-      return this.handleSearch(req, res);
+      return this.handleSearch(c);
     } else {
-      return this.handleSearch(req, res, { admin: true, userId: user.user_id });
+      return this.handleSearch(c, { admin: true, userId: user.user_id });
     }
   }
 }

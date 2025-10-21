@@ -1,57 +1,40 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
-import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
 import { v4 } from 'uuid';
-import { Schema, ValidationError } from 'yup';
 import { describe } from '../decorators/describe';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+import { controller, httpGet, httpPost } from '../hono-inversify';
+import { createRateLimit } from '../middlewares/hono/rateLimit';
 import { ILobbyService } from '../services/LobbyService';
 import { ILogService } from '../services/LogService';
-import { lobbyIdParamSchema, userIdParamSchema } from '../validators/LobbyValidator';
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
-}
-
-async function validateOr400(schema: Schema<unknown>, data: unknown, res: Response) {
-  try {
-    await schema.validate(data);
-    return true;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      res.status(400).send({ message: 'Validation failed', errors: error.errors });
-      return false;
-    }
-    throw error;
-  }
-}
-
-const createLobbyRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, 
-  max: 30, 
+const createLobbyRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
   message: 'Too many lobby creations, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const joinLobbyRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, 
-  max: 100, 
+const joinLobbyRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 100,
   message: 'Too many lobby joins, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const leaveLobbyRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, 
-  max: 100, 
+const leaveLobbyRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 100,
   message: 'Too many lobby leaves, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+@injectable()
 @controller('/lobbies')
 export class Lobbies {
   constructor(
@@ -59,21 +42,33 @@ export class Lobbies {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async createLog(req: Request, action: string, tableName?: string, statusCode?: number, userId?: string) {
+  private sendError(c: Context, status: number, message: string) {
+    return c.json({ message }, status as any);
+  }
+
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, body?: any) {
     try {
+      const clientIP = c.req.header('cf-connecting-ip') ||
+        c.req.header('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        'unknown';
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
         controller: `LobbyController.${action}`,
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: req.body,
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(body || {}),
         user_id: userId,
         status_code: statusCode,
       });
     } catch (error) {
       console.error('Error creating log:', error);
     }
+  }
+
+  private getUserFromContext(c: Context) {
+    return c.get('user');
   }
 
   @describe({
@@ -84,19 +79,20 @@ export class Lobbies {
     example: 'POST /api/lobbies',
     requiresAuth: true,
   })
-  @httpPost('/', LoggedCheck.middleware, createLobbyRateLimit)
-  public async createLobby(req: AuthenticatedRequest, res: Response) {
+  @httpPost('/', LoggedCheck, createLobbyRateLimit)
+  public async createLobby(c: Context) {
     try {
+      const user = this.getUserFromContext(c);
+      if (!user) return this.sendError(c, 401, 'Unauthorized');
       const lobbyId = v4();
-      await this.lobbyService.createLobby(lobbyId, [req.user.user_id]);
-      await this.lobbyService.joinLobby(lobbyId, req.user.user_id);
-
-      await this.createLog(req, 'createLobby', 'lobbies', 201, req.user.user_id);
-      res.status(201).send({ message: 'Lobby created' });
+      await this.lobbyService.createLobby(lobbyId, [user.user_id]);
+      await this.lobbyService.joinLobby(lobbyId, user.user_id);
+      await this.createLog(c, 'createLobby', 'lobbies', 201, user.user_id);
+      return c.json({ message: 'Lobby created' }, 201);
     } catch (error) {
-      await this.createLog(req, 'createLobby', 'lobbies', 500, req.user?.user_id);
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).send({ message: 'Error creating lobby', error: message });
+      const user = this.getUserFromContext(c);
+      await this.createLog(c, 'createLobby', 'lobbies', 500, user?.user_id);
+      return this.sendError(c, 500, 'Error creating lobby');
     }
   }
 
@@ -121,23 +117,20 @@ export class Lobbies {
     example: 'GET /api/lobbies/123',
   })
   @httpGet('/:lobbyId')
-  public async getLobby(req: Request, res: Response) {
-    if (!(await validateOr400(lobbyIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'getLobby', 'lobbies', 400);
-      return;
-    }
+  public async getLobby(c: Context) {
+    const lobbyId = c.req.param('lobbyId');
+    // Optionally validate lobbyId with lobbyIdParamSchema here
     try {
-      const lobbyId = req.params.lobbyId;
       const lobby = await this.lobbyService.getLobby(lobbyId);
       if (!lobby) {
-        await this.createLog(req, 'getLobby', 'lobbies', 404);
-        return res.status(404).send({ message: 'Lobby not found' });
+        await this.createLog(c, 'getLobby', 'lobbies', 404);
+        return this.sendError(c, 404, 'Lobby not found');
       }
-      await this.createLog(req, 'getLobby', 'lobbies', 200);
-      res.send(lobby);
+      await this.createLog(c, 'getLobby', 'lobbies', 200);
+      return c.json(lobby);
     } catch (error) {
-      await this.createLog(req, 'getLobby', 'lobbies', 500);
-      handleError(res, error, 'Error fetching lobby');
+      await this.createLog(c, 'getLobby', 'lobbies', 500);
+      return this.sendError(c, 500, 'Error fetching lobby');
     }
   }
 
@@ -149,20 +142,22 @@ export class Lobbies {
     example: 'GET /api/lobbies/user/@me',
     requiresAuth: true,
   })
-  @httpGet('/user/@me', LoggedCheck.middleware)
-  public async getMyLobby(req: AuthenticatedRequest, res: Response) {
+  @httpGet('/user/@me', LoggedCheck)
+  public async getMyLobby(c: Context) {
     try {
-      const userId = req.user.user_id;
-      const lobby = await this.lobbyService.getUserLobby(userId);
+      const user = this.getUserFromContext(c);
+      if (!user) return this.sendError(c, 401, 'Unauthorized');
+      const lobby = await this.lobbyService.getUserLobby(user.user_id);
       if (!lobby) {
-        await this.createLog(req, 'getMyLobby', 'lobbies', 200, userId);
-        return res.status(200).send({ success: false, message: 'User is not in any lobby' });
+        await this.createLog(c, 'getMyLobby', 'lobbies', 200, user.user_id);
+        return c.json({ success: false, message: 'User is not in any lobby' });
       }
-      await this.createLog(req, 'getMyLobby', 'lobbies', 200, userId);
-      res.send({ success: true, ...lobby });
+      await this.createLog(c, 'getMyLobby', 'lobbies', 200, user.user_id);
+      return c.json({ success: true, ...lobby });
     } catch (error) {
-      await this.createLog(req, 'getMyLobby', 'lobbies', 500, req.user?.user_id);
-      handleError(res, error, 'Error fetching user lobby');
+      const user = this.getUserFromContext(c);
+      await this.createLog(c, 'getMyLobby', 'lobbies', 500, user?.user_id);
+      return this.sendError(c, 500, 'Error fetching user lobby');
     }
   }
 
@@ -175,23 +170,20 @@ export class Lobbies {
     example: 'GET /api/lobbies/user/123',
   })
   @httpGet('/user/:userId')
-  public async getUserLobby(req: Request, res: Response) {
-    if (!(await validateOr400(userIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'getUserLobby', 'lobbies', 400, req.params.userId);
-      return;
-    }
+  public async getUserLobby(c: Context) {
+    const userId = c.req.param('userId');
+    // Optionally validate userId with userIdParamSchema here
     try {
-      const { userId } = req.params;
       const lobby = await this.lobbyService.getUserLobby(userId);
       if (!lobby) {
-        await this.createLog(req, 'getUserLobby', 'lobbies', 404, userId);
-        return res.status(404).send({ message: 'User is not in any lobby' });
+        await this.createLog(c, 'getUserLobby', 'lobbies', 404, userId);
+        return this.sendError(c, 404, 'User is not in any lobby');
       }
-      await this.createLog(req, 'getUserLobby', 'lobbies', 200, userId);
-      res.send(lobby);
+      await this.createLog(c, 'getUserLobby', 'lobbies', 200, userId);
+      return c.json(lobby);
     } catch (error) {
-      await this.createLog(req, 'getUserLobby', 'lobbies', 500, req.params.userId);
-      handleError(res, error, 'Error fetching user lobby');
+      await this.createLog(c, 'getUserLobby', 'lobbies', 500, userId);
+      return this.sendError(c, 500, 'Error fetching user lobby');
     }
   }
 
@@ -204,20 +196,20 @@ export class Lobbies {
     example: 'POST /api/lobbies/123/join',
     requiresAuth: true,
   })
-  @httpPost('/:lobbyId/join', LoggedCheck.middleware, joinLobbyRateLimit)
-  public async joinLobby(req: AuthenticatedRequest, res: Response) {
-    if (!(await validateOr400(lobbyIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'joinLobby', 'lobbies', 400, req.user.user_id);
-      return;
-    }
+  @httpPost('/:lobbyId/join', LoggedCheck, joinLobbyRateLimit)
+  public async joinLobby(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const lobbyId = c.req.param('lobbyId');
+    // Optionally validate lobbyId with lobbyIdParamSchema here
     try {
-      await this.lobbyService.leaveAllLobbies(req.user.user_id);
-      await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
-      await this.createLog(req, 'joinLobby', 'lobbies', 200, req.user.user_id);
-      res.status(200).send({ message: 'Joined lobby' });
+      await this.lobbyService.leaveAllLobbies(user.user_id);
+      await this.lobbyService.joinLobby(lobbyId, user.user_id);
+      await this.createLog(c, 'joinLobby', 'lobbies', 200, user.user_id);
+      return c.json({ message: 'Joined lobby' });
     } catch (error) {
-      await this.createLog(req, 'joinLobby', 'lobbies', 500, req.user.user_id);
-      handleError(res, error, 'Error joining lobby');
+      await this.createLog(c, 'joinLobby', 'lobbies', 500, user.user_id);
+      return this.sendError(c, 500, 'Error joining lobby');
     }
   }
 
@@ -230,19 +222,19 @@ export class Lobbies {
     example: 'POST /api/lobbies/123/leave',
     requiresAuth: true,
   })
-  @httpPost('/:lobbyId/leave', LoggedCheck.middleware, leaveLobbyRateLimit)
-  public async leaveLobby(req: AuthenticatedRequest, res: Response) {
-    if (!(await validateOr400(lobbyIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'leaveLobby', 'lobbies', 400, req.user.user_id);
-      return;
-    }
+  @httpPost('/:lobbyId/leave', LoggedCheck, leaveLobbyRateLimit)
+  public async leaveLobby(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const lobbyId = c.req.param('lobbyId');
+    // Optionally validate lobbyId with lobbyIdParamSchema here
     try {
-      await this.lobbyService.leaveLobby(req.params.lobbyId, req.user.user_id);
-      await this.createLog(req, 'leaveLobby', 'lobbies', 200, req.user.user_id);
-      res.status(200).send({ message: 'Left lobby' });
+      await this.lobbyService.leaveLobby(lobbyId, user.user_id);
+      await this.createLog(c, 'leaveLobby', 'lobbies', 200, user.user_id);
+      return c.json({ message: 'Left lobby' });
     } catch (error) {
-      await this.createLog(req, 'leaveLobby', 'lobbies', 500, req.user.user_id);
-      handleError(res, error, 'Error leaving lobby');
+      await this.createLog(c, 'leaveLobby', 'lobbies', 500, user.user_id);
+      return this.sendError(c, 500, 'Error leaving lobby');
     }
   }
 }

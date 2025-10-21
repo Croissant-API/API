@@ -1,17 +1,14 @@
-import { Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpDelete, httpGet, httpPost } from 'inversify-express-utils';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Context } from 'hono';
+import { inject, injectable } from 'inversify';
+import { controller, httpDelete, httpGet, httpPost } from '../hono-inversify';
+import { LoggedCheck } from '../middlewares/LoggedCheck';
 import { IGameGiftService } from '../services/GameGiftService';
 import { IGameService } from '../services/GameService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
-}
-
+@injectable()
 @controller('/gifts')
 export class GameGifts {
   constructor(
@@ -21,15 +18,19 @@ export class GameGifts {
     @inject('LogService') private logService: ILogService
   ) {}
 
-  private async createLog(req: AuthenticatedRequest, action: string, tableName?: string, statusCode?: number, userId?: string) {
+  private async createLog(c: Context, action: string, tableName?: string, statusCode?: number, userId?: string, metadata?: object) {
     try {
+      const clientIP = c.req.header('cf-connecting-ip') ||
+        c.req.header('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        'unknown';
       await this.logService.createLog({
-        ip_address: (req.headers['x-real-ip'] as string) || (req.socket.remoteAddress as string),
+        ip_address: clientIP,
         table_name: tableName,
         controller: `GameGiftController.${action}`,
-        original_path: req.originalUrl,
-        http_method: req.method,
-        request_body: req.body,
+        original_path: c.req.path,
+        http_method: c.req.method,
+        request_body: JSON.stringify(metadata || {}),
         user_id: userId,
         status_code: statusCode,
       });
@@ -38,44 +39,53 @@ export class GameGifts {
     }
   }
 
-  @httpPost('/:action', LoggedCheck.middleware)
-  public async handleGiftActions(req: AuthenticatedRequest, res: Response) {
-    const { action } = req.params;
-    const userId = req.user.user_id;
+  private sendError(c: Context, status: number, message: string, error?: any) {
+    return c.json({ message, error: error ? (error instanceof Error ? error.message : String(error)) : undefined }, status as any);
+  }
+
+  private getUserFromContext(c: Context) {
+    return c.get('user');
+  }
+
+  @httpPost('/:action', LoggedCheck)
+  public async handleGiftActions(c: Context) {
+    const action = c.req.param('action');
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const userId = user.user_id;
+    const body = await c.req.json();
     try {
       switch (action) {
         case 'create': {
-          const { gameId, message } = req.body;
+          const { gameId, message } = body;
           if (!gameId) {
-            await this.createLog(req, 'createGift', 'gifts', 400, userId);
-            return res.status(400).send({ message: 'Game ID is required' });
+            await this.createLog(c, 'createGift', 'gifts', 400, userId);
+            return this.sendError(c, 400, 'Game ID is required');
           }
           const game = await this.gameService.getGame(gameId);
           if (!game) {
-            await this.createLog(req, 'createGift', 'gifts', 404, userId);
-            return res.status(404).send({ message: 'Game not found' });
+            await this.createLog(c, 'createGift', 'gifts', 404, userId);
+            return this.sendError(c, 404, 'Game not found');
           }
-          const user = await this.userService.getUser(userId);
-          if (!user) {
-            await this.createLog(req, 'createGift', 'gifts', 404, userId);
-            return res.status(404).send({ message: 'User not found' });
+          const userObj = await this.userService.getUser(userId);
+          if (!userObj) {
+            await this.createLog(c, 'createGift', 'gifts', 404, userId);
+            return this.sendError(c, 404, 'User not found');
           }
-          if (user.balance < game.price) {
-            await this.createLog(req, 'createGift', 'gifts', 400, userId);
-            return res.status(400).send({
-              message: `Insufficient balance. Required: ${game.price}, Available: ${user.balance}`,
-            });
+          if (userObj.balance < game.price) {
+            await this.createLog(c, 'createGift', 'gifts', 400, userId);
+            return this.sendError(c, 400, `Insufficient balance. Required: ${game.price}, Available: ${userObj.balance}`);
           }
           if (userId !== game.owner_id) {
-            await this.userService.updateUserBalance(userId, user.balance - game.price);
+            await this.userService.updateUserBalance(userId, userObj.balance - game.price);
             const owner = await this.userService.getUser(game.owner_id);
             if (owner) {
-              await this.userService.updateUserBalance(game.owner_id, owner.balance + game.price * 0.75);
+              await this.userService.updateUserBalance(owner.user_id, owner.balance + game.price * 0.75);
             }
           }
           const gift = await this.giftService.createGift(gameId, userId, message);
-          await this.createLog(req, 'createGift', 'gifts', 201, userId);
-          return res.status(201).send({
+          await this.createLog(c, 'createGift', 'gifts', 201, userId, { giftId: gift.id });
+          return c.json({
             message: 'Gift created successfully',
             gift: {
               id: gift.id,
@@ -84,46 +94,47 @@ export class GameGifts {
               createdAt: gift.createdAt,
               message: gift.message,
             },
-          });
+          }, 201);
         }
         case 'claim': {
-          const { giftCode } = req.body;
+          const { giftCode } = body;
           if (!giftCode) {
-            await this.createLog(req, 'claimGift', 'gifts', 400, userId);
-            return res.status(400).send({ message: 'Gift code is required' });
+            await this.createLog(c, 'claimGift', 'gifts', 400, userId);
+            return this.sendError(c, 400, 'Gift code is required');
           }
           const gift = await this.giftService.getGift(giftCode);
           if (!gift) {
-            await this.createLog(req, 'claimGift', 'gifts', 404, userId);
-            return res.status(404).send({ message: 'Invalid gift code' });
+            await this.createLog(c, 'claimGift', 'gifts', 404, userId);
+            return this.sendError(c, 404, 'Invalid gift code');
           }
           const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, userId);
           if (userOwnsGame) {
-            await this.createLog(req, 'claimGift', 'gifts', 400, userId);
-            return res.status(400).send({ message: 'You already own this game' });
+            await this.createLog(c, 'claimGift', 'gifts', 400, userId);
+            return this.sendError(c, 400, 'You already own this game');
           }
           const claimedGift = await this.giftService.claimGift(giftCode, userId);
           await this.gameService.addOwner(gift.gameId, userId);
-          await this.createLog(req, 'claimGift', 'gifts', 200, userId);
-          return res.status(200).send({
+          await this.createLog(c, 'claimGift', 'gifts', 200, userId, { giftCode });
+          return c.json({
             message: 'Gift claimed successfully',
             gift: claimedGift,
           });
         }
         default:
-          return res.status(404).send({ message: 'Unknown action' });
+          return this.sendError(c, 404, 'Unknown action');
       }
     } catch (error) {
-      await this.createLog(req, action, 'gifts', 500, userId);
-      handleError(res, error, `Error in ${action}`);
+      await this.createLog(c, action, 'gifts', 500, userId);
+      return this.sendError(c, 500, `Error in ${action}`, error);
     }
   }
 
-  @httpGet('/sent', LoggedCheck.middleware)
-  public async getSentGifts(req: AuthenticatedRequest, res: Response) {
+  @httpGet('/sent', LoggedCheck)
+  public async getSentGifts(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
     try {
-      const gifts = await this.giftService.getUserSentGifts(req.user.user_id);
-
+      const gifts = await this.giftService.getUserSentGifts(user.user_id);
       const enrichedGifts = await Promise.all(
         gifts.map(async gift => {
           const game = await this.gameService.getGameForPublic(gift.gameId);
@@ -133,20 +144,20 @@ export class GameGifts {
           };
         })
       );
-
-      await this.createLog(req, 'getSentGifts', 'gifts', 200, req.user.user_id);
-      res.send(enrichedGifts);
+      await this.createLog(c, 'getSentGifts', 'gifts', 200, user.user_id);
+      return c.json(enrichedGifts);
     } catch (error) {
-      await this.createLog(req, 'getSentGifts', 'gifts', 500, req.user.user_id);
-      handleError(res, error, 'Error fetching sent gifts');
+      await this.createLog(c, 'getSentGifts', 'gifts', 500, user.user_id);
+      return this.sendError(c, 500, 'Error fetching sent gifts', error);
     }
   }
 
-  @httpGet('/received', LoggedCheck.middleware)
-  public async getReceivedGifts(req: AuthenticatedRequest, res: Response) {
+  @httpGet('/received', LoggedCheck)
+  public async getReceivedGifts(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
     try {
-      const gifts = await this.giftService.getUserReceivedGifts(req.user.user_id);
-
+      const gifts = await this.giftService.getUserReceivedGifts(user.user_id);
       const enrichedGifts = await Promise.all(
         gifts.map(async gift => {
           const game = await this.gameService.getGameForPublic(gift.gameId);
@@ -158,32 +169,30 @@ export class GameGifts {
           };
         })
       );
-
-      await this.createLog(req, 'getReceivedGifts', 'gifts', 200, req.user.user_id);
-      res.send(enrichedGifts);
+      await this.createLog(c, 'getReceivedGifts', 'gifts', 200, user.user_id);
+      return c.json(enrichedGifts);
     } catch (error) {
-      await this.createLog(req, 'getReceivedGifts', 'gifts', 500, req.user.user_id);
-      handleError(res, error, 'Error fetching received gifts');
+      await this.createLog(c, 'getReceivedGifts', 'gifts', 500, user.user_id);
+      return this.sendError(c, 500, 'Error fetching received gifts', error);
     }
   }
 
-  @httpGet('/:giftCode', LoggedCheck.middleware)
-  public async getGiftInfo(req: AuthenticatedRequest, res: Response) {
-    const { giftCode } = req.params;
-
+  @httpGet('/:giftCode', LoggedCheck)
+  public async getGiftInfo(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const giftCode = c.req.param('giftCode');
     try {
       const gift = await this.giftService.getGift(giftCode);
       if (!gift) {
-        await this.createLog(req, 'getGiftInfo', 'gifts', 404, req.user.user_id);
-        return res.status(404).send({ message: 'Gift not found' });
+        await this.createLog(c, 'getGiftInfo', 'gifts', 404, user.user_id);
+        return this.sendError(c, 404, 'Gift not found');
       }
-
       const game = await this.gameService.getGameForPublic(gift.gameId);
       const fromUser = await this.userService.getUser(gift.fromUserId);
-      const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, req.user.user_id);
-
-      await this.createLog(req, 'getGiftInfo', 'gifts', 200, req.user.user_id);
-      res.send({
+      const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, user.user_id);
+      await this.createLog(c, 'getGiftInfo', 'gifts', 200, user.user_id);
+      return c.json({
         gift: {
           gameId: gift.gameId,
           giftCode: gift.giftCode,
@@ -197,49 +206,45 @@ export class GameGifts {
         userOwnsGame,
       });
     } catch (error) {
-      await this.createLog(req, 'getGiftInfo', 'gifts', 500, req.user.user_id);
-      handleError(res, error, 'Error fetching gift info');
+      await this.createLog(c, 'getGiftInfo', 'gifts', 500, user.user_id);
+      return this.sendError(c, 500, 'Error fetching gift info', error);
     }
   }
 
-  @httpDelete('/:giftId', LoggedCheck.middleware)
-  public async revokeGift(req: AuthenticatedRequest, res: Response) {
-    const { giftId } = req.params;
-    const userId = req.user.user_id;
+  @httpDelete('/:giftId', LoggedCheck)
+  public async revokeGift(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) return this.sendError(c, 401, 'Unauthorized');
+    const giftId = c.req.param('giftId');
+    const userId = user.user_id;
     try {
       const gifts = await this.giftService.getUserSentGifts(userId);
       const gift = gifts.find(g => g.id === giftId);
-
       if (!gift) {
-        await this.createLog(req, 'revokeGift', 'gifts', 404, userId);
-        return res.status(404).send({ message: 'Gift not found' });
+        await this.createLog(c, 'revokeGift', 'gifts', 404, userId);
+        return this.sendError(c, 404, 'Gift not found');
       }
-
       if (!gift.isActive) {
-        await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
-        return res.status(400).send({ message: 'Gift is no longer active' });
+        await this.createLog(c, 'revokeGift', 'gifts', 400, userId);
+        return this.sendError(c, 400, 'Gift is no longer active');
       }
-
       await this.giftService.revokeGift(giftId, userId);
-
       const game = await this.gameService.getGame(gift.gameId);
       if (game) {
-        const user = await this.userService.getUser(userId);
-        if (user) {
-          await this.userService.updateUserBalance(userId, user.balance + game.price);
+        const userObj = await this.userService.getUser(userId);
+        if (userObj) {
+          await this.userService.updateUserBalance(userId, userObj.balance + game.price);
         }
-
         const owner = await this.userService.getUser(game.owner_id);
         if (owner) {
-          await this.userService.updateUserBalance(game.owner_id, owner.balance - game.price * 0.75);
+          await this.userService.updateUserBalance(owner.user_id, owner.balance - game.price * 0.75);
         }
       }
-
-      await this.createLog(req, 'revokeGift', 'gifts', 200, userId);
-      res.send({ message: 'Gift revoked successfully and refund processed' });
+      await this.createLog(c, 'revokeGift', 'gifts', 200, userId);
+      return c.json({ message: 'Gift revoked successfully and refund processed' });
     } catch (error) {
-      await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
-      handleError(res, error, 'Error revoking gift', 400);
+      await this.createLog(c, 'revokeGift', 'gifts', 400, userId);
+      return this.sendError(c, 400, 'Error revoking gift', error);
     }
   }
 }

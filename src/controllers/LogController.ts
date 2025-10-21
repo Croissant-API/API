@@ -1,109 +1,114 @@
-import { Response } from 'express';
-import { inject } from 'inversify';
-import { controller, httpGet } from 'inversify-express-utils';
-import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
+import { Context } from 'hono';
+import { controller, httpGet } from '../hono-inversify';
+import { inject, injectable } from 'inversify';
 import { ILogService } from '../services/LogService';
 
-function handleError(res: Response, error: unknown, message: string, status = 500) {
-  const msg = error instanceof Error ? error.message : String(error);
-  res.status(status).send({ message, error: msg });
-}
-
+@injectable()
 @controller('/logs')
 export class LogController {
   constructor(@inject('LogService') private logService: ILogService) {}
 
-  @httpGet('/', LoggedCheck.middleware)
-  public async getAllLogs(req: AuthenticatedRequest, res: Response) {
-    if (!req.user?.admin) {
-      return res.status(403).send({ message: 'Admin access required' });
+  private getUserFromContext(c: Context) {
+    return c.get('user');
+  }
+
+  private sendError(c: Context, status: number, message: string) {
+    return c.json({ message }, status as any);
+  }
+
+  @httpGet('/')
+  public async getAllLogs(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user?.admin) {
+      return this.sendError(c, 403, 'Admin access required');
     }
-
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const offset = parseInt(req.query.offset as string) || 0;
-
+      const limit = parseInt(c.req.query('limit') || '100');
+      const offset = parseInt(c.req.query('offset') || '0');
       const logs = await this.logService.getLogs(limit, offset);
-      res.send(logs);
+      return c.json(logs);
     } catch (error) {
-      handleError(res, error, 'Error fetching logs');
+      return this.sendError(c, 500, 'Error fetching logs');
     }
   }
 
-  @httpGet('/controller/:controller', LoggedCheck.middleware)
-  public async getLogsByController(req: AuthenticatedRequest, res: Response) {
-    if (!req.user?.admin) {
-      return res.status(403).send({ message: 'Admin access required' });
+  @httpGet('/controller/:controller')
+  public async getLogsByController(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user?.admin) {
+      return this.sendError(c, 403, 'Admin access required');
     }
-
     try {
-      const controller = req.params.controller;
-      const limit = parseInt(req.query.limit as string) || 100;
-
+      const controller = c.req.param('controller');
+      const limit = parseInt(c.req.query('limit') || '100');
       const logs = await this.logService.getLogsByController(controller, limit);
-      res.send(logs);
+      return c.json(logs);
     } catch (error) {
-      handleError(res, error, 'Error fetching logs by controller');
+      return this.sendError(c, 500, 'Error fetching logs by controller');
     }
   }
 
-  @httpGet('/user/:userId', LoggedCheck.middleware)
-  public async getLogsByUser(req: AuthenticatedRequest, res: Response) {
-    if (!req.user?.admin) {
-      return res.status(403).send({ message: 'Admin access required' });
+  @httpGet('/user/:userId')
+  public async getLogsByUser(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user?.admin) {
+      return this.sendError(c, 403, 'Admin access required');
     }
-
     try {
-      const userId = req.params.userId;
-      const limit = parseInt(req.query.limit as string) || 100;
-
+      const userId = c.req.param('userId');
+      const limit = parseInt(c.req.query('limit') || '100');
       const logs = await this.logService.getLogsByUser(userId, limit);
-      res.send(logs);
+      return c.json(logs);
     } catch (error) {
-      handleError(res, error, 'Error fetching logs by user');
+      return this.sendError(c, 500, 'Error fetching logs by user');
     }
   }
 
-  @httpGet('/table/:tableName', LoggedCheck.middleware)
-  public async getLogsByTable(req: AuthenticatedRequest, res: Response) {
-    if (!req.user?.admin) {
-      return res.status(403).send({ message: 'Admin access required' });
+  @httpGet('/table/:tableName')
+  public async getLogsByTable(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user?.admin) {
+      return this.sendError(c, 403, 'Admin access required');
     }
-
     try {
-      const tableName = req.params.tableName;
-      const limit = parseInt(req.query.limit as string) || 100;
-
+      const tableName = c.req.param('tableName');
+      const limit = parseInt(c.req.query('limit') || '100');
       const logs = await this.logService.getLogsByTable(tableName, limit);
-      res.send(logs);
+      return c.json(logs);
     } catch (error) {
-      handleError(res, error, 'Error fetching logs by table');
+      return this.sendError(c, 500, 'Error fetching logs by table');
     }
   }
 
-  @httpGet('/stats', LoggedCheck.middleware)
-  public async getLogStats(req: AuthenticatedRequest, res: Response) {
-    if (!req.user?.admin) {
-      return res.status(403).send({ message: 'Admin access required' });
+  @httpGet('/stats')
+  public async getLogStats(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user?.admin) {
+      return this.sendError(c, 403, 'Admin access required');
     }
-
     try {
       const stats = await this.logService.getLogStats();
-      res.send(stats);
+      return c.json(stats);
     } catch (error) {
-      handleError(res, error, 'Error fetching log statistics');
+      return this.sendError(c, 500, 'Error fetching log statistics');
     }
   }
 
-  @httpGet('/@me', LoggedCheck.middleware)
-  public async getMyLogs(req: AuthenticatedRequest, res: Response) {
+  @httpGet('/@me')
+  public async getMyLogs(c: Context) {
+    const user = this.getUserFromContext(c);
+    if (!user) {
+      return this.sendError(c, 401, 'Unauthorized');
+    }
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-
-      const logs = await this.logService.getLogsByUser(req.user.user_id, limit);
-      res.send(logs);
+      const limit = parseInt(c.req.query('limit') || '100');
+      const logs = await this.logService.getLogsByUser(user.user_id, limit);
+      return c.json(logs);
     } catch (error) {
-      handleError(res, error, 'Error fetching user logs');
+      return this.sendError(c, 500, 'Error fetching user logs');
     }
   }
 }
