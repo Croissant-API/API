@@ -16,7 +16,7 @@ import { StripeController } from './controllers/StripeController';
 import { Studios } from './controllers/StudioController';
 import { Trades } from './controllers/TradeController';
 import { Users } from './controllers/UserController';
-import { WebAuthn } from './controllers/WebAuthnController';
+import { WebAuthns } from './controllers/WebAuthnController';
 import { InversifyHonoServer } from './hono-inversify/InversifyHonoServer';
 
 console.log('Setting up container...');
@@ -30,7 +30,7 @@ container.bind<Games>(Games).toSelf().inTransientScope();
 container.bind<DescribeController>(DescribeController).toSelf().inTransientScope();
 container.bind<BuyOrderController>(BuyOrderController).toSelf().inTransientScope();
 container.bind<AuthenticatorController>(AuthenticatorController).toSelf().inTransientScope();
-container.bind<WebAuthn>(WebAuthn).toSelf().inTransientScope();
+container.bind<WebAuthns>(WebAuthns).toSelf().inTransientScope();
 container.bind<Trades>(Trades).toSelf().inTransientScope();
 container.bind<Studios>(Studios).toSelf().inTransientScope();
 container.bind<StripeController>(StripeController).toSelf().inTransientScope();

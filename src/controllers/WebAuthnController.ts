@@ -2,7 +2,7 @@
 import { WebAuthnCredential } from '@simplewebauthn/server/script/types';
 import { Context } from 'hono';
 import { inject, injectable } from 'inversify';
-import { controller, httpPost } from 'inversify-express-utils';
+import { controller, httpPost } from '../hono-inversify';
 import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } from '../lib/webauthnService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
@@ -11,7 +11,7 @@ import { generateUserJwt } from '../utils/Jwt';
 
 @injectable()
 @controller('/webauthn')
-export class WebAuthn {
+export class WebAuthns {
   constructor(
     @inject('UserService') private userService: IUserService,
     @inject('LogService') private logService: ILogService

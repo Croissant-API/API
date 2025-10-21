@@ -29,7 +29,7 @@ export class Items {
     @inject('InventoryService') private inventoryService: IInventoryService,
     @inject('UserService') private userService: IUserService,
     @inject('LogService') private logService: ILogService
-  ) {}
+  ) { }
 
   @httpPost('/giveItem/:itemId', LoggedCheck, OwnerCheck)
   public async giveItem(c: Context) {
