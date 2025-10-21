@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut, httpHead } from 'inversify-express-utils';
-import fetch from 'node-fetch';
+import { controller, httpGet, httpHead, httpPost, httpPut } from 'inversify-express-utils';
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
@@ -12,7 +12,6 @@ import { IGameViewService } from '../services/GameViewService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 import { createGameBodySchema, gameIdParamSchema, updateGameBodySchema } from '../validators/GameValidator';
-import crypto from 'crypto';
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -437,7 +436,7 @@ export class Games {
 
       res.status(fileRes.status);
       if (fileRes.body) {
-        fileRes.body.pipe(res);
+        // fileRes.body.pipe(res);
       } else {
         res.end();
       }

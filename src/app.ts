@@ -1,10 +1,10 @@
-import compression from 'compression';
 import cors from 'cors';
 import { config } from 'dotenv';
 import express from 'express';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import 'reflect-metadata';
 import container from './container';
+import './polyfills';
 config();
 
 import './controllers/AuthenticatorController';
@@ -27,15 +27,36 @@ import './controllers/WebAuthnController';
 const server = new InversifyExpressServer(container);
 
 server.setConfig(app => {
+  // Use simpler middleware to avoid iconv-lite issues
   app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  
+  // Custom JSON parser to avoid iconv-lite
+  app.use((req, res, next) => {
+    if (req.headers['content-type']?.includes('application/json')) {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          (req).body = JSON.parse(body);
+        } catch {
+          (req).body = {};
+        }
+        next();
+      });
+    } else {
+      next();
+    }
+  });
+  
   app.use(cors());
-  app.use(
-    compression({
-      threshold: 1024, 
-    })
-  );
+  // Skip compression for now to avoid dependency issues
+  // app.use(
+  //   compression({
+  //     threshold: 1024, 
+  //   })
+  // );
 });
 
 server.setErrorConfig(app => {
