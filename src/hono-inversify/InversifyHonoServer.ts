@@ -1,6 +1,5 @@
 import { Context, Hono, MiddlewareHandler } from 'hono';
 import { Container } from 'inversify';
-import 'reflect-metadata';
 import { getControllerRegistry } from './decorators';
 import { HonoControllerMetadata, HonoHandlerDecorator, METADATA_KEY } from './types';
 
@@ -44,17 +43,28 @@ export class InversifyHonoServer {
 
   private registerControllers(): void {
     const registry = getControllerRegistry();
+    console.log(`Registering ${registry.size} controllers from registry`);
     registry.forEach((controllerConstructor) => {
       const metadata = Reflect.getMetadata(METADATA_KEY.controller, controllerConstructor);
-      if (!metadata) return;
+    
+      if (!metadata) {
+        console.warn(`No controller metadata found for ${controllerConstructor.name}`);
+        return;
+      }
 
-      // Get controller instance from container
+      // Get controller instance from container - FIX: Ensure proper binding
       let controllerInstance: object;
       try {
-        controllerInstance = this._container.get<object>(controllerConstructor);
-      } catch {
-        // If not bound to container, create instance directly
-        controllerInstance = new controllerConstructor();
+        // Check if the controller is bound in the container
+        if (this._container.isBound(controllerConstructor)) {
+          controllerInstance = this._container.get<object>(controllerConstructor);
+        } else {
+          console.error(`Controller ${controllerConstructor.name} is not bound to the container`);
+          return;
+        }
+      } catch (error) {
+        console.error(`Error getting controller instance for ${controllerConstructor.name}:`, error);
+        return;
       }
 
       this.registerController(controllerInstance, metadata);
@@ -68,6 +78,10 @@ export class InversifyHonoServer {
     const handlerMetadatas: HonoHandlerDecorator[] = this.getHandlersFromMetadata(
       controllerInstance.constructor
     );
+
+    console.log(`Registering controller: ${controllerInstance.constructor.name}`);
+
+    console.log(`Registering controller with ${handlerMetadatas.length} handlers`);
 
     // Register each method as a route
     handlerMetadatas.forEach((handlerMetadata) => {
@@ -107,24 +121,7 @@ export class InversifyHonoServer {
         const method = (controllerInstance as Record<string, unknown>)[handlerMetadata.key];
         if (typeof method === 'function') {
           const result = await method.call(controllerInstance, c);
-          
-          // If result is already a Response, return it
-          if (result instanceof Response) {
-            return result;
-          }
-          
-          // If result is an object, return as JSON
-          if (typeof result === 'object' && result !== null) {
-            return c.json(result);
-          }
-          
-          // If result is a primitive, return as text
-          if (result !== undefined) {
-            return c.text(String(result));
-          }
-          
-          // If no result, assume the handler handled the response manually
-          return;
+          return result;
         }
         
         throw new Error(`Method ${handlerMetadata.key} not found on controller`);
@@ -163,7 +160,6 @@ export class InversifyHonoServer {
         this._app.delete(path, ...middlewares);
         break;
       case 'head':
-        // Hono doesn't have head method, use on instead
         this._app.on('HEAD', path, ...middlewares);
         break;
       case 'all':
@@ -172,9 +168,9 @@ export class InversifyHonoServer {
       default:
         console.warn(`Unsupported HTTP method: ${method}`);
     }
+
+    console.log(`Registered ${method.toUpperCase()} ${path} -> ${controllerInstance.constructor.name}.${handlerMetadata.key}`);
   }
-
-
 
   private getHandlersFromMetadata(constructor: object): HonoHandlerDecorator[] {
     const handlerMetadatas: HonoHandlerDecorator[] = 

@@ -1,81 +1,79 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MiddlewareHandler } from 'hono';
 import 'reflect-metadata';
 import { HonoControllerMetadata, HonoHandlerDecorator, METADATA_KEY } from './types';
 
-// Registry for controllers - avoiding circular imports
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let controllerRegistry: Set<new (...args: any[]) => object> | undefined;
+// Registry to store all controller constructors
+const controllerRegistry = new Set<any>();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getControllerRegistry = (): Set<new (...args: any[]) => object> => {
-  if (!controllerRegistry) {
-    controllerRegistry = new Set();
-  }
+// Export function to get the registry
+export function getControllerRegistry(): Set<any> {
   return controllerRegistry;
-};
+}
 
-export const controller = (path?: string, ...middleware: MiddlewareHandler[]) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <T extends new (...args: any[]) => object>(target: T): T => {
-    const currentMetadata: HonoControllerMetadata = {
-      path,
-      middleware,
-      target,
+export function controller(path?: string, ...middleware: MiddlewareHandler[]) {
+  return function <T extends { new (...args: any[]): object }>(target: T) {
+    const metadata: HonoControllerMetadata = {
+      path: path || '',
+      middleware
     };
-
-    Reflect.defineMetadata(METADATA_KEY.controller, currentMetadata, target);
     
-    // Ensure the target is bound to the container
-    const previousMetadata = Reflect.getMetadata('inversify:tagged_props', target) || {};
-    Reflect.defineMetadata('inversify:tagged_props', previousMetadata, target);
-
-    // Auto-register the controller
-    getControllerRegistry().add(target);
-
+    Reflect.defineMetadata(METADATA_KEY.controller, metadata, target);
+    
+    // Add to registry
+    controllerRegistry.add(target);
+    console.log(`Registered controller: ${target.name} with path: ${metadata.path}`);
+    
     return target;
   };
-};
+}
 
-const httpMethodDecorator = (method: string, path?: string, ...middleware: MiddlewareHandler[]) => {
-  return (target: object, key: string, descriptor: PropertyDescriptor) => {
-    const handlerDecorator: HonoHandlerDecorator = {
-      path,
-      method,
+function httpMethod(method: string, path?: string, ...middleware: MiddlewareHandler[]) {
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    const metadata: HonoHandlerDecorator = {
+      key,
+      method: method.toUpperCase(),
+      path: path || '',
       middleware,
       target,
-      key,
-      descriptor,
+      descriptor
     };
 
-    let metadataList: HonoHandlerDecorator[] = [];
+    const metadataList: HonoHandlerDecorator[] = 
+      Reflect.getMetadata(METADATA_KEY.httpMethod, target.constructor) || [];
     
-    if (!Reflect.hasMetadata(METADATA_KEY.httpMethod, target.constructor)) {
-      Reflect.defineMetadata(METADATA_KEY.httpMethod, metadataList, target.constructor);
-    } else {
-      metadataList = Reflect.getMetadata(METADATA_KEY.httpMethod, target.constructor);
-    }
-
-    metadataList.push(handlerDecorator);
+    metadataList.push(metadata);
+    
+    Reflect.defineMetadata(METADATA_KEY.httpMethod, metadataList, target.constructor);
+    
+    return descriptor;
   };
-};
+}
 
-export const httpGet = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('get', path, ...middleware);
+export function httpGet(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('GET', path, ...middleware);
+}
 
-export const httpPost = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('post', path, ...middleware);
+export function httpPost(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('POST', path, ...middleware);
+}
 
-export const httpPut = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('put', path, ...middleware);
+export function httpPut(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('PUT', path, ...middleware);
+}
 
-export const httpPatch = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('patch', path, ...middleware);
+export function httpPatch(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('PATCH', path, ...middleware);
+}
 
-export const httpDelete = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('delete', path, ...middleware);
+export function httpDelete(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('DELETE', path, ...middleware);
+}
 
-export const httpHead = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('head', path, ...middleware);
+export function httpHead(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('HEAD', path, ...middleware);
+}
 
-export const httpAll = (path?: string, ...middleware: MiddlewareHandler[]) => 
-  httpMethodDecorator('all', path, ...middleware);
+export function httpAll(path?: string, ...middleware: MiddlewareHandler[]) {
+  return httpMethod('ALL', path, ...middleware);
+}

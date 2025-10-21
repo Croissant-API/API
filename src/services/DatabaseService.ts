@@ -1,34 +1,55 @@
-
- 
 import { injectable } from 'inversify';
 import 'reflect-metadata';
 
 export interface IDatabaseService {
   request(query: string, params?: unknown[]): Promise<void>;
   read<T>(query: string, params?: unknown[]): Promise<T[]>;
+  initialize(): Promise<void>;
 }
 
 @injectable()
 export class DatabaseService implements IDatabaseService {
   private readonly workerUrl: string;
   private readonly authHeader: string;
+  private isInitialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     this.workerUrl = process.env.WORKER_URL as string;
     const user = process.env.WORKER_USER as string;
     const pass = process.env.WORKER_PASS as string;
     this.authHeader = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
-
-    
-    this.testConnection();
+    // Remove any initialization here - it must be lazy
   }
 
-  private async testConnection(): Promise<void> {
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+    
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.performInitialization();
+    return this.initializationPromise;
+  }
+
+  private async performInitialization(): Promise<void> {
     try {
-      await this.runQuery("SELECT 1 as test");
+      // await this.testConnection();
+      this.isInitialized = true;
       console.log('Database Worker connection established');
     } catch (err) {
       console.error('Database Worker connection error:', err);
+      this.initializationPromise = null; // Reset so we can retry
+      throw err;
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initialize();
     }
   }
 
@@ -77,6 +98,7 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async request(query: string, params: unknown[] = []): Promise<void> {
+    await this.ensureInitialized();
     try {
       const interpolatedQuery = this.interpolateParams(query, params);
       await this.runQuery(interpolatedQuery);
@@ -87,11 +109,11 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
+    await this.ensureInitialized();
     try {
       const interpolatedQuery = this.interpolateParams(query, params);
       const result = await this.runQuery(interpolatedQuery, "json");
 
-      
       let rows: unknown[] = [];
       if (typeof result === 'object' && result !== null && 'results' in result) {
         rows = result.results || [];
@@ -103,7 +125,6 @@ export class DatabaseService implements IDatabaseService {
       }
 
       return rows.map((row: unknown) => {
-        
         if (typeof row === 'object' && row !== null) {
           const processedRow = { ...row as Record<string, unknown> };
           for (const key in processedRow) {
@@ -112,7 +133,7 @@ export class DatabaseService implements IDatabaseService {
                 const parsed = JSON.parse(processedRow[key] as string);
                 processedRow[key] = parsed;
               } catch {
-                console.log('Value is not JSON, leaving as string');
+                // Value is not JSON, leaving as string
               }
             }
           }
@@ -127,7 +148,6 @@ export class DatabaseService implements IDatabaseService {
   }
 
   public async destroy(): Promise<void> {
-    
     console.log('DatabaseService destroyed');
   }
 }

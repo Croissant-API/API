@@ -1,10 +1,6 @@
-import { parse } from 'csv-parse/sync';
-import * as fs from 'fs/promises';
-import { injectable } from 'inversify';
-import * as path from 'path';
+import { inject, injectable } from 'inversify';
 import { CreateLogData, Log } from '../interfaces/Log';
-
-const LOG_FILE = path.join(process.cwd(), '/logs.csv');
+import { IDatabaseService } from './DatabaseService';
 
 export interface ILogService {
   createLog(logData: CreateLogData): Promise<void>;
@@ -18,86 +14,130 @@ export interface ILogService {
     logsByController: { controller: string; count: number }[];
     logsByTable: { table_name: string; count: number }[];
   }>;
+  initialize(): Promise<void>;
 }
 
 @injectable()
 export class LogService implements ILogService {
-  private async ensureFileExists() {
-    try {
-      await fs.access(LOG_FILE);
-    } catch {
-      const header = 'timestamp,ip_address,table_name,controller,original_path,http_method,request_body,user_id,status_code\n';
-      await fs.writeFile(LOG_FILE, header, 'utf8');
+  private isInitialized: boolean = false;
+
+  constructor(
+    @inject('DatabaseService') private databaseService: IDatabaseService
+  ) {}
+
+  public async initialize(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.databaseService.initialize();
+      await this.ensureTableExists();
+      this.isInitialized = true;
     }
   }
 
-  private async readLogs(): Promise<Log[]> {
-    await this.ensureFileExists();
-    const content = await fs.readFile(LOG_FILE, 'utf8');
-    const records = parse(content, {
-      columns: true,
-      skip_empty_lines: true,
-    });
-    return records as Log[];
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
   }
 
-  private async writeLogs(logs: Log[]): Promise<void> {
-    const header = 'timestamp,ip_address,table_name,controller,original_path,http_method,request_body,user_id,status_code\n';
-    const lines = logs.map(log => [log.timestamp, log.ip_address, log.table_name ?? '', log.controller, log.original_path, log.http_method, log.request_body ? JSON.stringify(log.request_body) : '', log.user_id ?? '', log.status_code ?? ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-    await fs.writeFile(LOG_FILE, header + lines.join('\n'), 'utf8');
+  private async ensureTableExists(): Promise<void> {
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        table_name TEXT,
+        controller TEXT NOT NULL,
+        original_path TEXT NOT NULL,
+        http_method TEXT NOT NULL,
+        request_body TEXT,
+        user_id TEXT,
+        status_code INTEGER
+      )
+    `;
+    await this.databaseService.request(createTableQuery);
   }
 
   async createLog(logData: CreateLogData): Promise<void> {
-    await this.ensureFileExists();
-    const log: Log = {
-      timestamp: new Date().toISOString(),
-      ip_address: logData.ip_address,
-      table_name: logData.table_name ?? '',
-      controller: logData.controller,
-      original_path: logData.original_path,
-      http_method: logData.http_method,
-      request_body: logData.request_body ? JSON.stringify(logData.request_body) : '',
-      user_id: logData.user_id ?? '',
-      status_code: logData.status_code,
-    };
-    const line = [log.timestamp, log.ip_address, log.table_name, log.controller, log.original_path, log.http_method, log.request_body, log.user_id, log.status_code].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-    await fs.appendFile(LOG_FILE, line + '\n', 'utf8');
+    await this.ensureInitialized();
+    
+    const insertQuery = `
+      INSERT INTO logs (timestamp, ip_address, table_name, controller, original_path, http_method, request_body, user_id, status_code)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const params = [
+      new Date().toISOString(),
+      logData.ip_address,
+      logData.table_name || null,
+      logData.controller,
+      logData.original_path,
+      logData.http_method,
+      logData.request_body ? JSON.stringify(logData.request_body) : null,
+      logData.user_id || null,
+      logData.status_code || null
+    ];
+
+    await this.databaseService.request(insertQuery, params);
   }
 
   async getLogs(limit = 100, offset = 0): Promise<Log[]> {
-    const logs = await this.readLogs();
-    return logs.reverse().slice(offset, offset + limit);
+    await this.ensureInitialized();
+    
+    const query = `
+      SELECT * FROM logs 
+      ORDER BY timestamp DESC 
+      LIMIT ? OFFSET ?
+    `;
+    
+    return await this.databaseService.read<Log>(query, [limit, offset]);
   }
 
   async getLogsByController(controller: string, limit = 100): Promise<Log[]> {
-    const logs = await this.readLogs();
-    return logs
-      .filter(l => l.controller === controller)
-      .reverse()
-      .slice(0, limit);
+    await this.ensureInitialized();
+    
+    const query = `
+      SELECT * FROM logs 
+      WHERE controller = ? 
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    
+    return await this.databaseService.read<Log>(query, [controller, limit]);
   }
 
   async getLogsByUser(userId: string, limit = 100): Promise<Log[]> {
-    const logs = await this.readLogs();
-    return logs
-      .filter(l => l.user_id === userId)
-      .reverse()
-      .slice(0, limit);
+    await this.ensureInitialized();
+    
+    const query = `
+      SELECT * FROM logs 
+      WHERE user_id = ? 
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    
+    return await this.databaseService.read<Log>(query, [userId, limit]);
   }
 
   async getLogsByTable(tableName: string, limit = 100): Promise<Log[]> {
-    const logs = await this.readLogs();
-    return logs
-      .filter(l => l.table_name === tableName)
-      .reverse()
-      .slice(0, limit);
+    await this.ensureInitialized();
+    
+    const query = `
+      SELECT * FROM logs 
+      WHERE table_name = ? 
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    
+    return await this.databaseService.read<Log>(query, [tableName, limit]);
   }
 
   async deleteOldLogs(daysOld: number): Promise<void> {
-    const logs = await this.readLogs();
-    const cutoff = Date.now() - daysOld * 24 * 60 * 60 * 1000;
-    const filtered = logs.filter(l => new Date(l.timestamp).getTime() >= cutoff);
-    await this.writeLogs(filtered);
+    await this.ensureInitialized();
+    
+    const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
+    const query = `DELETE FROM logs WHERE timestamp < ?`;
+    
+    await this.databaseService.request(query, [cutoffDate]);
   }
 
   async getLogStats(): Promise<{
@@ -105,17 +145,33 @@ export class LogService implements ILogService {
     logsByController: { controller: string; count: number }[];
     logsByTable: { table_name: string; count: number }[];
   }> {
-    const logs = await this.readLogs();
-    const logsByController: Record<string, number> = {};
-    const logsByTable: Record<string, number> = {};
-    for (const log of logs) {
-      logsByController[log.controller] = (logsByController[log.controller] || 0) + 1;
-      if (log.table_name) logsByTable[log.table_name] = (logsByTable[log.table_name] || 0) + 1;
-    }
+    await this.ensureInitialized();
+    
+    const totalQuery = `SELECT COUNT(*) as count FROM logs`;
+    const controllerQuery = `
+      SELECT controller, COUNT(*) as count 
+      FROM logs 
+      GROUP BY controller 
+      ORDER BY count DESC
+    `;
+    const tableQuery = `
+      SELECT table_name, COUNT(*) as count 
+      FROM logs 
+      WHERE table_name IS NOT NULL 
+      GROUP BY table_name 
+      ORDER BY count DESC
+    `;
+
+    const [totalResult, controllerResults, tableResults] = await Promise.all([
+      this.databaseService.read<{ count: number }>(totalQuery),
+      this.databaseService.read<{ controller: string; count: number }>(controllerQuery),
+      this.databaseService.read<{ table_name: string; count: number }>(tableQuery)
+    ]);
+
     return {
-      totalLogs: logs.length,
-      logsByController: Object.entries(logsByController).map(([controller, count]) => ({ controller, count })),
-      logsByTable: Object.entries(logsByTable).map(([table_name, count]) => ({ table_name, count })),
+      totalLogs: totalResult[0]?.count || 0,
+      logsByController: controllerResults,
+      logsByTable: tableResults
     };
   }
 }

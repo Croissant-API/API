@@ -18,6 +18,8 @@ import { IStudioService, StudioService } from './services/StudioService';
 import { ITradeService, TradeService } from './services/TradeService';
 import { IUserService, UserService } from './services/UserService';
 
+import 'reflect-metadata';
+
 const container = new Container();
 
 container.bind<IDatabaseService>('DatabaseService').to(DatabaseService).inSingletonScope();

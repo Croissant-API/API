@@ -1,57 +1,42 @@
-import { config } from 'dotenv';
-import { cors } from 'hono/cors';
 import 'reflect-metadata';
-import container from './container';
-import { InversifyHonoServer } from './hono-inversify';
-import './polyfills';
-config();
+import container from './container'; // Use the existing container
+import { TestController } from './controllers/TestController';
+import { Users } from './controllers/UserController';
+import { InversifyHonoServer } from './hono-inversify/InversifyHonoServer';
 
-import './controllers/TestController';
-// TODO: Migrate these controllers to Hono
-// import './controllers/AuthenticatorController';
-// import './controllers/BuyOrderController';
-// import './controllers/DescribeController';
-// import './controllers/GameController';
-// import './controllers/GameGiftController';
-// import './controllers/InventoryController';
-// import './controllers/ItemController';
-// import './controllers/LobbyController';
-// import './controllers/MarketListingController';
-// import './controllers/OAuth2Controller';
-// import './controllers/SearchController';
-// import './controllers/StripeController';
-// import './controllers/StudioController';
-// import './controllers/TradeController';
-// import './controllers/UserController';
-// import './controllers/WebAuthnController';
 
+console.log('Setting up container...');
+
+// Bind controllers to the existing container
+container.bind<Users>(Users).toSelf().inTransientScope();
+container.bind<TestController>(TestController).toSelf().inTransientScope();
+
+console.log('Container setup complete');
+
+// Create the Hono-Inversify server
 const server = new InversifyHonoServer(container);
 
-server.setConfig(app => {
-  // Add CORS middleware
-  app.use('*', cors({
-    origin: '*',
-    allowMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH'],
-  }));
-
-  // Middleware for raw JSON for Stripe webhooks
-  app.use('/stripe/webhook', async (c, next) => {
-    // For Hono in Cloudflare Workers, raw body handling is different
-    // We'll handle this in the specific Stripe controller
+// Optional configuration (global middlewares, etc.)
+server.setConfig((app) => {
+  // CORS middleware
+  app.use('*', async (c, next) => {
+    c.res.headers.set('Access-Control-Allow-Origin', '*');
+    c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (c.req.method === 'OPTIONS') {
+      return c.text('', 200);
+    }
+    
     await next();
   });
-
-  // JSON parsing is handled automatically by Hono
-  // No need for custom JSON parser middleware
 });
 
-server.setErrorConfig(app => {
-  // 404 handler - this should be the last middleware
-  app.notFound((c) => {
-    return c.json({ message: 'Not Found' }, 404);
-  });
-});
+console.log('Building app...');
 
+// Build the application
 export const app = server.build();
+
+console.log('App built successfully');
 
 
