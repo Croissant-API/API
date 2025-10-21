@@ -14,16 +14,16 @@ export class DatabaseService implements IDatabaseService {
   private isInitialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
 
-  constructor() {}
+  constructor() { }
 
-  public async initialize(env:any): Promise<void> {
+  public async initialize(env: any): Promise<void> {
     if (this.isInitialized) return;
     if (this.initializationPromise) return this.initializationPromise;
     this.initializationPromise = this.performInitialization(env);
     return this.initializationPromise;
   }
 
-  private async performInitialization(env:any): Promise<void> {
+  private async performInitialization(env: any): Promise<void> {
     try {
       if (env?.d1_local) this.db = env.d1_local;
       else if (env?.CROISSANT) this.db = env.CROISSANT;
@@ -36,7 +36,7 @@ export class DatabaseService implements IDatabaseService {
     }
   }
 
-  private async ensureInitialized(env:any): Promise<void> {
+  private async ensureInitialized(env: any): Promise<void> {
     if (!this.isInitialized) {
       await this.initialize(env);
     }
@@ -65,7 +65,33 @@ export class DatabaseService implements IDatabaseService {
       const lines = rows.map(r => keys.map(k => escape(r[k])).join(","));
       return [header, ...lines].join("\n");
     }
-    return res;
+
+    // Parse response recursively
+    const parseRecursively = (obj: any): any => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'string') {
+        try {
+          const parsed = JSON.parse(obj);
+          return parseRecursively(parsed);
+        } catch {
+          return obj;
+        }
+      }
+      if (Array.isArray(obj)) {
+        return obj.map(item => parseRecursively(item));
+      }
+      if (typeof obj === 'object') {
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+          result[key] = parseRecursively(value);
+        }
+        return result;
+      }
+      return obj;
+    };
+    // console.log('Query result:', parseRecursively(res));
+    return parseRecursively(res);
+
   }
 
   public async request(query: string, params: unknown[] = []): Promise<void> {
