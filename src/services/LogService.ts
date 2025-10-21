@@ -4,7 +4,7 @@ import { injectable } from 'inversify';
 import * as path from 'path';
 import { CreateLogData, Log } from '../interfaces/Log';
 
-const LOG_FILE = path.join(__dirname, '../../logs.csv');
+const LOG_FILE = path.join(process.cwd(), '/logs.csv');
 
 export interface ILogService {
   createLog(logData: CreateLogData): Promise<void>;

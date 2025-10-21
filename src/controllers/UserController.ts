@@ -1,11 +1,10 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost } from '../hono-inversify';
 import { PublicUser, PublicUserAsAdmin, User } from '../interfaces/User';
+import { createRateLimit } from '../middlewares/hono/rateLimit';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { MailService } from '../services/MailService';
@@ -17,7 +16,7 @@ import { requireFields } from '../utils/helpers';
 import { generateUserJwt } from '../utils/Jwt';
 import { userIdParamValidator } from '../validators/UserValidator';
 
-const registerRateLimit = rateLimit({
+const registerRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 5, 
   message: 'Too many registration attempts from this IP, please try again later.',
@@ -25,7 +24,7 @@ const registerRateLimit = rateLimit({
   legacyHeaders: false, 
 });
 
-const changeUsernameRateLimit = rateLimit({
+const changeUsernameRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 10, 
   message: 'Too many username changes, please try again later.',
@@ -33,7 +32,7 @@ const changeUsernameRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const changePasswordRateLimit = rateLimit({
+const changePasswordRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 20, 
   message: 'Too many password changes, please try again later.',
@@ -41,7 +40,7 @@ const changePasswordRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const transferCreditsRateLimit = rateLimit({
+const transferCreditsRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 10, 
   message: 'Too many credit transfers, please try again later.',
@@ -49,7 +48,7 @@ const transferCreditsRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const forgotPasswordRateLimit = rateLimit({
+const forgotPasswordRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 5, 
   message: 'Too many password reset requests, please try again later.',
@@ -57,7 +56,7 @@ const forgotPasswordRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const resetPasswordRateLimit = rateLimit({
+const resetPasswordRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 5, 
   message: 'Too many password reset attempts, please try again later.',
@@ -65,7 +64,7 @@ const resetPasswordRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const loginRateLimit = rateLimit({
+const loginRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 100, 
   message: 'Too many login attempts, please try again later.',
@@ -73,7 +72,7 @@ const loginRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const loginOAuthRateLimit = rateLimit({
+const loginOAuthRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 100, 
   message: 'Too many OAuth login attempts, please try again later.',
@@ -81,7 +80,7 @@ const loginOAuthRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const changeRoleRateLimit = rateLimit({
+const changeRoleRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 500, 
   message: 'Too many role changes, please try again later.',
@@ -89,7 +88,7 @@ const changeRoleRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-const unlinkSteamRateLimit = rateLimit({
+const unlinkSteamRateLimit = createRateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 30, 
   message: 'Too many unlink steam requests, please try again later.',

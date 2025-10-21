@@ -1,10 +1,8 @@
 import crypto from 'crypto';
 import removeDiacritics from 'diacritics';
-import { config } from 'dotenv';
 import { InventoryItem } from 'interfaces/Inventory';
 import { Item } from 'interfaces/Item';
 import { inject, injectable } from 'inversify';
-import path from 'path';
 import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from '../interfaces/User';
 import { UserRepository } from '../repositories/UserRepository';
 import { decryptUserId, genKey } from '../utils/GenKey';
@@ -23,7 +21,7 @@ function slugify(str: string): string {
   return str.toLowerCase();
 }
 
-config({ path: path.join(__dirname, '..', '..', '.env') });
+// config({ path: path.join(__dirname, '..', '..', '.env') });
 
 export interface IUserService {
   updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
