@@ -25,8 +25,9 @@ export class DatabaseService implements IDatabaseService {
 
   private async performInitialization(env: any): Promise<void> {
     try {
-      if (env?.d1_local) this.db = env.d1_local;
-      else if (env?.CROISSANT) this.db = env.CROISSANT;
+      // if (env?.d1_local) this.db = env.d1_local;
+      // else if (env?.CROISSANT) this.db = env.CROISSANT;
+      if (env?.CROISSANT) this.db = env.CROISSANT;
       this.isInitialized = true;
       console.log('D1 binding established');
     } catch (err) {
