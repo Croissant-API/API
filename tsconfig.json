@@ -18,7 +18,7 @@
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
+  "include": ["worker-configuration.d.ts", "src/**/*"],
   "exclude": ["node_modules", "dist"],
   "types": ["node"]
 }
