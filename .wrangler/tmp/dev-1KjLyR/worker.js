@@ -27747,12 +27747,6 @@ var UserService = class {
     this.databaseService = databaseService;
     this.apiKeyUserCache = /* @__PURE__ */ new Map();
     this.userRepository = new UserRepository(this.databaseService);
-    this.getAllUsersWithDisabled().then((users) => {
-      for (const user of users) {
-        const key = genKey(user.user_id);
-        this.apiKeyUserCache.set(key, user);
-      }
-    });
   }
   async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
     await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
@@ -34251,16 +34245,6 @@ var Users = class {
   getOriginalUserFromContext(c3) {
     return c3.get("originalUser");
   }
-  async getUsers(c3) {
-    try {
-      const users = await this.userService.getAllUsers();
-      const publicUsers = users.map((user) => this.mapUserSearch(user));
-      return c3.json(publicUsers, 200);
-    } catch (error3) {
-      console.error("Error fetching users:", error3);
-      return this.sendError(c3, 500, "Internal server error");
-    }
-  }
   async loginOAuth(c3) {
     try {
       const body = await c3.req.json();
@@ -34995,9 +34979,6 @@ var Users = class {
   }
 };
 __name(Users, "Users");
-__decorateClass([
-  httpGet("/")
-], Users.prototype, "getUsers", 1);
 __decorateClass([
   httpPost("/login-oauth", loginOAuthRateLimit)
 ], Users.prototype, "loginOAuth", 1);

@@ -187,18 +187,6 @@ export class Users {
     return c.get('originalUser') as User | undefined;
   }
 
-  @httpGet('/')
-  public async getUsers(c: Context) {
-    try {
-      const users = await this.userService.getAllUsers();
-      const publicUsers = users.map(user => this.mapUserSearch(user));
-      return c.json(publicUsers, 200);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      return this.sendError(c, 500, 'Internal server error');
-    }
-  }
-
   @httpPost('/login-oauth', loginOAuthRateLimit)
   public async loginOAuth(c: Context) {
     try {

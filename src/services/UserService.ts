@@ -5,7 +5,7 @@ import { Item } from 'interfaces/Item';
 import { inject, injectable } from 'inversify';
 import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from '../interfaces/User';
 import { UserRepository } from '../repositories/UserRepository';
-import { decryptUserId, genKey } from '../utils/GenKey';
+import { decryptUserId } from '../utils/GenKey';
 import { verifyUserJwt } from '../utils/Jwt';
 import { IDatabaseService } from './DatabaseService';
 
@@ -63,12 +63,12 @@ export class UserService implements IUserService {
   private userRepository: UserRepository;
   constructor(@inject('DatabaseService') private databaseService: IDatabaseService) {
     this.userRepository = new UserRepository(this.databaseService);
-    this.getAllUsersWithDisabled().then(users => {
-      for (const user of users) {
-        const key = genKey(user.user_id);
-        this.apiKeyUserCache.set(key, user);
-      }
-    });
+    // this.getAllUsersWithDisabled().then(users => {
+    //   for (const user of users) {
+    //     const key = genKey(user.user_id);
+    //     this.apiKeyUserCache.set(key, user);
+    //   }
+    // });
   }
 
   
