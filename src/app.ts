@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { IDatabaseService } from 'services/DatabaseService';
 import container from './container'; // Use the existing container
 import { AuthenticatorController } from './controllers/AuthenticatorController';
 import { BuyOrderController } from './controllers/BuyOrderController';
@@ -57,6 +58,13 @@ server.setConfig((app) => {
       return c.text('', 200);
     }
     
+    await next();
+  });
+
+  app.use('*', async (c, next) => {
+    // c.env contient le binding D1
+    const dbService: IDatabaseService = container.get("DatabaseService");
+    await dbService.initialize(c.env); // Passe l'env à chaque requête
     await next();
   });
 });

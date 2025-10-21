@@ -71,7 +71,7 @@ export class UserService implements IUserService {
     // });
   }
 
-  
+
 
   async updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void> {
     await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
@@ -103,7 +103,7 @@ export class UserService implements IUserService {
 
   async searchUsersByUsername(query: string): Promise<PublicUser[]> {
     const users = await this.adminSearchUsers(query);
-    
+
     return users
       .filter((u: PublicUser) => !u.disabled)
       .map((u: PublicUser) => ({
@@ -114,7 +114,7 @@ export class UserService implements IUserService {
         admin: !!u.admin,
         beta_user: !!u.beta_user,
         badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
-        disabled: !!u.disabled, 
+        disabled: !!u.disabled,
       }));
   }
 
@@ -202,7 +202,7 @@ export class UserService implements IUserService {
     }
     const apiKey = tokenOrApiKey;
 
-    
+
     const userId = decryptUserId(apiKey);
     if (!userId) return null;
 
@@ -322,27 +322,64 @@ export class UserService implements IUserService {
     if (results.length === 0) return null;
 
     const user = results[0];
-    if (user.beta_user) {
-      user.badges = ['early_user', ...user.badges];
+    let badges: string[] = [];
+    if (user.badges) {
+      if (typeof user.badges === 'string') {
+        try {
+          badges = JSON.parse(user.badges);
+        } catch {
+          badges = [];
+        }
+      } else if (Array.isArray(user.badges)) {
+        badges = user.badges;
+      }
     }
+    if (user.beta_user) {
+      badges = ['early_user', ...badges];
+    }
+    const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
+    badges = badges.filter(badge => badgeOrder.includes(badge));
+    badges.sort((a, b) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
+    user.badges = badges as ("staff" | "moderator" | "community_manager" | "early_user" | "bug_hunter" | "contributor" | "partner")[];
     if (user.inventory) {
-      user.inventory = user.inventory
-        .filter((item: InventoryItem) => item !== null)
-        .map((item: InventoryItem) => ({
-          ...item,
-          metadata:
-            typeof item.metadata === 'string' && item.metadata
-              ? (() => {
+      // Parse inventory if it's a string
+      if (typeof user.inventory === 'string') {
+        try {
+          user.inventory = JSON.parse(user.inventory);
+        } catch {
+          user.inventory = [];
+        }
+      }
+      if (user.inventory) {
+        user.inventory = user.inventory
+          .filter((item: InventoryItem) => item !== null)
+          .map((item: InventoryItem) => ({
+            ...item,
+            metadata:
+              typeof item.metadata === 'string' && item.metadata
+                ? (() => {
                   try {
                     return JSON.parse(item.metadata);
                   } catch {
                     return item.metadata;
                   }
                 })()
-              : item.metadata,
-        }));
+                : item.metadata,
+          }));
+      }
     }
     if (user.ownedItems) {
+      // Parse ownedItems if it's a string
+      if (typeof user.ownedItems === 'string') {
+        try {
+          user.ownedItems = JSON.parse(user.ownedItems);
+        } catch {
+          user.ownedItems = [];
+        }
+      }
+      if (!Array.isArray(user.ownedItems)) {
+        user.ownedItems = [];
+      }
       user.ownedItems = user.ownedItems.sort((a: Item, b: Item) => {
         const nameCompare = a.name?.localeCompare(b.name || '') || 0;
         if (nameCompare !== 0) return nameCompare;
@@ -360,7 +397,7 @@ export class UserService implements IUserService {
   async getUserWithPublicProfile(user_id: string): Promise<(PublicUser & UserExtensions) | null> {
     const user = await this.getUserWithCompleteProfile(user_id);
     if (!user) return null;
-    
+
     const publicProfile: PublicUser & UserExtensions = {
       user_id: user.user_id,
       username: user.username,

@@ -30,8 +30,18 @@ export class StudioService implements IStudioService {
   async getStudio(user_id: string) {
     const studio = await this.studioRepository.getStudio(user_id);
     if (!studio) return null;
-    const users = await this.getUsersByIds(studio.users);
-    const me = (await this.userService.getUserWithPublicProfile(studio.user_id)) as StudioUser;
+    const users = await this.getUsersByIds(studio.admin_id, studio.users);
+    const me = (await this.userService.getUserWithPublicProfile(studio.user_id)) as User;
+    if (me && me.badges) {
+      if (typeof me.badges === 'string') {
+        try {
+          me.badges = JSON.parse(me.badges);
+        } catch {
+          me.badges = [];
+        }
+      }
+      me.badges = me.badges.filter((b: string) => !!b);
+    }
     return { ...studio, users, me };
   }
 
@@ -48,13 +58,14 @@ export class StudioService implements IStudioService {
     return Promise.all(
       studios.map(async s => {
         const userIds = [...s.users, s.admin_id];
-        const users = await this.getUsersByIds(userIds);
+        const users = await this.getUsersByIds(s.admin_id ,userIds);
         const me = (await this.userService.getUser(s.user_id)) as StudioUser;
         return {
           user_id: s.user_id,
           admin_id: s.admin_id,
           users,
           me,
+          isAdmin: s.admin_id === user_id,
           apiKey: s.admin_id === user_id ? genKey(s.user_id) : undefined,
         };
       })
@@ -89,8 +100,14 @@ export class StudioService implements IStudioService {
     return this.userService.getUser(user_id);
   }
 
-  private async getUsersByIds(userIds: string[]) {
-    if (!userIds.length) return [];
-    return this.db.read<User>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
+  private async getUsersByIds(admin_id: string, userIds: string[]) {
+    // if (!Array.isArray(userIds) || !userIds.length) return [];
+    if (!Array.isArray(userIds))
+      userIds = JSON.parse(userIds);
+    userIds = [...admin_id, ...userIds];
+    return this.db.read<User>(
+      `SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`,
+      userIds
+    );
   }
 }
