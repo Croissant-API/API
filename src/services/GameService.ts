@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { inject, injectable } from 'inversify';
 import { Badge } from '../interfaces/Badge';
 import { Game } from '../interfaces/Game';
@@ -158,8 +159,9 @@ export class GameService implements IGameService {
 
     const [badges, views] = await Promise.all([this.badgeService.getActiveBadgesForGame(gameId), this.gameViewService.getGameViewStats(gameId)]);
 
+    const { download_link, ...gameWithoutDownloadLink } = game;
     return {
-      ...game,
+      ...gameWithoutDownloadLink,
       badges,
       views,
     };
@@ -185,8 +187,9 @@ export class GameService implements IGameService {
           views_this_month: 0,
         };
 
+        const { download_link, ...gameWithoutDownloadLink } = game;
         results.push({
-          ...game,
+          ...gameWithoutDownloadLink,
           badges,
           views,
         });

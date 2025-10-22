@@ -383,8 +383,30 @@ export class Games {
       if (!owns) return this.sendError(c, 403, 'Access denied');
       const link = game.download_link;
       if (!link) return this.sendError(c, 404, 'Download link not available');
-      // For Hono, you may want to redirect or proxy the file
-      return c.redirect(link);
+
+      const headers: Record<string, string> = {};
+      const range = c.req.header('range');
+      if (range) headers['Range'] = range;
+
+      const fileRes = await fetch(link, { headers });
+      if (!fileRes.ok) {
+        return this.sendError(c, fileRes.status, 'Error fetching file');
+      }
+
+      c.header('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+      c.header('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+      const contentLength = fileRes.headers.get('content-length');
+      if (contentLength) c.header('Content-Length', contentLength);
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges) c.header('Accept-Ranges', acceptRanges);
+      const contentRange = fileRes.headers.get('content-range');
+      if (contentRange) c.header('Content-Range', contentRange);
+
+      // Stream le body du fichier distant
+      return new Response(fileRes.body, {
+        status: fileRes.status,
+        headers: c.res.headers,
+      });
     } catch (error) {
       return this.sendError(c, 500, 'Error downloading game', error);
     }
@@ -402,8 +424,26 @@ export class Games {
       if (!owns) return this.sendError(c, 403, 'Access denied');
       const link = game.download_link;
       if (!link) return this.sendError(c, 404, 'Download link not available');
-      // For Hono, you may want to return headers or redirect
-      return c.redirect(link);
+
+      const headers: Record<string, string> = {};
+      const range = c.req.header('range');
+      if (range) headers['Range'] = range;
+
+      const fileRes = await fetch(link, { method: 'HEAD', headers });
+      if (!fileRes.ok) {
+        return this.sendError(c, fileRes.status, 'Error fetching file headers');
+      }
+
+      c.header('Content-Disposition', `attachment; filename="${game.name}.zip"`);
+      c.header('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+      const contentLength = fileRes.headers.get('content-length');
+      if (contentLength) c.header('Content-Length', contentLength);
+      const acceptRanges = fileRes.headers.get('accept-ranges');
+      if (acceptRanges) c.header('Accept-Ranges', acceptRanges);
+      const contentRange = fileRes.headers.get('content-range');
+      if (contentRange) c.header('Content-Range', contentRange);
+
+      return c.body(null, fileRes.status as any);
     } catch (error) {
       return this.sendError(c, 500, 'Error fetching file headers', error);
     }
