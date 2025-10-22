@@ -2,14 +2,12 @@
 import { Context } from 'hono';
 import { controller, httpGet } from 'hono-inversify';
 import { inject, injectable } from 'inversify';
-import { LoggedCheck } from 'middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
 import { IInventoryService } from '../services/InventoryService';
 import { IItemService } from '../services/ItemService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 import { filterGame } from '../utils/helpers';
-
 @injectable()
 @controller('/search')
 export class SearchController {
@@ -92,7 +90,7 @@ export class SearchController {
     }
   }
 
-  @httpGet('/', LoggedCheck)
+  @httpGet('/')
   async globalSearch(c: Context) {
     const authHeader = c.req.header('authorization') ||
       'Bearer ' + (c.req.header('cookie')?.split('token=')[1]?.split(';')[0] || '');
