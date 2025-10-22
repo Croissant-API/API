@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Context } from 'hono';
 import { controller, httpGet } from 'hono-inversify';
@@ -95,20 +96,27 @@ export class SearchController {
     const authHeader = c.req.header('authorization') ||
       'Bearer ' + (c.req.header('cookie')?.split('token=')[1]?.split(';')[0] || '');
 
-    if (authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ message: 'Unauthorized' }, 401);
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split('Bearer ')[1];
     }
 
-    const token = authHeader.split('Bearer ')[1];
-    if (authHeader || !token) {
-      return c.json({ message: 'Unauthorized' }, 401);
+    let user: any = null;
+    if (token) {
+      try {
+        user = await this.userService.authenticateUser(token);
+      } catch (error) {
+        // Token invalid, continue as unlogged user
+      }
     }
 
-    const user: any = await this.userService.authenticateUser(token);
-    if (!user || !user.admin) {
-      return this.handleSearch(c);
-    } else {
+    if (user && user.admin) {
       return this.handleSearch(c, { admin: true, userId: user.user_id });
+    } else if (user) {
+      return this.handleSearch(c, { admin: false, userId: user.user_id });
+    } else {
+      // Unlogged user
+      return this.handleSearch(c, { admin: false });
     }
   }
 }
