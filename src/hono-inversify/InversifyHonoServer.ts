@@ -107,12 +107,16 @@ export class InversifyHonoServer {
       path += handlerMetadata.path;
     }
 
-    // Ensure path starts with /
+    // Ensure path starts with / and remove trailing /
     if (path && !path.startsWith('/')) {
       path = '/' + path;
     }
     if (!path) {
       path = '/';
+    }
+    // Remove trailing slash unless it's the root path
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1);
     }
 
     // Create the handler wrapper
