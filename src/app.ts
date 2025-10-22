@@ -1,10 +1,10 @@
+import compression from 'compression';
 import cors from 'cors';
 import { config } from 'dotenv';
 import express from 'express';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import 'reflect-metadata';
 import container from './container';
-import compression from 'compression';
 config();
 
 import './controllers/AuthenticatorController';
@@ -12,7 +12,6 @@ import './controllers/BuyOrderController';
 import './controllers/DescribeController';
 import './controllers/GameController';
 import './controllers/GameGiftController';
-import './controllers/GameViewController';
 import './controllers/InventoryController';
 import './controllers/ItemController';
 import './controllers/LobbyController';
