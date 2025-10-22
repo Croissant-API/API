@@ -95,12 +95,12 @@ export class SearchController {
     const authHeader = c.req.header('authorization') ||
       'Bearer ' + (c.req.header('cookie')?.split('token=')[1]?.split(';')[0] || '');
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader || !authHeader.startsWith('Bearer ')) {
       return c.json({ message: 'Unauthorized' }, 401);
     }
 
     const token = authHeader.split('Bearer ')[1];
-    if (!token) {
+    if (authHeader || !token) {
       return c.json({ message: 'Unauthorized' }, 401);
     }
 
