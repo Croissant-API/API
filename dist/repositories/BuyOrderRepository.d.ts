@@ -1,5 +1,5 @@
-import { BuyOrder } from "../interfaces/BuyOrder";
-import { IDatabaseService } from "../services/DatabaseService";
+import { BuyOrder } from '../interfaces/BuyOrder';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class BuyOrderRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
@@ -12,4 +12,3 @@ export declare class BuyOrderRepository {
         minPrice?: number;
     }, orderBy?: string, limit?: number): Promise<BuyOrder[]>;
 }
-

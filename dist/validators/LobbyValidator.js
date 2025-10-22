@@ -25,12 +25,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userIdParamSchema = exports.lobbyIdParamSchema = void 0;
 const yup = __importStar(require("yup"));
-
 exports.lobbyIdParamSchema = yup.object({
-    lobbyId: yup.string().trim().required("lobbyId is required"),
+    lobbyId: yup.string().trim().required('lobbyId is required'),
 });
-
 exports.userIdParamSchema = yup.object({
-    userId: yup.string().trim().required("userId is required"),
+    userId: yup.string().trim().required('userId is required'),
 });
-

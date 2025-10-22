@@ -1,6 +1,6 @@
-import { Game } from "./Game";
-import { InventoryItem } from "./Inventory";
-import { Item } from "./Item";
+import { Game } from './Game';
+import { InventoryItem } from './Inventory';
+import { Item } from './Item';
 export interface PublicUser {
     user_id: string;
     username: string;

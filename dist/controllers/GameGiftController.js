@@ -5,9 +5,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
@@ -16,7 +13,6 @@ exports.GameGifts = void 0;
 const inversify_1 = require("inversify");
 const inversify_express_utils_1 = require("inversify-express-utils");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -28,11 +24,10 @@ let GameGifts = class GameGifts {
         this.userService = userService;
         this.logService = logService;
     }
-    
     async createLog(req, action, tableName, statusCode, userId) {
         try {
             await this.logService.createLog({
-                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
+                ip_address: req.headers['x-real-ip'] || req.socket.remoteAddress,
                 table_name: tableName,
                 controller: `GameGiftController.${action}`,
                 original_path: req.originalUrl,
@@ -43,7 +38,7 @@ let GameGifts = class GameGifts {
             });
         }
         catch (error) {
-            console.error("Error creating log:", error);
+            console.error('Error creating log:', error);
         }
     }
     async handleGiftActions(req, res) {
@@ -51,24 +46,24 @@ let GameGifts = class GameGifts {
         const userId = req.user.user_id;
         try {
             switch (action) {
-                case "create": {
+                case 'create': {
                     const { gameId, message } = req.body;
                     if (!gameId) {
-                        await this.createLog(req, "createGift", "gifts", 400, userId);
-                        return res.status(400).send({ message: "Game ID is required" });
+                        await this.createLog(req, 'createGift', 'gifts', 400, userId);
+                        return res.status(400).send({ message: 'Game ID is required' });
                     }
                     const game = await this.gameService.getGame(gameId);
                     if (!game) {
-                        await this.createLog(req, "createGift", "gifts", 404, userId);
-                        return res.status(404).send({ message: "Game not found" });
+                        await this.createLog(req, 'createGift', 'gifts', 404, userId);
+                        return res.status(404).send({ message: 'Game not found' });
                     }
                     const user = await this.userService.getUser(userId);
                     if (!user) {
-                        await this.createLog(req, "createGift", "gifts", 404, userId);
-                        return res.status(404).send({ message: "User not found" });
+                        await this.createLog(req, 'createGift', 'gifts', 404, userId);
+                        return res.status(404).send({ message: 'User not found' });
                     }
                     if (user.balance < game.price) {
-                        await this.createLog(req, "createGift", "gifts", 400, userId);
+                        await this.createLog(req, 'createGift', 'gifts', 400, userId);
                         return res.status(400).send({
                             message: `Insufficient balance. Required: ${game.price}, Available: ${user.balance}`,
                         });
@@ -81,9 +76,9 @@ let GameGifts = class GameGifts {
                         }
                     }
                     const gift = await this.giftService.createGift(gameId, userId, message);
-                    await this.createLog(req, "createGift", "gifts", 201, userId);
+                    await this.createLog(req, 'createGift', 'gifts', 201, userId);
                     return res.status(201).send({
-                        message: "Gift created successfully",
+                        message: 'Gift created successfully',
                         gift: {
                             id: gift.id,
                             gameId: gift.gameId,
@@ -93,36 +88,36 @@ let GameGifts = class GameGifts {
                         },
                     });
                 }
-                case "claim": {
+                case 'claim': {
                     const { giftCode } = req.body;
                     if (!giftCode) {
-                        await this.createLog(req, "claimGift", "gifts", 400, userId);
-                        return res.status(400).send({ message: "Gift code is required" });
+                        await this.createLog(req, 'claimGift', 'gifts', 400, userId);
+                        return res.status(400).send({ message: 'Gift code is required' });
                     }
                     const gift = await this.giftService.getGift(giftCode);
                     if (!gift) {
-                        await this.createLog(req, "claimGift", "gifts", 404, userId);
-                        return res.status(404).send({ message: "Invalid gift code" });
+                        await this.createLog(req, 'claimGift', 'gifts', 404, userId);
+                        return res.status(404).send({ message: 'Invalid gift code' });
                     }
                     const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, userId);
                     if (userOwnsGame) {
-                        await this.createLog(req, "claimGift", "gifts", 400, userId);
-                        return res.status(400).send({ message: "You already own this game" });
+                        await this.createLog(req, 'claimGift', 'gifts', 400, userId);
+                        return res.status(400).send({ message: 'You already own this game' });
                     }
                     const claimedGift = await this.giftService.claimGift(giftCode, userId);
                     await this.gameService.addOwner(gift.gameId, userId);
-                    await this.createLog(req, "claimGift", "gifts", 200, userId);
+                    await this.createLog(req, 'claimGift', 'gifts', 200, userId);
                     return res.status(200).send({
-                        message: "Gift claimed successfully",
+                        message: 'Gift claimed successfully',
                         gift: claimedGift,
                     });
                 }
                 default:
-                    return res.status(404).send({ message: "Unknown action" });
+                    return res.status(404).send({ message: 'Unknown action' });
             }
         }
         catch (error) {
-            await this.createLog(req, action, "gifts", 500, userId);
+            await this.createLog(req, action, 'gifts', 500, userId);
             handleError(res, error, `Error in ${action}`);
         }
     }
@@ -136,12 +131,12 @@ let GameGifts = class GameGifts {
                     game,
                 };
             }));
-            await this.createLog(req, "getSentGifts", "gifts", 200, req.user.user_id);
+            await this.createLog(req, 'getSentGifts', 'gifts', 200, req.user.user_id);
             res.send(enrichedGifts);
         }
         catch (error) {
-            await this.createLog(req, "getSentGifts", "gifts", 500, req.user.user_id);
-            handleError(res, error, "Error fetching sent gifts");
+            await this.createLog(req, 'getSentGifts', 'gifts', 500, req.user.user_id);
+            handleError(res, error, 'Error fetching sent gifts');
         }
     }
     async getReceivedGifts(req, res) {
@@ -156,12 +151,12 @@ let GameGifts = class GameGifts {
                     fromUser: fromUser ? { id: fromUser.user_id, username: fromUser.username } : null,
                 };
             }));
-            await this.createLog(req, "getReceivedGifts", "gifts", 200, req.user.user_id);
+            await this.createLog(req, 'getReceivedGifts', 'gifts', 200, req.user.user_id);
             res.send(enrichedGifts);
         }
         catch (error) {
-            await this.createLog(req, "getReceivedGifts", "gifts", 500, req.user.user_id);
-            handleError(res, error, "Error fetching received gifts");
+            await this.createLog(req, 'getReceivedGifts', 'gifts', 500, req.user.user_id);
+            handleError(res, error, 'Error fetching received gifts');
         }
     }
     async getGiftInfo(req, res) {
@@ -169,13 +164,13 @@ let GameGifts = class GameGifts {
         try {
             const gift = await this.giftService.getGift(giftCode);
             if (!gift) {
-                await this.createLog(req, "getGiftInfo", "gifts", 404, req.user.user_id);
-                return res.status(404).send({ message: "Gift not found" });
+                await this.createLog(req, 'getGiftInfo', 'gifts', 404, req.user.user_id);
+                return res.status(404).send({ message: 'Gift not found' });
             }
             const game = await this.gameService.getGameForPublic(gift.gameId);
             const fromUser = await this.userService.getUser(gift.fromUserId);
             const userOwnsGame = await this.gameService.userOwnsGame(gift.gameId, req.user.user_id);
-            await this.createLog(req, "getGiftInfo", "gifts", 200, req.user.user_id);
+            await this.createLog(req, 'getGiftInfo', 'gifts', 200, req.user.user_id);
             res.send({
                 gift: {
                     gameId: gift.gameId,
@@ -191,8 +186,8 @@ let GameGifts = class GameGifts {
             });
         }
         catch (error) {
-            await this.createLog(req, "getGiftInfo", "gifts", 500, req.user.user_id);
-            handleError(res, error, "Error fetching gift info");
+            await this.createLog(req, 'getGiftInfo', 'gifts', 500, req.user.user_id);
+            handleError(res, error, 'Error fetching gift info');
         }
     }
     async revokeGift(req, res) {
@@ -200,14 +195,14 @@ let GameGifts = class GameGifts {
         const userId = req.user.user_id;
         try {
             const gifts = await this.giftService.getUserSentGifts(userId);
-            const gift = gifts.find((g) => g.id === giftId);
+            const gift = gifts.find(g => g.id === giftId);
             if (!gift) {
-                await this.createLog(req, "revokeGift", "gifts", 404, userId);
-                return res.status(404).send({ message: "Gift not found" });
+                await this.createLog(req, 'revokeGift', 'gifts', 404, userId);
+                return res.status(404).send({ message: 'Gift not found' });
             }
             if (!gift.isActive) {
-                await this.createLog(req, "revokeGift", "gifts", 400, userId);
-                return res.status(400).send({ message: "Gift is no longer active" });
+                await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
+                return res.status(400).send({ message: 'Gift is no longer active' });
             }
             await this.giftService.revokeGift(giftId, userId);
             const game = await this.gameService.getGame(gift.gameId);
@@ -221,52 +216,35 @@ let GameGifts = class GameGifts {
                     await this.userService.updateUserBalance(game.owner_id, owner.balance - game.price * 0.75);
                 }
             }
-            await this.createLog(req, "revokeGift", "gifts", 200, userId);
-            res.send({ message: "Gift revoked successfully and refund processed" });
+            await this.createLog(req, 'revokeGift', 'gifts', 200, userId);
+            res.send({ message: 'Gift revoked successfully and refund processed' });
         }
         catch (error) {
-            await this.createLog(req, "revokeGift", "gifts", 400, userId);
-            handleError(res, error, "Error revoking gift", 400);
+            await this.createLog(req, 'revokeGift', 'gifts', 400, userId);
+            handleError(res, error, 'Error revoking gift', 400);
         }
     }
 };
 exports.GameGifts = GameGifts;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "handleGiftActions", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/sent", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpGet)('/sent', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getSentGifts", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/received", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpGet)('/received', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getReceivedGifts", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)("/:giftCode", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpGet)('/:giftCode', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getGiftInfo", null);
 __decorate([
-    (0, inversify_express_utils_1.httpDelete)("/:giftId", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpDelete)('/:giftId', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "revokeGift", null);
 exports.GameGifts = GameGifts = __decorate([
-    (0, inversify_express_utils_1.controller)("/gifts"),
-    __param(0, (0, inversify_1.inject)("GameGiftService")),
-    __param(1, (0, inversify_1.inject)("GameService")),
-    __param(2, (0, inversify_1.inject)("UserService")),
-    __param(3, (0, inversify_1.inject)("LogService")),
-    __metadata("design:paramtypes", [Object, Object, Object, Object])
+    (0, inversify_express_utils_1.controller)('/gifts'),
+    __param(0, (0, inversify_1.inject)('GameGiftService')),
+    __param(1, (0, inversify_1.inject)('GameService')),
+    __param(2, (0, inversify_1.inject)('UserService')),
+    __param(3, (0, inversify_1.inject)('LogService'))
 ], GameGifts);
-

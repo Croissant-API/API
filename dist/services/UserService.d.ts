@@ -1,10 +1,10 @@
-import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from "../interfaces/User";
-import { IDatabaseService } from "./DatabaseService";
+import { PublicUser, PublicUserAsAdmin, User, UserExtensions } from '../interfaces/User';
+import { IDatabaseService } from './DatabaseService';
 export interface IUserService {
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     searchUsersByUsername(query: string): Promise<PublicUser[]>;
     updateUserBalance(user_id: string, balance: number): Promise<void>;
-    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string): Promise<User>;
     createBrandUser(user_id: string, username: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;
@@ -18,7 +18,7 @@ export interface IUserService {
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
-    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+    associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;
     generatePasswordResetToken(user_id: string): Promise<string>;
     updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void>;
@@ -43,11 +43,11 @@ export declare class UserService implements IUserService {
     constructor(databaseService: IDatabaseService);
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
-    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+    associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void>;
     disableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     reenableAccount(targetUserId: string, adminUserId: string): Promise<void>;
     searchUsersByUsername(query: string): Promise<PublicUser[]>;
-    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string): Promise<User>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string): Promise<User>;
     createBrandUser(user_id: string, username: string): Promise<User>;
     getUser(user_id: string): Promise<User | null>;
     adminGetUser(user_id: string): Promise<User | null>;

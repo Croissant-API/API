@@ -1,6 +1,6 @@
-import { Lobby } from "../interfaces/Lobbies";
-import { PublicUser } from "../interfaces/User";
-import { IDatabaseService } from "../services/DatabaseService";
+import { Lobby } from '../interfaces/Lobbies';
+import { PublicUser } from '../interfaces/User';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class LobbyRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
@@ -17,4 +17,3 @@ export declare class LobbyRepository {
     private getUsersByIds;
     private getUsersIdOnly;
 }
-

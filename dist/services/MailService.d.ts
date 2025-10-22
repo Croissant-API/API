@@ -10,4 +10,3 @@ export declare class MailService implements IMailService {
     sendAccountConfirmationMail(to: string): Promise<void>;
     sendConnectionNotificationMail(to: string, username: string): Promise<void>;
 }
-

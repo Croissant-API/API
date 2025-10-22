@@ -15,7 +15,7 @@
       "*": ["src/*"]
     },
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "emitDecoratorMetadata": false,
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],

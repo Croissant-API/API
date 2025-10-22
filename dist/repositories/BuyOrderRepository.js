@@ -14,7 +14,7 @@ class BuyOrderRepository {
              SET status = 'cancelled', updated_at = ? 
              WHERE id = ? AND buyer_id = ? AND status = 'active'`, [updatedAt, orderId, buyerId]);
     }
-    async getBuyOrders(filters = {}, orderBy = "created_at DESC", limit) {
+    async getBuyOrders(filters = {}, orderBy = 'created_at DESC', limit) {
         let query = `SELECT * FROM buy_orders WHERE 1=1`;
         const params = [];
         if (filters.userId) {
@@ -41,4 +41,3 @@ class BuyOrderRepository {
     }
 }
 exports.BuyOrderRepository = BuyOrderRepository;
-

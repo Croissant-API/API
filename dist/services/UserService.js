@@ -5,9 +5,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
@@ -16,39 +13,39 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
-const inversify_1 = require("inversify");
-const UserRepository_1 = require("../repositories/UserRepository");
-const dotenv_1 = require("dotenv");
-const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
-const GenKey_1 = require("../utils/GenKey");
 const diacritics_1 = __importDefault(require("diacritics"));
+const dotenv_1 = require("dotenv");
+const inversify_1 = require("inversify");
+const path_1 = __importDefault(require("path"));
+const UserRepository_1 = require("../repositories/UserRepository");
+const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
 function slugify(str) {
-    str = str.normalize("NFKD");
+    str = str.normalize('NFKD');
     str = diacritics_1.default.remove(str);
-    const substitutions = { "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "θ": "o", "λ": "l", "μ": "m", "ν": "v", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "φ": "f", "χ": "x", "ψ": "ps", "ω": "w", "ℓ": "l", "𝓁": "l", "𝔩": "l" };
+    const substitutions = { α: 'a', β: 'b', γ: 'g', δ: 'd', ε: 'e', θ: 'o', λ: 'l', μ: 'm', ν: 'v', π: 'p', ρ: 'r', σ: 's', τ: 't', φ: 'f', χ: 'x', ψ: 'ps', ω: 'w', ℓ: 'l', '𝓁': 'l', '𝔩': 'l' };
     str = str
-        .split("")
-        .map((c) => substitutions[c] ?? c)
-        .join("");
-    str = str.replace(/[^a-zA-Z0-9]/g, "");
+        .split('')
+        .map(c => substitutions[c] ?? c)
+        .join('');
+    str = str.replace(/[^a-zA-Z0-9]/g, '');
     return str.toLowerCase();
 }
-(0, dotenv_1.config)({ path: path_1.default.join(__dirname, "..", "..", ".env") });
+(0, dotenv_1.config)({ path: path_1.default.join(__dirname, '..', '..', '.env') });
 let UserService = class UserService {
     constructor(databaseService) {
         this.databaseService = databaseService;
         this.apiKeyUserCache = new Map();
         this.userRepository = new UserRepository_1.UserRepository(this.databaseService);
-        this.getAllUsersWithDisabled().then((users) => {
+        this.getAllUsersWithDisabled().then(users => {
             for (const user of users) {
                 const key = (0, GenKey_1.genKey)(user.user_id);
                 this.apiKeyUserCache.set(key, user);
             }
         });
     }
-    
+    // All DB access is now delegated to UserRepository
     async updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url) {
         await this.userRepository.updateSteamFields(user_id, steam_id, steam_username, steam_avatar_url);
     }
@@ -61,29 +58,31 @@ let UserService = class UserService {
     async disableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
-            throw new Error("Unauthorized: not admin");
+            throw new Error('Unauthorized: not admin');
         }
         await this.userRepository.disableAccount(targetUserId);
     }
     async reenableAccount(targetUserId, adminUserId) {
         const admin = await this.adminGetUser(adminUserId);
         if (!admin || !admin.admin) {
-            throw new Error("Unauthorized: not admin");
+            throw new Error('Unauthorized: not admin');
         }
         await this.userRepository.reenableAccount(targetUserId);
     }
     async searchUsersByUsername(query) {
         const users = await this.adminSearchUsers(query);
-        
-        return users.filter((u) => !u.disabled).map((u) => ({
+        // we return users as PublicUser[]
+        return users
+            .filter((u) => !u.disabled)
+            .map((u) => ({
             user_id: u.user_id,
             username: u.username,
             verified: !!u.verified,
             isStudio: !!u.isStudio,
             admin: !!u.admin,
             beta_user: !!u.beta_user,
-            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
-            disabled: !!u.disabled, 
+            badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
+            disabled: !!u.disabled, // <-- Ajout ici
         }));
     }
     async createUser(user_id, username, email, password, provider, providerId) {
@@ -120,7 +119,7 @@ let UserService = class UserService {
             isStudio: !!u.isStudio,
             admin: !!u.admin,
             beta_user: !!u.beta_user,
-            badges: u.beta_user ? ["early_user", ...u.badges] : u.badges || [],
+            badges: u.beta_user ? ['early_user', ...u.badges] : u.badges || [],
             disabled: !!u.disabled,
         }));
     }
@@ -143,7 +142,7 @@ let UserService = class UserService {
         return await this.userRepository.getUserBySteamId(steamId);
     }
     async generatePasswordResetToken(email) {
-        const token = crypto_1.default.randomBytes(32).toString("hex");
+        const token = crypto_1.default.randomBytes(32).toString('hex');
         await this.userRepository.generatePasswordResetToken(email, token);
         return token;
     }
@@ -156,7 +155,7 @@ let UserService = class UserService {
             return this.getUser(jwtPayload.user_id);
         }
         const apiKey = tokenOrApiKey;
-        
+        // Déchiffre l'user_id depuis la clé API
         const userId = (0, GenKey_1.decryptUserId)(apiKey);
         if (!userId)
             return null;
@@ -168,9 +167,9 @@ let UserService = class UserService {
     async addWebauthnCredential(userId, credential) {
         const existing = await this.getUser(userId);
         if (!existing) {
-            throw new Error("User not found");
+            throw new Error('User not found');
         }
-        const credentials = JSON.parse(existing.webauthn_credentials || "[]");
+        const credentials = JSON.parse(existing.webauthn_credentials || '[]');
         credentials.push({
             id: credential.id,
             name: credential.name,
@@ -266,14 +265,14 @@ let UserService = class UserService {
             return null;
         const user = results[0];
         if (user.beta_user) {
-            user.badges = ["early_user", ...user.badges];
+            user.badges = ['early_user', ...user.badges];
         }
         if (user.inventory) {
             user.inventory = user.inventory
                 .filter((item) => item !== null)
                 .map((item) => ({
                 ...item,
-                metadata: typeof item.metadata === "string" && item.metadata
+                metadata: typeof item.metadata === 'string' && item.metadata
                     ? (() => {
                         try {
                             return JSON.parse(item.metadata);
@@ -287,14 +286,14 @@ let UserService = class UserService {
         }
         if (user.ownedItems) {
             user.ownedItems = user.ownedItems.sort((a, b) => {
-                const nameCompare = a.name?.localeCompare(b.name || "") || 0;
+                const nameCompare = a.name?.localeCompare(b.name || '') || 0;
                 if (nameCompare !== 0)
                     return nameCompare;
                 return 0;
             });
         }
         if (user.badges) {
-            const badgeOrder = ["early_user", "staff", "bug_hunter", "contributor", "moderator", "community_manager", "partner"];
+            const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
             user.badges = user.badges.filter(badge => badgeOrder.includes(badge));
             user.badges.sort((a, b) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
         }
@@ -304,7 +303,7 @@ let UserService = class UserService {
         const user = await this.getUserWithCompleteProfile(user_id);
         if (!user)
             return null;
-        
+        // complete profile filtered to keep only public information
         const publicProfile = {
             user_id: user.user_id,
             username: user.username,
@@ -344,13 +343,11 @@ let UserService = class UserService {
     }
     getSteamAuthUrl() {
         const returnUrl = `${process.env.BASE_URL}/api/users/steam-associate`;
-        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || "")}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
+        return `https://steamcommunity.com/openid/login?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=checkid_setup&openid.return_to=${encodeURIComponent(returnUrl)}&openid.realm=${encodeURIComponent(process.env.BASE_URL || '')}&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select`;
     }
 };
 exports.UserService = UserService;
 exports.UserService = UserService = __decorate([
     (0, inversify_1.injectable)(),
-    __param(0, (0, inversify_1.inject)("DatabaseService")),
-    __metadata("design:paramtypes", [Object])
+    __param(0, (0, inversify_1.inject)('DatabaseService'))
 ], UserService);
-

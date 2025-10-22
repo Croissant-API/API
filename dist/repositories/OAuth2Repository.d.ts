@@ -1,6 +1,6 @@
-import { OAuth2App } from "../interfaces/OAuth2App";
-import { Oauth2User } from "../interfaces/User";
-import { IDatabaseService } from "../services/DatabaseService";
+import { OAuth2App } from '../interfaces/OAuth2App';
+import { Oauth2User } from '../interfaces/User';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class OAuth2Repository {
     private db;
     constructor(db: IDatabaseService);
@@ -31,4 +31,3 @@ export declare class OAuth2Repository {
     }): Promise<void>;
     getUserByCode(code: string, client_id: string): Promise<Oauth2User | null>;
 }
-

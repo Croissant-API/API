@@ -1,5 +1,5 @@
-import { GameGift } from "../interfaces/GameGift";
-import { IDatabaseService } from "../services/DatabaseService";
+import { GameGift } from '../interfaces/GameGift';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class GameGiftRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
@@ -19,4 +19,3 @@ export declare class GameGiftRepository {
     getUserReceivedGifts(userId: string): Promise<GameGift[]>;
     revokeGift(giftId: string): Promise<void>;
 }
-

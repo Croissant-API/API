@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { ILogService } from "../services/LogService";
-import { ITradeService } from "../services/TradeService";
+import { Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { ILogService } from '../services/LogService';
+import { ITradeService } from '../services/TradeService';
 export declare class Trades {
     private tradeService;
     private logService;

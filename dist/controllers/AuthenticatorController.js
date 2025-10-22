@@ -28,22 +28,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Authenticator = void 0;
-const inversify_express_utils_1 = require("inversify-express-utils");
 const inversify_1 = require("inversify");
-const LoggedCheck_1 = require("../middlewares/LoggedCheck");
+const inversify_express_utils_1 = require("inversify-express-utils");
 const qrcode = __importStar(require("qrcode"));
 const time2fa_1 = require("time2fa");
+const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
-
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -59,8 +55,8 @@ let Authenticator = class Authenticator {
             if (metadata)
                 requestBody.metadata = metadata;
             await this.logService.createLog({
-                ip_address: req.headers["x-real-ip"] || req.socket.remoteAddress,
-                table_name: "authenticator",
+                ip_address: req.headers['x-real-ip'] || req.socket.remoteAddress,
+                table_name: 'authenticator',
                 controller: `AuthenticatorController.${action}`,
                 original_path: req.originalUrl,
                 http_method: req.method,
@@ -70,41 +66,41 @@ let Authenticator = class Authenticator {
             });
         }
         catch (error) {
-            console.error("Error creating log:", error);
+            console.error('Error creating log:', error);
         }
     }
     async verifyKey(req, res) {
         const { code, userId } = req.body;
         if (!userId) {
-            await this.logAction(req, "verifyKey", 400);
-            return res.status(400).send({ message: "User ID is required" });
+            await this.logAction(req, 'verifyKey', 400);
+            return res.status(400).send({ message: 'User ID is required' });
         }
         try {
             const user = await this.userService.getUser(userId);
             if (!user) {
-                await this.logAction(req, "verifyKey", 404);
-                return res.status(404).send({ message: "User not found" });
+                await this.logAction(req, 'verifyKey', 404);
+                return res.status(404).send({ message: 'User not found' });
             }
             const key = user.authenticator_secret;
             if (!key || !code) {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Key and code are required" });
+                await this.logAction(req, 'verifyKey', 400);
+                return res.status(400).send({ message: 'Key and code are required' });
             }
             const isValid = time2fa_1.Totp.validate({ secret: key, passcode: code });
             if (isValid) {
-                await this.logAction(req, "verifyKey", 200);
+                await this.logAction(req, 'verifyKey', 200);
                 const apiKey = (0, GenKey_1.genKey)(user.user_id);
                 const jwtToken = (0, Jwt_1.generateUserJwt)(user, apiKey);
-                return res.status(200).send({ message: "Key verified successfully", token: jwtToken });
+                return res.status(200).send({ message: 'Key verified successfully', token: jwtToken });
             }
             else {
-                await this.logAction(req, "verifyKey", 400);
-                return res.status(400).send({ message: "Invalid key or code" });
+                await this.logAction(req, 'verifyKey', 400);
+                return res.status(400).send({ message: 'Invalid key or code' });
             }
         }
         catch (error) {
-            await this.logAction(req, "verifyKey", 500, { error });
-            handleError(res, error, "Error verifying key");
+            await this.logAction(req, 'verifyKey', 500, { error });
+            handleError(res, error, 'Error verifying key');
         }
     }
     async handleAuthenticatorActions(req, res) {
@@ -112,53 +108,53 @@ let Authenticator = class Authenticator {
         const user = req.user;
         try {
             switch (action) {
-                case "generateKey": {
+                case 'generateKey': {
                     if (!user || !user.email) {
-                        await this.logAction(req, "generateKey", 400);
-                        return res.status(400).send({ message: "User not authenticated or email missing" });
+                        await this.logAction(req, 'generateKey', 400);
+                        return res.status(400).send({ message: 'User not authenticated or email missing' });
                     }
-                    const key = time2fa_1.Totp.generateKey({ issuer: "Croissant API", user: user.email });
+                    const key = time2fa_1.Totp.generateKey({ issuer: 'Croissant API', user: user.email });
                     qrcode.toDataURL(key.url, async (err, url) => {
                         if (err) {
-                            await this.logAction(req, "generateKey", 500, { error: err });
-                            return res.status(500).send({ message: "Error generating QR code" });
+                            await this.logAction(req, 'generateKey', 500, { error: err });
+                            return res.status(500).send({ message: 'Error generating QR code' });
                         }
-                        await this.logAction(req, "generateKey", 200);
+                        await this.logAction(req, 'generateKey', 200);
                         res.status(200).send({ key, qrCode: url });
                     });
                     break;
                 }
-                case "registerKey": {
+                case 'registerKey': {
                     const { key: regKey, passcode } = req.body;
                     if (!user || !user.email || !regKey) {
-                        await this.logAction(req, "registerKey", 400);
-                        return res.status(400).send({ message: "User not authenticated, email missing, or key missing" });
+                        await this.logAction(req, 'registerKey', 400);
+                        return res.status(400).send({ message: 'User not authenticated, email missing, or key missing' });
                     }
                     if (!passcode) {
-                        await this.logAction(req, "registerKey", 400);
-                        return res.status(400).send({ message: "Passcode is required" });
+                        await this.logAction(req, 'registerKey', 400);
+                        return res.status(400).send({ message: 'Passcode is required' });
                     }
                     if (!time2fa_1.Totp.validate({ secret: regKey.secret, passcode })) {
-                        await this.logAction(req, "registerKey", 400);
-                        return res.status(400).send({ message: "Invalid passcode" });
+                        await this.logAction(req, 'registerKey', 400);
+                        return res.status(400).send({ message: 'Invalid passcode' });
                     }
                     await this.userService.setAuthenticatorSecret(user.user_id, regKey.secret);
-                    await this.logAction(req, "registerKey", 200);
-                    res.status(200).send({ message: "Key registered successfully" });
+                    await this.logAction(req, 'registerKey', 200);
+                    res.status(200).send({ message: 'Key registered successfully' });
                     break;
                 }
-                case "delete": {
+                case 'delete': {
                     if (!user || !user.email) {
-                        await this.logAction(req, "deleteKey", 400);
-                        return res.status(400).send({ message: "User not authenticated or email missing" });
+                        await this.logAction(req, 'deleteKey', 400);
+                        return res.status(400).send({ message: 'User not authenticated or email missing' });
                     }
                     await this.userService.setAuthenticatorSecret(user.user_id, null);
-                    await this.logAction(req, "deleteKey", 200);
-                    res.status(200).send({ message: "Google Authenticator deleted successfully" });
+                    await this.logAction(req, 'deleteKey', 200);
+                    res.status(200).send({ message: 'Google Authenticator deleted successfully' });
                     break;
                 }
                 default:
-                    res.status(404).send({ message: "Unknown action" });
+                    res.status(404).send({ message: 'Unknown action' });
             }
         }
         catch (error) {
@@ -169,21 +165,13 @@ let Authenticator = class Authenticator {
 };
 exports.Authenticator = Authenticator;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/verifyKey"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpPost)('/verifyKey')
 ], Authenticator.prototype, "verifyKey", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)("/:action", LoggedCheck_1.LoggedCheck.middleware),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
+    (0, inversify_express_utils_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
 ], Authenticator.prototype, "handleAuthenticatorActions", null);
 exports.Authenticator = Authenticator = __decorate([
-    (0, inversify_express_utils_1.controller)("/authenticator"),
-    __param(0, (0, inversify_1.inject)("UserService")),
-    __param(1, (0, inversify_1.inject)("LogService")),
-    __metadata("design:paramtypes", [Object, Object])
+    (0, inversify_express_utils_1.controller)('/authenticator'),
+    __param(0, (0, inversify_1.inject)('UserService')),
+    __param(1, (0, inversify_1.inject)('LogService'))
 ], Authenticator);
-

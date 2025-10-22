@@ -25,16 +25,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateGameBodySchema = exports.createGameBodySchema = exports.gameIdParamSchema = void 0;
 const yup = __importStar(require("yup"));
-
 exports.gameIdParamSchema = yup.object({
-    gameId: yup.string().required("gameId is required"),
+    gameId: yup.string().required('gameId is required'),
 });
-
 exports.createGameBodySchema = yup.object({
-    name: yup.string().required("Game name is required"),
-    description: yup.string().required("Description is required"),
-    price: yup.number().required("Price is required"),
-    download_link: yup.string().url("Download link must be a valid URL").nullable(),
+    name: yup.string().required('Game name is required'),
+    description: yup.string().required('Description is required'),
+    price: yup.number().required('Price is required'),
+    download_link: yup.string().url('Download link must be a valid URL').nullable(),
     showInStore: yup.boolean().default(false),
     iconHash: yup.string().nullable(),
     splashHash: yup.string().nullable(),
@@ -45,16 +43,16 @@ exports.createGameBodySchema = yup.object({
     publisher: yup.string().nullable(),
     platforms: yup.string().nullable(),
     rating: yup.number().default(0),
-    website: yup.string().url("Website must be a valid URL").nullable(),
-    trailer_link: yup.string().url("Trailer link must be a valid URL").nullable(),
-    multiplayer: yup.boolean().default(false)
+    website: yup.string().url('Website must be a valid URL').nullable(),
+    trailer_link: yup.string().url('Trailer link must be a valid URL').nullable(),
+    multiplayer: yup.boolean().default(false),
 });
-
-exports.updateGameBodySchema = yup.object({
+exports.updateGameBodySchema = yup
+    .object({
     name: yup.string(),
     description: yup.string(),
     price: yup.number(),
-    download_link: yup.string().url("Download link must be a valid URL").nullable(),
+    download_link: yup.string().url('Download link must be a valid URL').nullable(),
     showInStore: yup.boolean(),
     iconHash: yup.string().nullable(),
     splashHash: yup.string().nullable(),
@@ -65,8 +63,9 @@ exports.updateGameBodySchema = yup.object({
     publisher: yup.string().nullable(),
     platforms: yup.string().nullable(),
     rating: yup.number(),
-    website: yup.string().url("Website must be a valid URL").nullable(),
-    trailer_link: yup.string().url("Trailer link must be a valid URL").nullable(),
-    multiplayer: yup.boolean()
-}).noUnknown();
-
+    website: yup.string().url('Website must be a valid URL').nullable(),
+    trailer_link: yup.string().url('Trailer link must be a valid URL').nullable(),
+    multiplayer: yup.boolean(),
+    markAsUpdated: yup.boolean(),
+})
+    .noUnknown();

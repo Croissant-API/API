@@ -12,7 +12,6 @@ class InventoryRepository {
          SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
        )`, [userId]);
     }
-    
     async getInventory(filters = {}) {
         let query = `
       SELECT 
@@ -37,19 +36,19 @@ class InventoryRepository {
     `;
         const params = [];
         if (filters.userId) {
-            query += " AND inv.user_id = ?";
+            query += ' AND inv.user_id = ?';
             params.push(filters.userId);
         }
         if (filters.itemId) {
-            query += " AND inv.item_id = ?";
+            query += ' AND inv.item_id = ?';
             params.push(filters.itemId);
         }
         if (filters.sellable !== undefined) {
-            query += " AND inv.sellable = ?";
+            query += ' AND inv.sellable = ?';
             params.push(filters.sellable ? 1 : 0);
         }
         if (filters.purchasePrice !== undefined) {
-            query += " AND (inv.purchasePrice = ? OR (inv.purchasePrice IS NULL AND ? IS NULL))";
+            query += ' AND (inv.purchasePrice = ? OR (inv.purchasePrice IS NULL AND ? IS NULL))';
             params.push(filters.purchasePrice, filters.purchasePrice);
         }
         if (filters.uniqueId) {
@@ -57,11 +56,11 @@ class InventoryRepository {
             params.push(filters.uniqueId);
         }
         if (filters.minAmount !== undefined) {
-            query += " AND inv.amount >= ?";
+            query += ' AND inv.amount >= ?';
             params.push(filters.minAmount);
         }
         const items = await this.databaseService.read(query, params);
-        items.map((item) => ({
+        items.map(item => ({
             user_id: item.user_id,
             item_id: item.item_id,
             amount: item.amount,
@@ -73,11 +72,10 @@ class InventoryRepository {
             iconHash: item.iconHash,
             price: item.purchasePrice,
             rarity: item.rarity,
-            custom_url_link: item.custom_url_link
+            custom_url_link: item.custom_url_link,
         }));
         return items;
     }
-    
     async getInventoryItems(userId) {
         return this.getInventory({ userId, minAmount: 1 });
     }
@@ -99,16 +97,16 @@ class InventoryRepository {
         if (metadata) {
             for (let i = 0; i < amount; i++) {
                 const uniqueMetadata = { ...metadata, _unique_id: uuidv4() };
-                await this.databaseService.request("INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice, rarity, custom_url_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [userId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice, metadata["rarity"], metadata["custom_url_link"]]);
+                await this.databaseService.request('INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice, rarity, custom_url_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [userId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice, metadata['rarity'], metadata['custom_url_link']]);
             }
         }
         else {
             const items = await this.getInventory({ userId, itemId, sellable, purchasePrice });
             if (items.length > 0) {
-                await this.databaseService.request("UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))", [amount, userId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]);
+                await this.databaseService.request('UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))', [amount, userId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]);
             }
             else {
-                await this.databaseService.request("INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)", [userId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]);
+                await this.databaseService.request('INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)', [userId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]);
             }
         }
     }
@@ -132,8 +130,7 @@ class InventoryRepository {
     }
     async removeItem(userId, itemId, amount, dataItemIndex) {
         const items = await this.getInventory({ userId, itemId });
-        
-        if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+        if (typeof dataItemIndex === 'number' && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
@@ -145,7 +142,6 @@ class InventoryRepository {
             }
             return;
         }
-        
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -183,8 +179,7 @@ class InventoryRepository {
     }
     async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice, dataItemIndex) {
         const items = await this.getInventory({ userId, itemId, sellable: true, purchasePrice });
-        
-        if (typeof dataItemIndex === "number" && items[dataItemIndex]) {
+        if (typeof dataItemIndex === 'number' && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
@@ -196,7 +191,6 @@ class InventoryRepository {
             }
             return;
         }
-        
         let remainingToRemove = amount;
         for (const item of items) {
             if (remainingToRemove <= 0)
@@ -217,4 +211,3 @@ class InventoryRepository {
     }
 }
 exports.InventoryRepository = InventoryRepository;
-

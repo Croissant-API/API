@@ -5,8 +5,7 @@ class GameRepository {
     constructor(databaseService) {
         this.databaseService = databaseService;
     }
-    
-    async getGames(filters = {}, select = "*", orderBy = "", limit) {
+    async getGames(filters = {}, select = '*', orderBy = '', limit) {
         let query = `SELECT ${select} FROM games WHERE 1=1`;
         const params = [];
         if (filters.gameId) {
@@ -32,7 +31,6 @@ class GameRepository {
             query += ` LIMIT ${limit}`;
         return await this.databaseService.read(query, params);
     }
-    
     async getGame(gameId) {
         const games = await this.getGames({ gameId });
         return games[0] || null;
@@ -86,49 +84,28 @@ class GameRepository {
       iconHash, splashHash, bannerHash, genre, release_date, 
       developer, publisher, platforms, rating, website, 
       trailer_link, multiplayer`;
-        return await this.getGames({ showInStore: true, search: query }, select, "", 100);
+        return await this.getGames({ showInStore: true, search: query }, select, '', 100);
     }
     async createGame(game) {
         await this.databaseService.request(`INSERT INTO games (
                 gameId, name, description, price, owner_id, showInStore, download_link,
                 iconHash, splashHash, bannerHash, genre, release_date, developer,
                 publisher, platforms, rating, website, trailer_link, multiplayer
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            game.gameId,
-            game.name,
-            game.description,
-            game.price,
-            game.owner_id,
-            game.showInStore ? 1 : 0,
-            game.download_link,
-            game.iconHash ?? null,
-            game.splashHash ?? null,
-            game.bannerHash ?? null,
-            game.genre ?? null,
-            game.release_date ?? null,
-            game.developer ?? null,
-            game.publisher ?? null,
-            game.platforms ?? null,
-            game.rating ?? 0,
-            game.website ?? null,
-            game.trailer_link ?? null,
-            game.multiplayer ? 1 : 0,
-        ]);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [game.gameId, game.name, game.description, game.price, game.owner_id, game.showInStore ? 1 : 0, game.download_link, game.iconHash ?? null, game.splashHash ?? null, game.bannerHash ?? null, game.genre ?? null, game.release_date ?? null, game.developer ?? null, game.publisher ?? null, game.platforms ?? null, game.rating ?? 0, game.website ?? null, game.trailer_link ?? null, game.multiplayer ? 1 : 0]);
     }
     async updateGame(gameId, fields, values) {
         values.push(gameId);
-        await this.databaseService.request(`UPDATE games SET ${fields.join(", ")} WHERE gameId = ?`, values);
+        await this.databaseService.request(`UPDATE games SET ${fields.join(', ')} WHERE gameId = ?`, values);
     }
     async deleteGame(gameId) {
-        await this.databaseService.request("DELETE FROM games WHERE gameId = ?", [gameId]);
-        await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ?", [gameId]);
+        await this.databaseService.request('DELETE FROM games WHERE gameId = ?', [gameId]);
+        await this.databaseService.request('DELETE FROM game_owners WHERE gameId = ?', [gameId]);
     }
     async addOwner(gameId, ownerId) {
-        await this.databaseService.request("INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)", [gameId, ownerId]);
+        await this.databaseService.request('INSERT INTO game_owners (gameId, ownerId) VALUES (?, ?)', [gameId, ownerId]);
     }
     async removeOwner(gameId, ownerId) {
-        await this.databaseService.request("DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?", [gameId, ownerId]);
+        await this.databaseService.request('DELETE FROM game_owners WHERE gameId = ? AND ownerId = ?', [gameId, ownerId]);
     }
 }
 exports.GameRepository = GameRepository;
-

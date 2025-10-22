@@ -1,5 +1,5 @@
-import { InventoryItem } from "../interfaces/Inventory";
-import { IDatabaseService } from "../services/DatabaseService";
+import { InventoryItem } from '../interfaces/Inventory';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class InventoryRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
@@ -27,4 +27,3 @@ export declare class InventoryRepository {
     removeSellableItemWithPrice(userId: string, itemId: string, amount: number, purchasePrice: number, dataItemIndex?: number): Promise<void>;
     transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void>;
 }
-

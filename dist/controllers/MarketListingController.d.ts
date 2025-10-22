@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { AuthenticatedRequest } from "../middlewares/LoggedCheck";
-import { ILogService } from "../services/LogService";
-import { IMarketListingService } from "../services/MarketListingService";
+import { Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
+import { ILogService } from '../services/LogService';
+import { IMarketListingService } from '../services/MarketListingService';
 export declare class MarketListingController {
     private marketListingService;
     private logService;

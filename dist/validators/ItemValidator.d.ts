@@ -22,4 +22,3 @@ export declare const itemIdParamValidator: yup.ObjectSchema<{
 }, yup.AnyObject, {
     itemId: undefined;
 }, "">;
-

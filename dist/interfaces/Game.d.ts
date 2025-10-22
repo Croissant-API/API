@@ -18,6 +18,7 @@ export interface Game {
     website?: string | null;
     trailer_link?: string | null;
     multiplayer: boolean;
+    markAsUpdated?: boolean;
 }
 export interface GameOwner {
     gameId: string;

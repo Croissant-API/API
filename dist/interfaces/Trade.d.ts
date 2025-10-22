@@ -1,4 +1,4 @@
-import { InventoryItem } from "./Inventory";
+import { InventoryItem } from './Inventory';
 export interface TradeItem extends InventoryItem {
     itemId: string;
     amount: number;
@@ -8,7 +8,7 @@ export interface TradeItem extends InventoryItem {
     };
     purchasePrice?: number;
 }
-export type TradeStatus = "pending" | "approved" | "completed" | "canceled";
+export type TradeStatus = 'pending' | 'approved' | 'completed' | 'canceled';
 export interface Trade {
     id: string;
     fromUserId: string;

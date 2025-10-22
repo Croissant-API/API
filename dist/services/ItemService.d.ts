@@ -1,12 +1,12 @@
-import { Item } from "interfaces/Item";
-import { IDatabaseService } from "./DatabaseService";
+import { Item } from 'interfaces/Item';
+import { IDatabaseService } from './DatabaseService';
 export interface IItemService {
-    createItem(item: Omit<Item, "id">): Promise<void>;
+    createItem(item: Omit<Item, 'id'>): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;
     getAllItems(): Promise<Item[]>;
     getStoreItems(): Promise<Item[]>;
     getMyItems(userId: string): Promise<Item[]>;
-    updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId" | "owner">>): Promise<void>;
+    updateItem(itemId: string, item: Partial<Omit<Item, 'id' | 'itemId' | 'owner'>>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
     searchItemsByName(query: string): Promise<Item[]>;
     transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
@@ -15,14 +15,13 @@ export declare class ItemService implements IItemService {
     private databaseService;
     private itemRepository;
     constructor(databaseService: IDatabaseService);
-    createItem(item: Omit<Item, "id">): Promise<void>;
+    createItem(item: Omit<Item, 'id'>): Promise<void>;
     getItem(itemId: string): Promise<Item | null>;
     getAllItems(): Promise<Item[]>;
     getStoreItems(): Promise<Item[]>;
     getMyItems(userId: string): Promise<Item[]>;
-    updateItem(itemId: string, item: Partial<Omit<Item, "id" | "itemId">>): Promise<void>;
+    updateItem(itemId: string, item: Partial<Omit<Item, 'id' | 'itemId'>>): Promise<void>;
     deleteItem(itemId: string): Promise<void>;
     searchItemsByName(query: string): Promise<Item[]>;
     transferOwnership(itemId: string, newOwnerId: string): Promise<void>;
 }
-

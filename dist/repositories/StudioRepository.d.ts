@@ -1,4 +1,4 @@
-import { IDatabaseService } from "../services/DatabaseService";
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class StudioRepository {
     private db;
     constructor(db: IDatabaseService);
@@ -16,4 +16,3 @@ export declare class StudioRepository {
     }[]>;
     createStudio(user_id: string, admin_id: string): Promise<void>;
 }
-

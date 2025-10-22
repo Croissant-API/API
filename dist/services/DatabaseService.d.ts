@@ -1,5 +1,5 @@
-import { Knex } from "knex";
-import "reflect-metadata";
+import { Knex } from 'knex';
+import 'reflect-metadata';
 export interface IDatabaseService {
     request(query: string, params?: unknown[]): Promise<void>;
     read<T>(query: string, params?: unknown[]): Promise<T[]>;
@@ -14,4 +14,3 @@ export declare class DatabaseService implements IDatabaseService {
     destroy(): Promise<void>;
 }
 export default DatabaseService;
-

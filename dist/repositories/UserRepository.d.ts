@@ -1,18 +1,18 @@
-import { User } from "../interfaces/User";
-import { IDatabaseService } from "../services/DatabaseService";
+import { User } from '../interfaces/User';
+import { IDatabaseService } from '../services/DatabaseService';
 export declare class UserRepository {
     private databaseService;
     constructor(databaseService: IDatabaseService);
     getUserByAnyId(user_id: string, includeDisabled?: boolean): Promise<User | null>;
     getAllUsers(includeDisabled?: boolean): Promise<User[]>;
-    updateUserFields(user_id: string, fields: Partial<Pick<User, "username" | "balance" | "password">>): Promise<void>;
+    updateUserFields(user_id: string, fields: Partial<Pick<User, 'username' | 'balance' | 'password'>>): Promise<void>;
     updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void>;
     findByEmail(email: string): Promise<User | null>;
-    associateOAuth(user_id: string, provider: "discord" | "google", providerId: string): Promise<void>;
+    associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void>;
     disableAccount(targetUserId: string): Promise<void>;
     reenableAccount(targetUserId: string): Promise<void>;
     searchUsers(): Promise<User[]>;
-    createUser(user_id: string, username: string, email: string, password: string | null, provider?: "discord" | "google", providerId?: string, created_at?: string): Promise<void>;
+    createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string, created_at?: string): Promise<void>;
     createBrandUser(user_id: string, username: string): Promise<void>;
     updateUserPassword(user_id: string, hashedPassword: string): Promise<void>;
     getUserBySteamId(steamId: string): Promise<User | null>;

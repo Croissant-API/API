@@ -9,4 +9,3 @@ export declare function verifyUserJwt(token: string): {
     email: string;
     apiKey: string;
 } | null;
-

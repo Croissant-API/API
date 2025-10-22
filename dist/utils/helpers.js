@@ -6,7 +6,7 @@ function sendError(res, status, message, error) {
 }
 exports.sendError = sendError;
 function findUserByResetToken(users, reset_token) {
-    return users.find((u) => u.forgot_password_token === reset_token);
+    return users.find(u => u.forgot_password_token === reset_token);
 }
 exports.findUserByResetToken = findUserByResetToken;
 function requireFields(obj, fields) {
@@ -55,7 +55,7 @@ function mapItem(item) {
         owner: item.owner,
         price: item.price,
         iconHash: item.iconHash,
-        ...(typeof item.showInStore !== "undefined" && {
+        ...(typeof item.showInStore !== 'undefined' && {
             showInStore: item.showInStore,
         }),
     };
@@ -81,16 +81,14 @@ function filterGame(game, userId, myId) {
         website: game.website,
         trailer_link: game.trailer_link,
         multiplayer: game.multiplayer,
-        ...(userId && game.owner_id === myId
-            ? { download_link: game.download_link }
-            : {}),
+        ...(userId && game.owner_id === myId ? { download_link: game.download_link } : {}),
     };
 }
 exports.filterGame = filterGame;
 async function formatInventory(inventory, itemService) {
     const seen = new Set();
     return (await Promise.all(inventory
-        .filter((item) => {
+        .filter(item => {
         if (seen.has(item.item_id))
             return false;
         seen.add(item.item_id);
@@ -110,4 +108,3 @@ async function formatInventory(inventory, itemService) {
     }))).filter(Boolean);
 }
 exports.formatInventory = formatInventory;
-

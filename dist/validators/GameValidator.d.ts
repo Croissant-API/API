@@ -59,6 +59,7 @@ export declare const updateGameBodySchema: yup.ObjectSchema<{
     website: string | null | undefined;
     trailer_link: string | null | undefined;
     multiplayer: boolean | undefined;
+    markAsUpdated: boolean | undefined;
 }, yup.AnyObject, {
     name: undefined;
     description: undefined;
@@ -77,5 +78,5 @@ export declare const updateGameBodySchema: yup.ObjectSchema<{
     website: undefined;
     trailer_link: undefined;
     multiplayer: undefined;
+    markAsUpdated: undefined;
 }, "">;
-
