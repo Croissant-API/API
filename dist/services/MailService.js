@@ -10,11 +10,9 @@ const path_1 = __importDefault(require("path"));
 class MailService {
     constructor() {
         this.transporter = nodemailer_1.default.createTransport({
-            host: process.env.SMTP_HOST || 'mail.croissant-api.fr',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: false, // true for 465, false for other ports
+            service: "gmail",
             auth: {
-                user: process.env.SMTP_USER || 'noreply@croissant-api.fr',
+                user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
         });
@@ -23,7 +21,7 @@ class MailService {
         const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', template);
         const html = await ejs_1.default.renderFile(templatePath, data || {});
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'Croissant API <noreply@croissant-api.fr>',
+            from: process.env.SMTP_FROM || 'Croissant API <support@croissant-api.fr>',
             to,
             subject,
             html,

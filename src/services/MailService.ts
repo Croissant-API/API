@@ -12,21 +12,20 @@ export class MailService implements IMailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'mail.croissant-api.fr',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false, // true for 465, false for other ports
+      service: "gmail",
       auth: {
-        user: process.env.SMTP_USER || 'noreply@croissant-api.fr',
+        user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
     });
+
   }
 
   private async sendTemplateMail(to: string, template: string, subject: string, data?: Record<string, unknown>) {
     const templatePath = path.join(process.cwd(), 'mailTemplates', template);
     const html = await ejs.renderFile(templatePath, data || {});
     const mailOptions = {
-      from: process.env.SMTP_FROM || 'Croissant API <noreply@croissant-api.fr>',
+      from: process.env.SMTP_FROM || 'Croissant API <support@croissant-api.fr>',
       to,
       subject,
       html,
