@@ -2,6 +2,9 @@ import ejs from 'ejs';
 import nodemailer from 'nodemailer';
 import path from 'path';
 
+import { config } from 'dotenv';
+config();
+
 export interface IMailService {
   sendPasswordResetMail(to: string, resetLink: string): Promise<void>;
   sendAccountConfirmationMail(to: string, confirmationLink: string): Promise<void>;
