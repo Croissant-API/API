@@ -28,7 +28,7 @@ export class MailService implements IMailService {
     const templatePath = path.join(process.cwd(), 'mailTemplates', template);
     const html = await ejs.renderFile(templatePath, data || {});
     const mailOptions = {
-      from: process.env.SMTP_FROM || 'Croissant API <support@croissant-api.fr>',
+      from: process.env.SMTP_FROM || 'Croissant API <noreply@croissant-api.fr>',
       to,
       subject,
       html,
