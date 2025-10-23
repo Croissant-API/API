@@ -24,7 +24,7 @@ class MailService {
         const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', template);
         const html = await ejs_1.default.renderFile(templatePath, data || {});
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'Croissant API <noreply@croissant-api.fr>',
+            from: process.env.SMTP_FROM || 'Croissant API <support@croissant-api.fr>',
             to,
             subject,
             html,
