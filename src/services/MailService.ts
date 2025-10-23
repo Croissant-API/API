@@ -9,7 +9,7 @@ export interface IMailService {
   sendPasswordResetMail(to: string, resetLink: string): Promise<void>;
   sendAccountConfirmationMail(to: string, confirmationLink: string): Promise<void>;
 }
-
+console.log(process.env)
 export class MailService implements IMailService {
   private transporter;
 

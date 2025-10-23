@@ -9,6 +9,7 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
+console.log(process.env);
 class MailService {
     constructor() {
         this.transporter = nodemailer_1.default.createTransport({
