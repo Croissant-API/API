@@ -118,7 +118,7 @@ export class Studios {
   @httpGet('/:studioId')
   async getStudio(req: Request, res: Response) {
     try {
-      const studio = await this.getStudioOrError(req.params.studioId, req, res);
+      const studio = await this.getStudioOrError(req.params.studioId as string, req, res);
       if (!studio) return;
       await this.createLog(req, 'studios', 200);
       res.send(studio);
@@ -190,11 +190,11 @@ export class Studios {
     const { userId } = req.body;
     if (!userId) return res.status(400).send({ message: 'Missing userId' });
     try {
-      const user = await this.studioService.getUser(userId);
+      const user = await this.studioService.getUser(userId as string);
       if (!user) return res.status(404).send({ message: 'User not found' });
-      const studio = await this.checkStudioAdmin(req, res, studioId);
+      const studio = await this.checkStudioAdmin(req, res, studioId as string);
       if (!studio) return;
-      await this.studioService.addUserToStudio(studioId, user);
+      await this.studioService.addUserToStudio(studioId as string, user);
       await this.createLog(req, 'studio_users', 200);
       res.send({ message: 'User added to studio' });
     } catch (error) {
@@ -218,10 +218,10 @@ export class Studios {
     const { userId } = req.body;
     if (!userId) return res.status(400).send({ message: 'Missing userId' });
     try {
-      const studio = await this.checkStudioAdmin(req, res, studioId);
+      const studio = await this.checkStudioAdmin(req, res, studioId as string);
       if (!studio) return;
       if (studio.admin_id === userId) return res.status(403).send({ message: 'Cannot remove the studio admin' });
-      await this.studioService.removeUserFromStudio(studioId, userId);
+      await this.studioService.removeUserFromStudio(studioId as string, userId);
       await this.createLog(req, 'studio_users', 200);
       res.send({ message: 'User removed from studio' });
     } catch (error) {

@@ -244,7 +244,7 @@ export class Items {
       return;
     }
     try {
-      const { itemId } = req.params;
+      const { itemId } = req.params as { itemId: string };
       const item = await this.itemService.getItem(itemId);
       if (!item || item.deleted) {
         await this.createLog(req, 'items', 404, undefined, { itemId });
@@ -334,7 +334,7 @@ export class Items {
       await this.createLog(req, 'items', 400);
       return;
     }
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { name, description, price, iconHash, showInStore } = req.body;
     try {
       await this.itemService.updateItem(itemId, {
@@ -376,7 +376,7 @@ export class Items {
       await this.createLog(req, 'items', 400);
       return;
     }
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     try {
       await this.itemService.deleteItem(itemId);
       await this.createLog(req, 'items', 200, undefined, { itemId, action: 'deleted' });
@@ -389,7 +389,7 @@ export class Items {
 
   @httpPost('/buy/:itemId', LoggedCheck.middleware, buyItemRateLimit)
   public async buyItem(req: AuthenticatedRequest, res: Response) {
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { amount } = req.body;
     if (!itemId || isNaN(amount)) {
       await this.createLog(req, 'inventory', 400, req.user?.user_id, { reason: 'invalid_input', itemId, amount });
@@ -429,7 +429,7 @@ export class Items {
 
   @httpPost('/sell/:itemId', LoggedCheck.middleware, sellItemRateLimit)
   public async sellItem(req: AuthenticatedRequest, res: Response) {
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { amount, purchasePrice, dataItemIndex } = req.body;
     if (!itemId || isNaN(amount)) {
       await this.createLog(req, 'inventory', 400, req.user?.user_id, { reason: 'invalid_input', itemId, amount });
@@ -485,7 +485,7 @@ export class Items {
 
   @httpPost('/consume/:itemId', OwnerCheck.middleware, consumeItemRateLimit)
   public async consumeItem(req: AuthenticatedRequestWithOwner, res: Response) {
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { amount, uniqueId, userId } = req.body;
     if (!itemId || !userId) {
       await this.createLog(req, 'inventory', 400, req.user?.user_id, { reason: 'missing_required_fields', itemId, userId });
@@ -535,7 +535,7 @@ export class Items {
 
   @httpPost('/drop/:itemId', LoggedCheck.middleware, dropItemRateLimit)
   public async dropItem(req: AuthenticatedRequest, res: Response) {
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { amount, uniqueId, dataItemIndex } = req.body;
     if (!itemId) {
       await this.createLog(req, 'inventory', 400, req.user?.user_id, { reason: 'missing_itemId' });
@@ -580,7 +580,7 @@ export class Items {
 
   @httpPost('/transfer-ownership/:itemId', OwnerCheck.middleware, transferOwnershipRateLimit)
   public async transferOwnership(req: AuthenticatedRequestWithOwner, res: Response) {
-    const { itemId } = req.params;
+    const { itemId } = req.params as { itemId: string };
     const { newOwnerId } = req.body;
     if (!itemId || !newOwnerId) {
       await this.createLog(req, 'items', 400, req.user?.user_id, { reason: 'invalid_input', itemId, newOwnerId });

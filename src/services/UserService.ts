@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import removeDiacritics from 'diacritics';
 import { config } from 'dotenv';
-import { InventoryItem } from 'interfaces/Inventory';
+import { Game } from 'interfaces/Game';
 import { Item } from 'interfaces/Item';
 import { inject, injectable } from 'inversify';
 import path from 'path';
@@ -243,120 +243,139 @@ export class UserService implements IUserService {
   }
 
   async getUserWithCompleteProfile(user_id: string): Promise<(User & UserExtensions) | null> {
-    const query = `
-      SELECT 
-        u.*,
-        CONCAT('[', GROUP_CONCAT(
-          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            JSON_OBJECT(
-              'user_id', inv.user_id,
-              'item_id', inv.item_id,
-              'itemId', i.itemId,
-              'name', i.name,
-              'description', i.description,
-              'amount', inv.amount,
-              'iconHash', i.iconHash,
-              'sellable', IF(inv.sellable = 1, 1, 0),
-              'purchasePrice', inv.purchasePrice,
-              'rarity', inv.rarity,
-              'custom_url_link', inv.custom_url_link,
-              'metadata', inv.metadata
-            )
-          END
-        ), ']') as inventory,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'itemId', oi.itemId,
-            'name', oi.name,
-            'description', oi.description,
-            'owner', oi.owner,
-            'price', oi.price,
-            'iconHash', oi.iconHash,
-            'showInStore', oi.showInStore
-          )
-        ), ']') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT CONCAT('[', GROUP_CONCAT(
-          JSON_OBJECT(
-            'gameId', g.gameId,
-            'name', g.name,
-            'description', g.description,
-            'price', g.price,
-            'owner_id', g.owner_id,
-            'showInStore', g.showInStore,
-            'iconHash', g.iconHash,
-            'splashHash', g.splashHash,
-            'bannerHash', g.bannerHash,
-            'genre', g.genre,
-            'release_date', g.release_date,
-            'developer', g.developer,
-            'publisher', g.publisher,
-            'platforms', g.platforms,
-            'rating', g.rating,
-            'website', g.website,
-            'trailer_link', g.trailer_link,
-            'multiplayer', g.multiplayer,
-            'download_link', g.download_link
-          )
-        ), ']') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
-      FROM users u
-      LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
-      LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
-      GROUP BY u.user_id
-    `;
+    // Find user by any id field
+    const db = await this.databaseService.getDb();
+    const userResult = await db.collection('users').findOne({
+      $or: [
+        { user_id },
+        { discord_id: user_id },
+        { google_id: user_id },
+        { steam_id: user_id }
+      ]
+    }) as User | null;
 
-    await this.databaseService.request(
-      `DELETE FROM inventories 
-       WHERE user_id = (
-         SELECT user_id FROM users 
-         WHERE user_id = ?
-           OR discord_id = ?
-           OR google_id = ?
-           OR steam_id = ?
-       ) 
-       AND item_id NOT IN (
-         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
-       )`,
-      [user_id, user_id, user_id, user_id]
-    );
+    if (!userResult) return null;
 
-    const results = await this.databaseService.read<User & UserExtensions>(query, [user_id, user_id, user_id, user_id]);
-    if (results.length === 0) return null;
+    // Remove deleted inventory items
+    await db.collection('inventories').deleteMany({
+      user_id: userResult.user_id,
+      item_id: { $nin: await db.collection('items').distinct('itemId', { $or: [{ deleted: null }, { deleted: 0 }] }) }
+    });
 
-    const user = results[0];
-    if (user.beta_user) {
-      user.badges = ['early_user', ...user.badges];
+    // Inventory
+    const inventory = await db.collection('inventories').aggregate([
+      { $match: { user_id: userResult.user_id, amount: { $gt: 0 } } },
+      {
+        $lookup: {
+          from: 'items',
+          localField: 'item_id',
+          foreignField: 'itemId',
+          as: 'item'
+        }
+      },
+      { $unwind: '$item' },
+      { $match: { $or: [{ 'item.deleted': null }, { 'item.deleted': 0 }] } },
+      {
+        $project: {
+          user_id: 1,
+          item_id: 1,
+          itemId: '$item.itemId',
+          name: '$item.name',
+          description: '$item.description',
+          amount: 1,
+          iconHash: '$item.iconHash',
+          sellable: 1,
+          purchasePrice: '$item.purchasePrice',
+          rarity: '$item.rarity',
+          custom_url_link: 1,
+          metadata: 1
+        }
+      }
+    ]).toArray();
+
+    // Owned items
+    const ownedItemsResult = await db.collection('items').find({
+      owner: userResult.user_id,
+      $or: [{ deleted: null }, { deleted: 0 }],
+      showInStore: 1
+    }).sort({ name: 1 }).toArray();
+
+    const ownedItems: Item[] = ownedItemsResult.map((item: any) => ({
+      itemId: item.itemId,
+      name: item.name,
+      description: item.description,
+      price: item.price,
+      owner: item.owner,
+      showInStore: item.showInStore,
+      iconHash: item.iconHash,
+      deleted: item.deleted,
+    }));
+
+    // Created games
+    const createdGamesResult = await db.collection('games').find({
+      owner_id: userResult.user_id,
+      showInStore: 1
+    }).sort({ name: 1 }).toArray();
+
+    const createdGames: Game[] = createdGamesResult.map((game: any) => ({
+      game_id: game.game_id,
+      name: game.name,
+      description: game.description,
+      owner_id: game.owner_id,
+      showInStore: game.showInStore,
+      iconHash: game.iconHash,
+      splashHash: game.splashHash,
+      bannerHash: game.bannerHash,
+      genre: game.genre,
+      release_date: game.release_date,
+      developer: game.developer,
+      publisher: game.publisher,
+      rating: game.rating,
+      website: game.website,
+      trailer_link: game.trailer_link,
+      multiplayer: game.multiplayer,
+      gameId: game.game_id,
+      price: game.price,
+    }));
+
+    // Parse metadata if needed
+    const parsedInventory = inventory.map((item: any) => ({
+      ...item,
+      metadata:
+        typeof item.metadata === 'string' && item.metadata
+          ? (() => {
+              try {
+                return JSON.parse(item.metadata);
+              } catch {
+                return item.metadata;
+              }
+            })()
+          : item.metadata,
+    }));
+
+    // Badges
+    let badges = userResult.badges || [];
+    if (userResult.beta_user) {
+      badges = ['early_user', ...badges];
     }
-    if (user.inventory) {
-      user.inventory = user.inventory
-        .filter((item: InventoryItem) => item !== null)
-        .map((item: InventoryItem) => ({
-          ...item,
-          metadata:
-            typeof item.metadata === 'string' && item.metadata
-              ? (() => {
-                  try {
-                    return JSON.parse(item.metadata);
-                  } catch {
-                    return item.metadata;
-                  }
-                })()
-              : item.metadata,
-        }));
-    }
-    if (user.ownedItems) {
-      user.ownedItems = user.ownedItems.sort((a: Item, b: Item) => {
-        const nameCompare = a.name?.localeCompare(b.name || '') || 0;
-        if (nameCompare !== 0) return nameCompare;
-        return 0;
-      });
-    }
-    if (user.badges) {
-      const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
-      user.badges = user.badges.filter(badge => badgeOrder.includes(badge));
-      user.badges.sort((a, b) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
-    }
-    return user;
+    const badgeOrder = ['early_user', 'staff', 'bug_hunter', 'contributor', 'moderator', 'community_manager', 'partner'];
+    badges = badges.filter((badge: string) => badgeOrder.includes(badge));
+    badges.sort((a: string, b: string) => badgeOrder.indexOf(a) - badgeOrder.indexOf(b));
+
+    // Owned items sort
+    ownedItems.sort((a: Item, b: Item) => {
+      const nameCompare = a.name?.localeCompare(b.name || '') || 0;
+      if (nameCompare !== 0) return nameCompare;
+      return 0;
+    });
+
+    return {
+      ...userResult,
+      inventory: parsedInventory,
+      ownedItems,
+      createdGames,
+      badges
+    };
   }
 
   async getUserWithPublicProfile(user_id: string): Promise<(PublicUser & UserExtensions) | null> {

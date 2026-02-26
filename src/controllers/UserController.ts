@@ -657,14 +657,14 @@ export class Users {
       return this.sendError(res, 400, 'Invalid userId');
     }
     const { userId } = req.params;
-    const userWithData = await this.userService.getUserWithPublicProfile(userId);
+    const userWithData = await this.userService.getUserWithPublicProfile(userId as string);
 
     if (!userWithData || ('disabled' in userWithData && userWithData['disabled'])) {
       await this.createLog(req, 'getUser', 'users', 404);
       return this.sendError(res, 404, 'User not found');
     }
     await this.createLog(req, 'getUser', 'users', 200);
-    const studios = await this.studioService.getUserStudios(userId);
+    const studios = await this.studioService.getUserStudios(userId as string);
     res.send({
       ...this.mapUserSearch(userWithData),
       studios: studios.map(s => {
@@ -716,7 +716,7 @@ export class Users {
       });
     }
     try {
-      await this.userService.disableAccount(userId, adminUserId);
+      await this.userService.disableAccount(userId as string, adminUserId);
       await this.createLog(req, 'disableAccount', 'users', 200, adminUserId);
       res.status(200).send({ message: 'Account disabled' });
     } catch (error) {
@@ -740,7 +740,7 @@ export class Users {
       return res.status(400).send({ message: 'Vous ne pouvez pas réactiver votre propre compte.' });
     }
     try {
-      await this.userService.reenableAccount(userId, adminUserId);
+      await this.userService.reenableAccount(userId as string, adminUserId);
       await this.createLog(req, 'reenableAccount', 'users', 200, adminUserId);
       res.status(200).send({ message: 'Account re-enabled' });
     } catch (error) {
@@ -759,12 +759,12 @@ export class Users {
     }
     try {
       await userIdParamValidator.validate(req.params);
-    } catch {
+    } catch (error) {
       await this.createLog(req, 'adminGetUser', 'users', 400, req.user?.user_id);
       return this.sendError(res, 400, 'Invalid userId');
     }
     const { userId } = req.params;
-    const userWithData = await this.userService.adminGetUserWithProfile(userId);
+    const userWithData = await this.userService.adminGetUserWithProfile(userId as string);
     if (!userWithData) {
       await this.createLog(req, 'adminGetUser', 'users', 404, req.user?.user_id);
       return this.sendError(res, 404, 'User not found');

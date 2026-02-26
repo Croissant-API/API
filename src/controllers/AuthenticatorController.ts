@@ -76,7 +76,8 @@ export class Authenticator {
 
   @httpPost('/:action', LoggedCheck.middleware)
   async handleAuthenticatorActions(req: AuthenticatedRequest, res: Response) {
-    const action = req.params.action;
+    const actionParam = req.params.action;
+    const action = Array.isArray(actionParam) ? actionParam[0] : actionParam;
     const user = req.user;
     try {
       switch (action) {

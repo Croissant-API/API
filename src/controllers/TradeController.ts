@@ -72,7 +72,7 @@ export class Trades {
     }
 
     try {
-      const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId);
+      const trade = await this.tradeService.startOrGetPendingTrade(fromUserId, toUserId as string);
       await this.createLog(req, 'trades', 200, {
         trade_id: trade.id,
         target_user_id: toUserId,
@@ -130,7 +130,7 @@ export class Trades {
     const id = req.params.id;
 
     try {
-      const trade = await this.tradeService.getFormattedTradeById(id);
+      const trade = await this.tradeService.getFormattedTradeById(id as string);
 
       if (!trade) {
         await this.createLog(req, 'trades', 404, { trade_id: id });
@@ -272,7 +272,7 @@ export class Trades {
     }
 
     try {
-      await this.tradeService.addItemToTrade(tradeId, req.user.user_id, tradeItem);
+      await this.tradeService.addItemToTrade(tradeId as string, req.user.user_id, tradeItem);
       await this.createLog(req, 'trade_items', 200, {
         trade_id: tradeId,
         action: 'add_item',
@@ -335,7 +335,7 @@ export class Trades {
     }
 
     try {
-      await this.tradeService.removeItemFromTrade(tradeId, req.user.user_id, tradeItem);
+      await this.tradeService.removeItemFromTrade(tradeId as string, req.user.user_id, tradeItem);
       await this.createLog(req, 'trade_items', 200, {
         trade_id: tradeId,
         action: 'remove_item',
@@ -371,7 +371,7 @@ export class Trades {
     const tradeId = req.params.id;
 
     try {
-      await this.tradeService.approveTrade(tradeId, req.user.user_id);
+      await this.tradeService.approveTrade(tradeId as string, req.user.user_id);
       await this.createLog(req, 'trades', 200, {
         trade_id: tradeId,
         action: 'approve',
@@ -401,7 +401,7 @@ export class Trades {
     const tradeId = req.params.id;
 
     try {
-      await this.tradeService.cancelTrade(tradeId, req.user.user_id);
+      await this.tradeService.cancelTrade(tradeId as string, req.user.user_id);
       await this.createLog(req, 'trades', 200, {
         trade_id: tradeId,
         action: 'cancel',

@@ -127,7 +127,7 @@ export class Lobbies {
       return;
     }
     try {
-      const lobbyId = req.params.lobbyId;
+      const lobbyId = req.params.lobbyId as string;
       const lobby = await this.lobbyService.getLobby(lobbyId);
       if (!lobby) {
         await this.createLog(req, 'getLobby', 'lobbies', 404);
@@ -177,11 +177,11 @@ export class Lobbies {
   @httpGet('/user/:userId')
   public async getUserLobby(req: Request, res: Response) {
     if (!(await validateOr400(userIdParamSchema, req.params, res))) {
-      await this.createLog(req, 'getUserLobby', 'lobbies', 400, req.params.userId);
+      await this.createLog(req, 'getUserLobby', 'lobbies', 400, req.params.userId as string);
       return;
     }
     try {
-      const { userId } = req.params;
+      const { userId } = req.params as { userId: string };
       const lobby = await this.lobbyService.getUserLobby(userId);
       if (!lobby) {
         await this.createLog(req, 'getUserLobby', 'lobbies', 404, userId);
@@ -190,7 +190,7 @@ export class Lobbies {
       await this.createLog(req, 'getUserLobby', 'lobbies', 200, userId);
       res.send(lobby);
     } catch (error) {
-      await this.createLog(req, 'getUserLobby', 'lobbies', 500, req.params.userId);
+      await this.createLog(req, 'getUserLobby', 'lobbies', 500, req.params.userId as string);
       handleError(res, error, 'Error fetching user lobby');
     }
   }
@@ -212,7 +212,7 @@ export class Lobbies {
     }
     try {
       await this.lobbyService.leaveAllLobbies(req.user.user_id);
-      await this.lobbyService.joinLobby(req.params.lobbyId, req.user.user_id);
+      await this.lobbyService.joinLobby(req.params.lobbyId as string, req.user.user_id);
       await this.createLog(req, 'joinLobby', 'lobbies', 200, req.user.user_id);
       res.status(200).send({ message: 'Joined lobby' });
     } catch (error) {
@@ -237,7 +237,7 @@ export class Lobbies {
       return;
     }
     try {
-      await this.lobbyService.leaveLobby(req.params.lobbyId, req.user.user_id);
+      await this.lobbyService.leaveLobby(req.params.lobbyId as string, req.user.user_id);
       await this.createLog(req, 'leaveLobby', 'lobbies', 200, req.user.user_id);
       res.status(200).send({ message: 'Left lobby' });
     } catch (error) {

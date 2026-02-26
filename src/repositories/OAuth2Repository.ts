@@ -9,27 +9,31 @@ export class OAuth2Repository {
   async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
     const client_id = v4();
     const client_secret = v4();
-    await this.db.request('INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)', [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
+    const db = await this.db.getDb();
+    await db.collection('oauth2_apps').insertOne({
+      owner_id,
+      client_id,
+      client_secret,
+      name,
+      redirect_urls
+    });
     return { owner_id, client_id, client_secret, name, redirect_urls };
   }
 
   async getApps(filters: { owner_id?: string; client_id?: string } = {}, select: string = '*'): Promise<OAuth2App[]> {
-    let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
-    const params = [];
-    if (filters.owner_id) {
-      query += ' AND owner_id = ?';
-      params.push(filters.owner_id);
-    }
-    if (filters.client_id) {
-      query += ' AND client_id = ?';
-      params.push(filters.client_id);
-    }
-    const apps = await this.db.read<OAuth2App>(query, params);
-
-    return apps.map(app => ({
-      ...app,
-      redirect_urls: typeof app.redirect_urls === 'string' ? JSON.parse(app.redirect_urls) : app.redirect_urls,
+    const db = await this.db.getDb();
+    const query: any = {};
+    if (filters.owner_id) query.owner_id = filters.owner_id;
+    if (filters.client_id) query.client_id = filters.client_id;
+    const docs = await db.collection('oauth2_apps').find(query).toArray();
+    const apps: OAuth2App[] = docs.map(doc => ({
+      owner_id: doc.owner_id,
+      client_id: doc.client_id,
+      client_secret: doc.client_secret,
+      name: doc.name,
+      redirect_urls: doc.redirect_urls
     }));
+    return apps;
   }
 
   async getAppsByOwner(owner_id: string): Promise<OAuth2App[]> {
@@ -44,7 +48,11 @@ export class OAuth2Repository {
       redirect_urls: string[];
     }>
   > {
-    const apps = await this.db.read<OAuth2App>('SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?', [owner_id]);
+    const db = await this.db.getDb();
+    const apps = await db.collection('oauth2_apps')
+      .find({ owner_id })
+      .project({ client_id: 1, client_secret: 1, name: 1, redirect_urls: 1, _id: 0 })
+      .toArray() as OAuth2App[];
     return apps.map(app => ({
       client_id: app.client_id,
       client_secret: app.client_secret,
@@ -54,8 +62,16 @@ export class OAuth2Repository {
   }
 
   async getAppByClientId(client_id: string): Promise<OAuth2App | null> {
-    const apps = await this.getApps({ client_id });
-    return apps[0] || null;
+    const db = await this.db.getDb();
+    const app = await db.collection('oauth2_apps').findOne({ client_id });
+    if (!app) return null;
+    return {
+      owner_id: app.owner_id,
+      client_id: app.client_id,
+      client_secret: app.client_secret,
+      name: app.name,
+      redirect_urls: app.redirect_urls
+    };
   }
 
   async getFormattedAppByClientId(client_id: string): Promise<{
@@ -64,45 +80,51 @@ export class OAuth2Repository {
     name: string;
     redirect_urls: string[];
   } | null> {
-    const rows = await this.db.read<OAuth2App>('SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?', [client_id]);
-    if (!rows) return null;
-    const app = rows[0];
-    return {
-      client_id: app.client_id,
-      client_secret: app.client_secret,
-      name: app.name,
-      redirect_urls: app.redirect_urls,
-    };
+    const db = await this.db.getDb();
+    const app = await db.collection('oauth2_apps')
+      .findOne({ client_id }, { projection: { client_id: 1, client_secret: 1, name: 1, redirect_urls: 1, _id: 0 } });
+    if (!app) return null;
+    return app as any;
   }
 
   async generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string> {
     const code = v4();
-    await this.db.request('INSERT INTO oauth2_codes (code, client_id, redirect_uri, user_id) VALUES (?, ?, ?, ?)', [code, client_id, redirect_uri, user_id]);
+    const db = await this.db.getDb();
+    await db.collection('oauth2_codes').insertOne({ code, client_id, redirect_uri, user_id });
     return code;
   }
 
   async deleteApp(client_id: string, owner_id: string): Promise<void> {
-    await this.db.request('DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?', [client_id, owner_id]);
+    const db = await this.db.getDb();
+    await db.collection('oauth2_apps').deleteOne({ client_id, owner_id });
   }
 
   async updateApp(client_id: string, owner_id: string, update: { name?: string; redirect_urls?: string[] }): Promise<void> {
-    const { fields, values } = buildUpdateFields(update, { redirect_urls: v => JSON.stringify(v) });
-    if (!fields.length) return;
-    values.push(client_id, owner_id);
-    await this.db.request(`UPDATE oauth2_apps SET ${fields.join(', ')} WHERE client_id = ? AND owner_id = ?`, values);
+    const db = await this.db.getDb();
+    const set: any = {};
+    if (update.name !== undefined) set.name = update.name;
+    if (update.redirect_urls !== undefined) set.redirect_urls = update.redirect_urls;
+    if (Object.keys(set).length === 0) return;
+    await db.collection('oauth2_apps').updateOne({ client_id, owner_id }, { $set: set });
   }
 
   async getUserByCode(code: string, client_id: string): Promise<Oauth2User | null> {
-    const users = await this.db.read<Oauth2User>(
-      `SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
-              u.steam_username, u.steam_avatar_url, u.steam_id, u.discord_id, u.google_id
-       FROM oauth2_codes c
-       INNER JOIN oauth2_apps a ON c.client_id = a.client_id
-       INNER JOIN users u ON c.user_id = u.user_id
-       WHERE c.code = ? AND c.client_id = ?`,
-      [code, client_id]
-    );
-    return users[0] || null;
+    const db = await this.db.getDb();
+    const result = await db.collection('oauth2_codes').aggregate([
+      { $match: { code, client_id } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: 'user_id',
+          as: 'userData'
+        }
+      },
+      { $unwind: '$userData' },
+      { $replaceRoot: { newRoot: '$userData' } },
+      { $project: { _id: 0 } }
+    ]).toArray() as Oauth2User[];
+    return result[0] || null;
   }
 }
 

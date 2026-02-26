@@ -114,7 +114,7 @@ export class GameGifts {
           return res.status(404).send({ message: 'Unknown action' });
       }
     } catch (error) {
-      await this.createLog(req, action, 'gifts', 500, userId);
+      await this.createLog(req, action as string, 'gifts', 500, userId);
       handleError(res, error, `Error in ${action}`);
     }
   }
@@ -172,7 +172,7 @@ export class GameGifts {
     const { giftCode } = req.params;
 
     try {
-      const gift = await this.giftService.getGift(giftCode);
+      const gift = await this.giftService.getGift(giftCode as string);
       if (!gift) {
         await this.createLog(req, 'getGiftInfo', 'gifts', 404, req.user.user_id);
         return res.status(404).send({ message: 'Gift not found' });
@@ -220,7 +220,7 @@ export class GameGifts {
         return res.status(400).send({ message: 'Gift is no longer active' });
       }
 
-      await this.giftService.revokeGift(giftId, userId);
+      await this.giftService.revokeGift(giftId as string, userId);
 
       const game = await this.gameService.getGame(gift.gameId);
       if (game) {
