@@ -56,6 +56,9 @@ importers:
       express-static-gzip:
         specifier: ^3.0.0
         version: 3.0.0
+      hono:
+        specifier: ^4.12.2
+        version: 4.12.2
       inversify:
         specifier: ^6.2.2
         version: 6.2.2(reflect-metadata@0.2.2)
@@ -1758,6 +1761,10 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
+
+  hono@4.12.2:
+    resolution: {integrity: sha512-gJnaDHXKDayjt8ue0n8Gs0A007yKXj4Xzb8+cNjZeYsSzzwKc0Lr+OZgYwVfB0pHfUs17EPoLvrOsEaJ9mj+Tg==}
+    engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
@@ -4567,6 +4574,7 @@ snapshots:
       compression: 1.8.1
       cors: 2.8.6
       crypto: 1.0.1
+      csv-parse: 6.1.0
       diacritics: 1.3.0
       dotenv: 16.6.1
       ejs: 3.1.10
@@ -5096,6 +5104,8 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+
+  hono@4.12.2: {}
 
   html-escaper@2.0.2: {}
 
