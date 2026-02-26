@@ -268,6 +268,7 @@ export class UserService implements IUserService {
       {
         $lookup: {
           from: 'items',
+          localField: 'item_id',
           foreignField: 'itemId',
           as: 'item'
         }

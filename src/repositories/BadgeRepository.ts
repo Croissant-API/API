@@ -37,10 +37,13 @@ export class BadgeRepository {
     const db = await this.databaseService.getDb();
     const result = await db.collection('game_badges').aggregate([
       { $match: { gameId: gameId, expires_at: { $gt: new Date() } } },
+      // use pipeline style lookup to avoid driver errors and give us more control
       { $lookup: {
           from: 'badge_types',
-          localField: 'badgeId',
-          foreignField: 'id',
+          let: { badgeId: '$badgeId' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$id', '$$badgeId'] } } }
+          ],
           as: 'badge_info'
         }
       },
