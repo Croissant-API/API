@@ -37,7 +37,7 @@ export class LogController {
     }
 
     try {
-      const controller = req.params.controller;
+      const controller = req.params.controller as string;
       const limit = parseInt(req.query.limit as string) || 100;
 
       const logs = await this.logService.getLogsByController(controller, limit);
@@ -54,7 +54,7 @@ export class LogController {
     }
 
     try {
-      const userId = req.params.userId;
+      const userId = req.params.userId as string;
       const limit = parseInt(req.query.limit as string) || 100;
 
       const logs = await this.logService.getLogsByUser(userId, limit);
@@ -71,7 +71,7 @@ export class LogController {
     }
 
     try {
-      const tableName = req.params.tableName;
+      const tableName = req.params.tableName as string;
       const limit = parseInt(req.query.limit as string) || 100;
 
       const logs = await this.logService.getLogsByTable(tableName, limit);

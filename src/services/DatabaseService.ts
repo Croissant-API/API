@@ -1,90 +1,56 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
- 
 import { injectable } from 'inversify';
-import { Knex, knex } from 'knex';
+import { Db, MongoClient } from 'mongodb';
+
 import 'reflect-metadata';
 
 export interface IDatabaseService {
-  request(query: string, params?: unknown[]): Promise<void>;
-  read<T>(query: string, params?: unknown[]): Promise<T[]>;
-  getKnex(): Knex;
+  // request(query: string, params?: unknown[]): Promise<void>;
+  // read<T>(query: string, params?: unknown[]): Promise<T[]>;
+  getDb(): Promise<Db>;
+  destroy(): Promise<void>;
 }
 
 @injectable()
 export class DatabaseService implements IDatabaseService {
-  private db: Knex;
+  private client: MongoClient;
+  private db: Db | null = null;
 
   constructor() {
-    console.log(process.env.DB_HOST, process.env.DB_USER, process.env.DB_NAME);
+    this.client = new MongoClient(process.env.MONGO_URI as string);
 
-    this.db = knex({
-      client: 'mysql',
-      connection: {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        port: 3306,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-      },
-      useNullAsDefault: true,
-    });
-
-    this.db
-      .raw('SELECT 1')
-      .then(() => {
-        console.log('Database connection established');
+    this.client.connect()
+      .then(async () => {
+        this.db = this.client.db(process.env.MONGO_DB);
+        await this.db.command({ ping: 1 });
+        console.log('MongoDB connection established');
       })
       .catch(err => {
-        console.error('Database connection error:', err);
+        console.error('MongoDB connection error:', err);
       });
   }
 
-  public getKnex(): Knex {
-    return this.db;
-  }
-
-  public async request(query: string, params: unknown[] = []): Promise<void> {
-    try {
-      await this.db.raw(query, params);
-    } catch (err) {
-      console.error('Error executing query', err);
-      throw err;
-    }
-  }
-
-  public async read<T>(query: string, params: unknown[] = []): Promise<T[]> {
-    try {
-      const result = await this.db.raw(query, params);
-
-      const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
-
-      if (!Array.isArray(rows)) {
-        console.warn('Database query returned non-array result:', rows);
-        return [];
-      }
-
-      return rows.map((row: { [key: string]: string }) => {
-        for (const key in row) {
-          if (typeof row[key] === 'string') {
-            try {
-              const parsed = JSON.parse(row[key]);
-              row[key] = parsed;
-            } catch (e: unknown) {
-              // Not JSON, leave as string
-            }
+  public async getDb(): Promise<Db> {
+    // if (!this.db) {
+    //   throw new Error('Database not initialized');
+    // }
+    if (!this.db) {
+      // Wait for the database to be initialized
+      await new Promise<void>((resolve, reject) => {
+        const checkDb = () => {
+          if (this.db) {
+            resolve();
           }
-        }
-        return row as T;
+          setTimeout(checkDb, 100);
+        };
+        checkDb();
       });
-    } catch (err) {
-      console.error('Error reading data', err);
-      throw err;
     }
+
+    // We assume that by the time we get here, the database is initialized. If not, it will throw an error.
+    return this.db as Db;
   }
 
   public async destroy(): Promise<void> {
-    await this.db.destroy();
+    await this.client.close();
   }
 }
-
-export default DatabaseService;

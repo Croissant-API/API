@@ -67,7 +67,7 @@ export class BuyOrderController {
   @httpPut('/:id/cancel', LoggedCheck.middleware)
   public async cancelBuyOrder(req: AuthenticatedRequest, res: Response) {
     const buyerId = req.user.user_id;
-    const orderId = req.params.id;
+    const orderId = req.params.id as string;
     try {
       await this.buyOrderService.cancelBuyOrder(orderId, buyerId);
       await this.logAction(req, 'cancelBuyOrder', 200);
@@ -80,7 +80,7 @@ export class BuyOrderController {
 
   @httpGet('/user/:userId', LoggedCheck.middleware)
   public async getBuyOrdersByUser(req: AuthenticatedRequest, res: Response) {
-    const userId = req.params.userId;
+    const userId = req.params.userId as string;
     if (userId !== req.user.user_id) {
       await this.logAction(req, 'getBuyOrdersByUser', 403);
       return res.status(403).send({ message: 'Forbidden' });
@@ -97,7 +97,7 @@ export class BuyOrderController {
 
   @httpGet('/item/:itemId')
   public async getActiveBuyOrdersForItem(req: AuthenticatedRequest, res: Response) {
-    const itemId = req.params.itemId;
+    const itemId = req.params.itemId as string;
     try {
       const orders = await this.buyOrderService.getBuyOrders({ itemId, status: 'active' }, 'price DESC, created_at ASC');
       await this.logAction(req, 'getActiveBuyOrdersForItem', 200);

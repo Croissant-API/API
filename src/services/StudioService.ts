@@ -30,7 +30,7 @@ export class StudioService implements IStudioService {
   async getStudio(user_id: string) {
     const studio = await this.studioRepository.getStudio(user_id);
     if (!studio) return null;
-    const users = await this.getUsersByIds(studio.users);
+    const users = await this.getUsersByIds(studio.users.map(u => u.user_id));
     const me = (await this.userService.getUserWithPublicProfile(studio.user_id)) as StudioUser;
     return { ...studio, users, me };
   }
@@ -91,6 +91,9 @@ export class StudioService implements IStudioService {
 
   private async getUsersByIds(userIds: string[]) {
     if (!userIds.length) return [];
-    return this.db.read<User>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
+    const users = await this.userService.getAllUsersWithDisabled();
+    // return users.filter(u => userIds.some(user => user.user_id === u.user_id));
+    return users.filter(u => userIds.includes(u.user_id));
+    // return this.db.read<User>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
   }
 }

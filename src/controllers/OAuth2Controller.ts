@@ -88,7 +88,7 @@ export class OAuth2 {
   async getAppByClientId(req: Request, res: Response) {
     const { client_id } = req.params;
     try {
-      const app = await this.oauth2Service.getAppByClientId(client_id);
+      const app = await this.oauth2Service.getAppByClientId(client_id as string);
       if (!app) {
         await this.createLog(req, 'oauth2_apps', 404, undefined, { client_id });
         return res.status(404).send({ message: 'App not found' });
@@ -193,7 +193,7 @@ export class OAuth2 {
     const { client_id } = req.params;
     const { name, redirect_urls } = req.body;
     try {
-      await this.oauth2Service.updateApp(client_id, req.user.user_id, {
+      await this.oauth2Service.updateApp(client_id as string, req.user.user_id, {
         name,
         redirect_urls,
       });
@@ -227,7 +227,7 @@ export class OAuth2 {
   async deleteApp(req: AuthenticatedRequest, res: Response) {
     const { client_id } = req.params;
     try {
-      await this.oauth2Service.deleteApp(client_id, req.user.user_id);
+      await this.oauth2Service.deleteApp(client_id as string, req.user.user_id);
       await this.createLog(req, 'oauth2_apps', 204, req.user.user_id, { client_id });
       res.status(204).send();
     } catch (error) {

@@ -123,10 +123,10 @@ export class Inventories {
   @httpGet('/:userId')
   public async getInventory(req: Request, res: Response) {
     if (!(await validateOr400(userIdParamSchema, { userId: req.params.userId }, res))) {
-      await this.createLog(req, 'getInventory', 'inventory', 400, req.params.userId);
+      await this.createLog(req, 'getInventory', 'inventory', 400, req.params.userId as string);
       return;
     }
-    const userId = req.params.userId;
+    const userId = req.params.userId as string;
     try {
       const inventory = await this.inventoryService.getInventory(userId);
       await this.createLog(req, 'getInventory', 'inventory', 200, userId);
@@ -154,7 +154,7 @@ export class Inventories {
   })
   @httpGet('/:userId/item/:itemId/amount')
   public async getItemAmount(req: Request, res: Response) {
-    const { userId, itemId } = req.params;
+    const { userId, itemId } = req.params as { userId: string; itemId: string };
     try {
       const correctedUserId = await this.inventoryService.getCorrectedUserId(userId);
       const repo = this.inventoryService.getInventoryRepository();

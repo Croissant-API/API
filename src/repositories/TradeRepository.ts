@@ -2,46 +2,77 @@ import { Trade } from '../interfaces/Trade';
 import { IDatabaseService } from '../services/DatabaseService';
 
 export class TradeRepository {
-  constructor(private db: IDatabaseService) {}
+  constructor(private db: IDatabaseService) { }
 
-  async findPendingTrade(fromUserId: string, toUserId: string) {
-    const trades = await this.db.read<Trade>(
-      `SELECT * FROM trades
-       WHERE status = 'pending'
-         AND ((fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?))
-       ORDER BY createdAt DESC
-       LIMIT 1`,
-      [fromUserId, toUserId, toUserId, fromUserId]
+  async findPendingTrade(fromUserId: string, toUserId: string): Promise<Trade | null> {
+    const db = await this.db.getDb();
+    const result = await db.collection('trades')
+      .find({
+        status: 'pending',
+        $or: [
+          { fromUserId, toUserId },
+          { fromUserId: toUserId, toUserId: fromUserId }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .limit(1)
+      .next();
+
+    const trade = result as Trade | null;
+    return trade || null;
+  }
+
+  async createTrade(trade: Trade): Promise<void> {
+    const db = await this.db.getDb();
+    await db.collection('trades').insertOne({
+      ...trade,
+      fromUserItems: trade.fromUserItems,
+      toUserItems: trade.toUserItems,
+      approvedFromUser: 0,
+      approvedToUser: 0
+    });
+  }
+
+  async getTradeById(id: string): Promise<Trade | null> {
+    const db = await this.db.getDb();
+
+    const result = await db.collection('trades').findOne({ id });
+    return result as Trade | null;
+  }
+
+  async getTradesByUser(userId: string): Promise<Trade[]> {
+    const db = await this.db.getDb();
+    const result = await db.collection('trades')
+      .find({ $or: [{ fromUserId: userId }, { toUserId: userId }] })
+      .sort({ createdAt: -1 })
+      .toArray();
+    const trades: Trade[] = result.map(
+      doc => ({
+        id: doc.id,
+        fromUserId: doc.fromUserId,
+        toUserId: doc.toUserId,
+        fromUserItems: doc.fromUserItems,
+        toUserItems: doc.toUserItems,
+        approvedFromUser: doc.approvedFromUser,
+        approvedToUser: doc.approvedToUser,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      }) as Trade
     );
-    return trades[0] ?? null;
+    return trades as Trade[];
   }
 
-  async createTrade(trade: Trade) {
-    await this.db.request(
-      `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [trade.id, trade.fromUserId, trade.toUserId, JSON.stringify(trade.fromUserItems), JSON.stringify(trade.toUserItems), 0, 0, trade.status, trade.createdAt, trade.updatedAt]
+  async updateTradeField(tradeId: string, field: string, value: unknown, updatedAt: string): Promise<void> {
+    const db = await this.db.getDb();
+    await db.collection('trades').updateOne(
+      { id: tradeId },
+      { $set: { [field]: value, updatedAt } }
     );
   }
 
-  async getTradeById(id: string) {
-    const trades = await this.db.read<Trade>('SELECT * FROM trades WHERE id = ?', [id]);
-    return trades[0] ?? null;
-  }
-
-  async getTradesByUser(userId: string) {
-    return this.db.read<Trade>('SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC', [userId, userId]);
-  }
-
-  async updateTradeField(tradeId: string, field: string, value: unknown, updatedAt: string) {
-    await this.db.request(`UPDATE trades SET ${field} = ?, updatedAt = ? WHERE id = ?`, [value, updatedAt, tradeId]);
-  }
-
-  async updateTradeFields(tradeId: string, fields: Record<string, unknown>) {
-    const setClause = Object.keys(fields)
-      .map(f => `${f} = ?`)
-      .join(', ');
-    const values = [...Object.values(fields), tradeId];
-    await this.db.request(`UPDATE trades SET ${setClause} WHERE id = ?`, values);
+  async updateTradeFields(tradeId: string, fields: Record<string, unknown>): Promise<void> {
+    const db = await this.db.getDb();
+    if (!Object.keys(fields).length) return;
+    await db.collection('trades').updateOne({ id: tradeId }, { $set: fields });
   }
 }

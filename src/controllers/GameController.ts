@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut, httpHead } from 'inversify-express-utils';
+import { controller, httpGet, httpHead, httpPost, httpPut } from 'inversify-express-utils';
 import fetch from 'node-fetch';
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
@@ -12,7 +13,6 @@ import { IGameViewService } from '../services/GameViewService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 import { createGameBodySchema, gameIdParamSchema, updateGameBodySchema } from '../validators/GameValidator';
-import crypto from 'crypto';
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);
@@ -171,7 +171,7 @@ export class Games {
       return;
     }
     try {
-      const { gameId } = req.params;
+      const { gameId } = req.params as { gameId: string };
       const game = await this.gameService.getGameWithBadgesAndViews(gameId);
       if (!game) {
         await this.createLog(req, 'getGame', 'games', 404);
@@ -192,7 +192,8 @@ export class Games {
       return;
     }
     try {
-      const { gameId } = req.params;
+      const { gameId } = req.params as { gameId: string };
+      
       const userId = req.user.user_id;
       const game = await this.gameService.getGameForOwner(gameId, userId);
       if (!game) {
@@ -237,7 +238,7 @@ export class Games {
       return;
     }
     try {
-      const game = await this.gameService.getGame(req.params.gameId);
+      const game = await this.gameService.getGame(req.params.gameId as string);
       if (!game) {
         await this.createLog(req, 'updateGame', 'games', 404, req.user?.user_id);
         return res.status(404).send({ message: 'Game not found' });
@@ -246,8 +247,8 @@ export class Games {
         await this.createLog(req, 'updateGame', 'games', 403, req.user?.user_id);
         return res.status(403).send({ message: 'You are not the owner of this game' });
       }
-      await this.gameService.updateGame(req.params.gameId, req.body);
-      const updatedGame = await this.gameService.getGame(req.params.gameId);
+      await this.gameService.updateGame(req.params.gameId as string, req.body);
+      const updatedGame = await this.gameService.getGame(req.params.gameId as string);
       await this.createLog(req, 'updateGame', 'games', 200, req.user.user_id);
       res.status(200).send(updatedGame);
     } catch (error) {
@@ -258,7 +259,7 @@ export class Games {
 
   @httpPost(':gameId/buy', LoggedCheck.middleware, buyGameRateLimit)
   public async buyGame(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const userId = req.user.user_id;
     try {
       const game = await this.gameService.getGame(gameId);
@@ -303,7 +304,7 @@ export class Games {
 
   @httpPost('/transfer-ownership/:gameId', LoggedCheck.middleware, transferOwnershipRateLimit)
   public async transferOwnership(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const { newOwnerId } = req.body;
     const userId = req.user.user_id;
     if (!gameId || !newOwnerId) {
@@ -341,7 +342,7 @@ export class Games {
       await this.createLog(req, 'transferGame', 'games', 400, req.user?.user_id);
       return;
     }
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const { targetUserId } = req.body;
     const fromUserId = req.user.user_id;
     if (!targetUserId || fromUserId === targetUserId) {
@@ -374,7 +375,7 @@ export class Games {
       await this.createLog(req, 'canTransferGame', 'games', 400, req.user?.user_id);
       return;
     }
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const { targetUserId } = req.query;
     const fromUserId = req.user.user_id;
     if (!targetUserId) {
@@ -393,7 +394,7 @@ export class Games {
 
   @httpGet('/:gameId/download', LoggedCheck.middleware)
   public async downloadGame(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const userId = req.user.user_id;
     try {
       const game = await this.gameService.getGame(gameId);
@@ -448,7 +449,7 @@ export class Games {
 
   @httpHead('/:gameId/download', LoggedCheck.middleware)
   public async headDownloadGame(req: AuthenticatedRequest, res: Response) {
-    const { gameId } = req.params;
+    const { gameId } = req.params as { gameId: string };
     const userId = req.user.user_id;
     try {
       const game = await this.gameService.getGame(gameId);

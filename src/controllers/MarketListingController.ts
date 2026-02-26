@@ -65,8 +65,8 @@ export class MarketListingController {
 
   @httpPut('/:id/cancel', LoggedCheck.middleware)
   public async cancelMarketListing(req: AuthenticatedRequest, res: Response) {
-    const sellerId = req.user.user_id;
-    const listingId = req.params.id;
+    const sellerId = req.user.user_id as string;
+    const listingId = req.params.id as string;
 
     try {
       await this.marketListingService.cancelMarketListing(listingId, sellerId);
@@ -97,7 +97,7 @@ export class MarketListingController {
 
   @httpGet('/item/:itemId')
   public async getActiveListingsForItem(req: AuthenticatedRequest, res: Response) {
-    const itemId = req.params.itemId;
+    const itemId = req.params.itemId as string;
     try {
       const listings = await this.marketListingService.getActiveListingsForItem(itemId);
       await this.createLog(req, 'getActiveListingsForItem', 'market_listings', 200, req.user?.user_id);
@@ -110,7 +110,7 @@ export class MarketListingController {
 
   @httpGet('/:id')
   public async getMarketListingById(req: AuthenticatedRequest, res: Response) {
-    const listingId = req.params.id;
+    const listingId = req.params.id as string;
     try {
       const listing = await this.marketListingService.getMarketListingById(listingId);
       if (!listing) {
@@ -161,7 +161,7 @@ export class MarketListingController {
       await this.createLog(req, 'buyMarketListing', 'market_listings', 401, undefined);
       return res.status(401).send({ message: 'Unauthorized' });
     }
-    const listingId = req.params.id;
+    const listingId = req.params.id as string;
     try {
       const listing = await this.marketListingService.getMarketListingById(listingId);
       if (!listing) {
