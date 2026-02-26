@@ -15,7 +15,7 @@ export class MarketListingRepository {
 
   // --- INVENTORY HELPERS ---
   async removeInventoryItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
+    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = $1 AND item_id = $2 AND metadata->>'_unique_id' = $3`, [userId, itemId, uniqueId]);
   }
 
   async updateInventoryAmountOrDelete(userId: string, itemId: string, purchasePrice: number): Promise<void> {

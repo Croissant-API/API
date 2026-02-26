@@ -5,6 +5,23 @@ You can use this icon to search and travel through endpoints
 
 This API provides endpoints for inventories, items, lobbies, trades, users, OAuth2, and studios.
 
+> **Database notice:** the project now targets Postgres (Supabase) instead of MySQL. See the *Switching to Supabase* section near the top of this document for configuration notes.
+
+## Switching to Supabase
+
+The `DatabaseService` has been rewritten to use `pg` and connects directly to a Postgres database such as
+Supabase.  Many existing queries still use the familiar `?` placeholder; the service will automatically
+translate them to `$1`, `$2`, etc. so you don't have to update every query string immediately.
+
+Provide your connection via `DATABASE_URL` (Supabase connection string) or the individual
+`DB_HOST`, `DB_USER`, `DB_PASS`, `DB_NAME` (and optionally `DB_PORT`).
+
+You will also need to update any MySQL-specific syntax (e.g. `DATE_SUB`, `JSON_EXTRACT`, `CURDATE()`)
+to PostgreSQL equivalents. Several examples are already converted in the repository.
+
+Dependencies were updated to include `pg` and `@types/pg`.
+
+
 ## Authentication
 
 Some endpoints require authentication via a token.

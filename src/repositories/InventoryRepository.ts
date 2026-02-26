@@ -55,7 +55,7 @@ export class InventoryRepository {
       params.push(filters.purchasePrice, filters.purchasePrice);
     }
     if (filters.uniqueId) {
-      query += " AND JSON_EXTRACT(inv.metadata, '$._unique_id') = ?";
+      query += " AND inv.metadata->>'_unique_id' = $" + (params.length + 1);
       params.push(filters.uniqueId);
     }
     if (filters.minAmount !== undefined) {
@@ -133,7 +133,7 @@ export class InventoryRepository {
   async updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: object): Promise<void> {
     const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
     const metadataJson = JSON.stringify(metadataWithUniqueId);
-    await this.databaseService.request("UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?", [metadataJson, userId, itemId, uniqueId]);
+    await this.databaseService.request("UPDATE inventories SET metadata = $1 WHERE user_id = $2 AND item_id = $3 AND metadata->>'_unique_id' = $4", [metadataJson, userId, itemId, uniqueId]);
   }
 
   async removeItem(userId: string, itemId: string, amount: number, dataItemIndex?: number): Promise<void> {
@@ -166,7 +166,7 @@ export class InventoryRepository {
   }
 
   async removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
+    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = $1 AND item_id = $2 AND metadata->>'_unique_id' = $3`, [userId, itemId, uniqueId]);
   }
 
   async removeSellableItem(userId: string, itemId: string, amount: number): Promise<void> {
@@ -215,6 +215,6 @@ export class InventoryRepository {
   }
 
   async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [toUserId, fromUserId, itemId, uniqueId]);
+    await this.databaseService.request(`UPDATE inventories SET user_id = $1 WHERE user_id = $2 AND item_id = $3 AND metadata->>'_unique_id' = $4`, [toUserId, fromUserId, itemId, uniqueId]);
   }
 }

@@ -128,7 +128,7 @@ export class TradeService implements ITradeService {
     if (tradeItem.metadata?._unique_id) {
       const inventoryItems = await this.databaseService.read<{ user_id: string; item_id: string; amount: number }>(
         `SELECT user_id, item_id, amount FROM inventories 
-         WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+         WHERE user_id = $1 AND item_id = $2 AND metadata->>'_unique_id' = $3`,
         [userId, tradeItem.itemId, tradeItem.metadata._unique_id]
       );
       if (!inventoryItems.length) throw new Error('User does not have this specific item');
