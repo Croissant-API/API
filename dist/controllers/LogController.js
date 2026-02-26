@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogController = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -102,24 +102,24 @@ let LogController = class LogController {
 };
 exports.LogController = LogController;
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getAllLogs", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/controller/:controller', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/controller/:controller', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getLogsByController", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getLogsByUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/table/:tableName', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/table/:tableName', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getLogsByTable", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/stats', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/stats', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getLogStats", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], LogController.prototype, "getMyLogs", null);
 exports.LogController = LogController = __decorate([
-    (0, inversify_express_utils_1.controller)('/logs'),
+    (0, hono_inversify_1.controller)('/logs'),
     __param(0, (0, inversify_1.inject)('LogService'))
 ], LogController);

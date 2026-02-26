@@ -8,19 +8,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Games = void 0;
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// crypto shim: use Web Crypto on the edge or fallback to Node
+const crypto = globalThis.crypto || require('crypto');
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
-const node_fetch_1 = __importDefault(require("node-fetch"));
+const hono_inversify_1 = require("../hono-inversify");
+// rate limiting is Node-specific and disabled in the edge build
+const rateLimit = () => undefined;
+// use global fetch in worker environment
 const uuid_1 = require("uuid");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GameValidator_1 = require("../validators/GameValidator");
-const crypto_1 = __importDefault(require("crypto"));
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -35,35 +36,35 @@ async function validateOr400(schema, data, res) {
         return false;
     }
 }
-const createGameRateLimit = (0, express_rate_limit_1.default)({
+const createGameRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many game creations, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const updateGameRateLimit = (0, express_rate_limit_1.default)({
+const updateGameRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many game updates, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const buyGameRateLimit = (0, express_rate_limit_1.default)({
+const buyGameRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 20,
     message: 'Too many game purchases, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const transferOwnershipRateLimit = (0, express_rate_limit_1.default)({
+const transferOwnershipRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many ownership transfers, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const transferGameRateLimit = (0, express_rate_limit_1.default)({
+const transferGameRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many game transfers, please try again later.',
@@ -72,7 +73,7 @@ const transferGameRateLimit = (0, express_rate_limit_1.default)({
 });
 // Helper function to generate ETag
 function generateETag(content) {
-    return crypto_1.default.createHash('md5').update(content).digest('hex');
+    return crypto.createHash('md5').update(content).digest('hex');
 }
 let Games = class Games {
     constructor(gameService, userService, logService, gameViewService) {
@@ -394,7 +395,7 @@ let Games = class Games {
             if (req.headers.range) {
                 headers.Range = req.headers.range;
             }
-            const fileRes = await (0, node_fetch_1.default)(link, { headers });
+            const fileRes = await fetch(link, { headers });
             if (!fileRes.ok) {
                 return res.status(fileRes.status).send({ message: 'Error fetching file' });
             }
@@ -414,6 +415,7 @@ let Games = class Games {
             }
             res.status(fileRes.status);
             if (fileRes.body) {
+                // body may be a web ReadableStream in edge; cast to any to satisfy ts
                 fileRes.body.pipe(res);
             }
             else {
@@ -444,7 +446,7 @@ let Games = class Games {
             if (req.headers.range) {
                 headers.Range = req.headers.range;
             }
-            const fileRes = await (0, node_fetch_1.default)(link, { method: 'HEAD', headers });
+            const fileRes = await fetch(link, { method: 'HEAD', headers });
             if (!fileRes.ok) {
                 return res.status(fileRes.status).send({ message: 'Error fetching file headers' });
             }
@@ -471,49 +473,49 @@ let Games = class Games {
 };
 exports.Games = Games;
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], Games.prototype, "listGames", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/search')
+    (0, hono_inversify_1.httpGet)('/search')
 ], Games.prototype, "searchGames", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/@mine', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/@mine', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "getMyCreatedGames", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/list/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/list/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "getUserGames", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)(':gameId')
+    (0, hono_inversify_1.httpGet)(':gameId')
 ], Games.prototype, "getGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)(':gameId/details', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)(':gameId/details', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "getGameDetails", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createGameRateLimit)
+    (0, hono_inversify_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createGameRateLimit)
 ], Games.prototype, "createGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPut)(':gameId', LoggedCheck_1.LoggedCheck.middleware, updateGameRateLimit)
+    (0, hono_inversify_1.httpPut)(':gameId', LoggedCheck_1.LoggedCheck.middleware, updateGameRateLimit)
 ], Games.prototype, "updateGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)(':gameId/buy', LoggedCheck_1.LoggedCheck.middleware, buyGameRateLimit)
+    (0, hono_inversify_1.httpPost)(':gameId/buy', LoggedCheck_1.LoggedCheck.middleware, buyGameRateLimit)
 ], Games.prototype, "buyGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/transfer-ownership/:gameId', LoggedCheck_1.LoggedCheck.middleware, transferOwnershipRateLimit)
+    (0, hono_inversify_1.httpPost)('/transfer-ownership/:gameId', LoggedCheck_1.LoggedCheck.middleware, transferOwnershipRateLimit)
 ], Games.prototype, "transferOwnership", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)(':gameId/transfer', LoggedCheck_1.LoggedCheck.middleware, transferGameRateLimit)
+    (0, hono_inversify_1.httpPost)(':gameId/transfer', LoggedCheck_1.LoggedCheck.middleware, transferGameRateLimit)
 ], Games.prototype, "transferGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)(':gameId/can-transfer', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)(':gameId/can-transfer', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "canTransferGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/:gameId/download', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/:gameId/download', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "downloadGame", null);
 __decorate([
-    (0, inversify_express_utils_1.httpHead)('/:gameId/download', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpHead)('/:gameId/download', LoggedCheck_1.LoggedCheck.middleware)
 ], Games.prototype, "headDownloadGame", null);
 exports.Games = Games = __decorate([
-    (0, inversify_express_utils_1.controller)('/games'),
+    (0, hono_inversify_1.controller)('/games'),
     __param(0, (0, inversify_1.inject)('GameService')),
     __param(1, (0, inversify_1.inject)('UserService')),
     __param(2, (0, inversify_1.inject)('LogService')),

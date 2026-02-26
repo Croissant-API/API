@@ -1,4 +1,5 @@
-import crypto from 'crypto';
+// crypto shim: prefer Web Crypto in edge
+const crypto = (globalThis.crypto as any) || require('crypto');
 import { inject, injectable } from 'inversify';
 import { Studio, StudioUser, StudioWithApiKey } from '../interfaces/Studio';
 import { User } from '../interfaces/User';

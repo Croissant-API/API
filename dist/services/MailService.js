@@ -4,25 +4,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MailService = void 0;
-const ejs_1 = __importDefault(require("ejs"));
-const nodemailer_1 = __importDefault(require("nodemailer"));
 const path_1 = __importDefault(require("path"));
-const dotenv_1 = require("dotenv");
-(0, dotenv_1.config)();
+// dynamic import of Node-only libraries; these will be undefined in edge environments
+let ejs;
+let nodemailer;
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    ejs = require('ejs');
+    nodemailer = require('nodemailer');
+}
 console.log(process.env);
 class MailService {
     constructor() {
-        this.transporter = nodemailer_1.default.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
+        if (nodemailer) {
+            this.transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                },
+            });
+        }
+        else {
+            // running in edge environment, no transport available
+            this.transporter = null;
+        }
     }
     async sendTemplateMail(to, template, subject, data) {
+        if (!this.transporter) {
+            // no-op when running in edge environment
+            return;
+        }
         const templatePath = path_1.default.join(process.cwd(), 'mailTemplates', template);
-        const html = await ejs_1.default.renderFile(templatePath, data || {});
+        const html = await ejs.renderFile(templatePath, data || {});
         const mailOptions = {
             from: process.env.SMTP_FROM || 'Croissant API <support@croissant-api.fr>',
             to,

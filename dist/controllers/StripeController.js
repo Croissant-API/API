@@ -37,10 +37,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StripeController = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const stripe_1 = __importDefault(require("stripe"));
 const yup = __importStar(require("yup"));
 const yup_1 = require("yup");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
@@ -108,7 +108,7 @@ let StripeController = class StripeController {
             throw new Error('Stripe API key is not set in environment variables');
         }
         this.stripe = new stripe_1.default(STRIPE_API_KEY, {
-            apiVersion: '2025-06-30.basil',
+            apiVersion: '2025-08-27.basil',
         });
     }
     async createLog(req, tableName, statusCode, metadata, user_id) {
@@ -283,16 +283,16 @@ let StripeController = class StripeController {
 };
 exports.StripeController = StripeController;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/webhook')
+    (0, hono_inversify_1.httpPost)('/webhook')
 ], StripeController.prototype, "handleWebhook", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/checkout', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/checkout', LoggedCheck_1.LoggedCheck.middleware)
 ], StripeController.prototype, "checkoutEndpoint", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/tiers')
+    (0, hono_inversify_1.httpGet)('/tiers')
 ], StripeController.prototype, "getTiers", null);
 exports.StripeController = StripeController = __decorate([
-    (0, inversify_express_utils_1.controller)('/stripe'),
+    (0, hono_inversify_1.controller)('/stripe'),
     __param(0, (0, inversify_1.inject)('UserService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], StripeController);

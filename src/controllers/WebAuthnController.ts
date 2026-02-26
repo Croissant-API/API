@@ -1,7 +1,7 @@
 import { WebAuthnCredential } from '@simplewebauthn/server/script/types';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpPost } from 'inversify-express-utils';
+import { controller, httpPost } from '../hono-inversify';
 import { getAuthenticationOptions, getRegistrationOptions, verifyRegistration } from '../lib/webauthnService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';

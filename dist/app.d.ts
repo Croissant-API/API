@@ -1,4 +1,3 @@
-import express from 'express';
 import 'reflect-metadata';
 import './controllers/AuthenticatorController';
 import './controllers/BuyOrderController';
@@ -16,4 +15,4 @@ import './controllers/StudioController';
 import './controllers/TradeController';
 import './controllers/UserController';
 import './controllers/WebAuthnController';
-export declare const app: express.Application;
+export declare const app: import("hono").Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;

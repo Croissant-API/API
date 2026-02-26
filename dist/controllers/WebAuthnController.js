@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebAuthn = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const webauthnService_1 = require("../lib/webauthnService");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
@@ -158,19 +158,19 @@ let WebAuthn = class WebAuthn {
 };
 exports.WebAuthn = WebAuthn;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/register/options')
+    (0, hono_inversify_1.httpPost)('/register/options')
 ], WebAuthn.prototype, "getRegistrationOptions", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/register/verify')
+    (0, hono_inversify_1.httpPost)('/register/verify')
 ], WebAuthn.prototype, "verifyRegistration", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/authenticate/options')
+    (0, hono_inversify_1.httpPost)('/authenticate/options')
 ], WebAuthn.prototype, "getAuthenticationOptionsHandler", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/authenticate/verify')
+    (0, hono_inversify_1.httpPost)('/authenticate/verify')
 ], WebAuthn.prototype, "verifyAuthenticationHandler", null);
 exports.WebAuthn = WebAuthn = __decorate([
-    (0, inversify_express_utils_1.controller)('/webauthn'),
+    (0, hono_inversify_1.controller)('/webauthn'),
     __param(0, (0, inversify_1.inject)('UserService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], WebAuthn);

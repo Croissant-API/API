@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet } from 'inversify-express-utils';
 import { Schema, ValidationError } from 'yup';
 import { describe } from '../decorators/describe';
+import { controller, httpGet } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { IInventoryService } from '../services/InventoryService';
 import { ILogService } from '../services/LogService';

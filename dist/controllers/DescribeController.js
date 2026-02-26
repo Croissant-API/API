@@ -7,8 +7,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DescribeController = void 0;
-const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 let DescribeController = class DescribeController {
     async getDescriptions(req, res) {
         res.json((0, describe_1.getAllDescriptions)());
@@ -16,8 +16,8 @@ let DescribeController = class DescribeController {
 };
 exports.DescribeController = DescribeController;
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], DescribeController.prototype, "getDescriptions", null);
 exports.DescribeController = DescribeController = __decorate([
-    (0, inversify_express_utils_1.controller)('/describe')
+    (0, hono_inversify_1.controller)('/describe')
 ], DescribeController);

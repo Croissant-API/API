@@ -34,9 +34,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Authenticator = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const qrcode = __importStar(require("qrcode"));
 const time2fa_1 = require("time2fa");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const Jwt_1 = require("../utils/Jwt");
@@ -104,7 +104,8 @@ let Authenticator = class Authenticator {
         }
     }
     async handleAuthenticatorActions(req, res) {
-        const action = req.params.action;
+        const actionParam = req.params.action;
+        const action = Array.isArray(actionParam) ? actionParam[0] : actionParam;
         const user = req.user;
         try {
             switch (action) {
@@ -165,13 +166,13 @@ let Authenticator = class Authenticator {
 };
 exports.Authenticator = Authenticator;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/verifyKey')
+    (0, hono_inversify_1.httpPost)('/verifyKey')
 ], Authenticator.prototype, "verifyKey", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
 ], Authenticator.prototype, "handleAuthenticatorActions", null);
 exports.Authenticator = Authenticator = __decorate([
-    (0, inversify_express_utils_1.controller)('/authenticator'),
+    (0, hono_inversify_1.controller)('/authenticator'),
     __param(0, (0, inversify_1.inject)('UserService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], Authenticator);

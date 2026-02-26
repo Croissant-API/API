@@ -53,7 +53,23 @@ let TradeService = class TradeService {
         let itemsInfo = {};
         if (uniqueItemIds.length) {
             const placeholders = uniqueItemIds.map(() => '?').join(',');
-            const items = await this.databaseService.read(`SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`, uniqueItemIds);
+            // const items = await this.databaseService.read<Item>(`SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`, uniqueItemIds);
+            //MongoDB query to get items info
+            const db = await this.databaseService.getDb();
+            const result = await db.collection('items').find({
+                itemId: { $in: uniqueItemIds },
+                $or: [{ deleted: null }, { deleted: false }]
+            }).toArray();
+            const items = result.map(doc => ({
+                itemId: doc.itemId,
+                name: doc.name,
+                description: doc.description,
+                price: doc.price,
+                owner: doc.owner,
+                iconHash: doc.iconHash,
+                showInStore: doc.showInStore,
+                deleted: doc.deleted
+            }));
             itemsInfo = Object.fromEntries(items.map(item => [item.itemId, item]));
         }
         const enrich = (arr) => arr.map(item => ({ ...item, ...(itemsInfo[item.itemId] || {}) }));
@@ -75,7 +91,23 @@ let TradeService = class TradeService {
         let itemsInfo = {};
         if (allItemIds.length) {
             const placeholders = allItemIds.map(() => '?').join(',');
-            const items = await this.databaseService.read(`SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`, allItemIds);
+            // const items = await this.databaseService.read<Item>(`SELECT * FROM items WHERE itemId IN (${placeholders}) AND (deleted IS NULL OR deleted = 0)`, allItemIds);
+            //MongoDB query to get items info
+            const db = await this.databaseService.getDb();
+            const result = await db.collection('items').find({
+                itemId: { $in: allItemIds },
+                $or: [{ deleted: null }, { deleted: false }]
+            }).toArray();
+            const items = result.map(doc => ({
+                itemId: doc.itemId,
+                name: doc.name,
+                description: doc.description,
+                price: doc.price,
+                owner: doc.owner,
+                iconHash: doc.iconHash,
+                showInStore: doc.showInStore,
+                deleted: doc.deleted
+            }));
             itemsInfo = Object.fromEntries(items.map(item => [item.itemId, item]));
         }
         const enrich = (arr) => arr.map(item => ({ ...item, ...(itemsInfo[item.itemId] || {}) }));
@@ -114,14 +146,42 @@ let TradeService = class TradeService {
         const userKey = this.getUserKey(trade, userId);
         // Vérification de la possession de l'item
         if (tradeItem.metadata?._unique_id) {
-            const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories 
-         WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, tradeItem.itemId, tradeItem.metadata._unique_id]);
+            // const inventoryItems = await this.databaseService.read<{ user_id: string; item_id: string; amount: number }>(
+            //   `SELECT user_id, item_id, amount FROM inventories 
+            //    WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+            //   [userId, tradeItem.itemId, tradeItem.metadata._unique_id]
+            // );
+            const db = await this.databaseService.getDb();
+            const result = await db.collection('inventories').find({
+                user_id: userId,
+                item_id: tradeItem.itemId,
+                metadata: { $elemMatch: { _unique_id: tradeItem.metadata._unique_id } }
+            }).toArray();
+            const inventoryItems = result.map(doc => ({
+                user_id: doc.user_id,
+                item_id: doc.item_id,
+                amount: doc.amount
+            }));
             if (!inventoryItems.length)
                 throw new Error('User does not have this specific item');
         }
         else if (tradeItem.purchasePrice) {
-            const inventoryItems = await this.databaseService.read(`SELECT user_id, item_id, amount FROM inventories
-         WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [userId, tradeItem.itemId, tradeItem.purchasePrice]);
+            // const inventoryItems = await this.databaseService.read<InventoryItem>(
+            //   `SELECT user_id, item_id, amount FROM inventories
+            //    WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`,
+            //   [userId, tradeItem.itemId, tradeItem.purchasePrice]
+            // );
+            const db = await this.databaseService.getDb();
+            const result = await db.collection('inventories').find({
+                user_id: userId,
+                item_id: tradeItem.itemId,
+                purchasePrice: tradeItem.purchasePrice
+            }).toArray();
+            const inventoryItems = result.map(doc => ({
+                user_id: doc.user_id,
+                item_id: doc.item_id,
+                amount: doc.amount
+            }));
             const totalAvailable = inventoryItems.reduce((sum, item) => sum + item.amount, 0);
             if (totalAvailable < tradeItem.amount)
                 throw new Error('User does not have enough of the item with specified purchase price');

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner } from '../middlewares/OwnerCheck';
 import { IInventoryService } from '../services/InventoryService';

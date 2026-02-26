@@ -14,80 +14,83 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Users = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const crypto_1 = __importDefault(require("crypto"));
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+// crypto shim
+const crypto = globalThis.crypto || require('crypto');
+// rateLimiting middleware is Node-specific and not available in edge bundles
+// import rateLimit from 'express-rate-limit';
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
 const helpers_1 = require("../utils/helpers");
 const Jwt_1 = require("../utils/Jwt");
 const UserValidator_1 = require("../validators/UserValidator");
-const registerRateLimit = (0, express_rate_limit_1.default)({
+const rateLimit = () => undefined;
+const registerRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many registration attempts from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const changeUsernameRateLimit = (0, express_rate_limit_1.default)({
+const changeUsernameRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many username changes, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const changePasswordRateLimit = (0, express_rate_limit_1.default)({
+const changePasswordRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 20,
     message: 'Too many password changes, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const transferCreditsRateLimit = (0, express_rate_limit_1.default)({
+const transferCreditsRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many credit transfers, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const forgotPasswordRateLimit = (0, express_rate_limit_1.default)({
+const forgotPasswordRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many password reset requests, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const resetPasswordRateLimit = (0, express_rate_limit_1.default)({
+const resetPasswordRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many password reset attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const loginRateLimit = (0, express_rate_limit_1.default)({
+const loginRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: 'Too many login attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const loginOAuthRateLimit = (0, express_rate_limit_1.default)({
+const loginOAuthRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 100,
     message: 'Too many OAuth login attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const changeRoleRateLimit = (0, express_rate_limit_1.default)({
+const changeRoleRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 500,
     message: 'Too many role changes, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const unlinkSteamRateLimit = (0, express_rate_limit_1.default)({
+const unlinkSteamRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 30,
     message: 'Too many unlink steam requests, please try again later.',
@@ -226,7 +229,7 @@ let Users = class Users {
             user = users.find(u => (provider === 'discord' && u.discord_id == verifiedUser.id) || (provider === 'google' && u.google_id == verifiedUser.id)) || null;
         }
         if (!user) {
-            const userId = crypto_1.default.randomUUID();
+            const userId = crypto.randomUUID();
             user = await this.userService.createUser(userId, verifiedUser.username, verifiedUser.email, null, provider, verifiedUser.id);
             await this.createLog(req, 'loginOAuth', 'users', 201, userId);
         }
@@ -269,7 +272,7 @@ let Users = class Users {
         }
         let userId = req.body.userId;
         if (!userId) {
-            userId = crypto_1.default.randomUUID();
+            userId = crypto.randomUUID();
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(req.body.email)) {
@@ -661,7 +664,7 @@ let Users = class Users {
         try {
             await UserValidator_1.userIdParamValidator.validate(req.params);
         }
-        catch {
+        catch (error) {
             await this.createLog(req, 'adminGetUser', 'users', 400, req.user?.user_id);
             return this.sendError(res, 400, 'Invalid userId');
         }
@@ -805,13 +808,13 @@ let Users = class Users {
 };
 exports.Users = Users;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/login-oauth', loginOAuthRateLimit)
+    (0, hono_inversify_1.httpPost)('/login-oauth', loginOAuthRateLimit)
 ], Users.prototype, "loginOAuth", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/register', registerRateLimit)
+    (0, hono_inversify_1.httpPost)('/register', registerRateLimit)
 ], Users.prototype, "register", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/login', loginRateLimit)
+    (0, hono_inversify_1.httpPost)('/login', loginRateLimit)
 ], Users.prototype, "login", null);
 __decorate([
     (0, describe_1.describe)({
@@ -832,31 +835,31 @@ __decorate([
         },
         example: 'GET /api/users/@me',
     }),
-    (0, inversify_express_utils_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "getMe", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/change-username', LoggedCheck_1.LoggedCheck.middleware, changeUsernameRateLimit)
+    (0, hono_inversify_1.httpPost)('/change-username', LoggedCheck_1.LoggedCheck.middleware, changeUsernameRateLimit)
 ], Users.prototype, "changeUsername", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/change-password', LoggedCheck_1.LoggedCheck.middleware, changePasswordRateLimit)
+    (0, hono_inversify_1.httpPost)('/change-password', LoggedCheck_1.LoggedCheck.middleware, changePasswordRateLimit)
 ], Users.prototype, "changePassword", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/forgot-password', forgotPasswordRateLimit)
+    (0, hono_inversify_1.httpPost)('/forgot-password', forgotPasswordRateLimit)
 ], Users.prototype, "forgotPassword", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/reset-password', resetPasswordRateLimit)
+    (0, hono_inversify_1.httpPost)('/reset-password', resetPasswordRateLimit)
 ], Users.prototype, "resetPassword", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/validate-reset-token')
+    (0, hono_inversify_1.httpGet)('/validate-reset-token')
 ], Users.prototype, "isValidResetToken", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/steam-redirect')
+    (0, hono_inversify_1.httpGet)('/steam-redirect')
 ], Users.prototype, "steamRedirect", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/steam-associate', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/steam-associate', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "steamAssociate", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/unlink-steam', LoggedCheck_1.LoggedCheck.middleware, unlinkSteamRateLimit)
+    (0, hono_inversify_1.httpPost)('/unlink-steam', LoggedCheck_1.LoggedCheck.middleware, unlinkSteamRateLimit)
 ], Users.prototype, "unlinkSteam", null);
 __decorate([
     (0, describe_1.describe)({
@@ -881,7 +884,7 @@ __decorate([
         ],
         example: 'GET /api/users/search?q=John',
     }),
-    (0, inversify_express_utils_1.httpGet)('/search')
+    (0, hono_inversify_1.httpGet)('/search')
 ], Users.prototype, "searchUsers", null);
 __decorate([
     (0, describe_1.describe)({
@@ -905,19 +908,19 @@ __decorate([
         },
         example: 'GET /api/users/123',
     }),
-    (0, inversify_express_utils_1.httpGet)(':userId')
+    (0, hono_inversify_1.httpGet)(':userId')
 ], Users.prototype, "getUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/admin/search', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/admin/search', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "adminSearchUsers", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/admin/disable/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/admin/disable/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "disableAccount", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/admin/enable/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/admin/enable/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "reenableAccount", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/admin/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/admin/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], Users.prototype, "adminGetUser", null);
 __decorate([
     (0, describe_1.describe)({
@@ -932,7 +935,7 @@ __decorate([
         example: "POST /api/users/transfer-credits { targetUserId: '456', amount: 50 }",
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/transfer-credits', LoggedCheck_1.LoggedCheck.middleware, transferCreditsRateLimit)
+    (0, hono_inversify_1.httpPost)('/transfer-credits', LoggedCheck_1.LoggedCheck.middleware, transferCreditsRateLimit)
 ], Users.prototype, "transferCredits", null);
 __decorate([
     (0, describe_1.describe)({
@@ -946,13 +949,13 @@ __decorate([
         },
         example: 'POST /api/users/auth-verification?userId=123&verificationKey=abc123',
     }),
-    (0, inversify_express_utils_1.httpPost)('/auth-verification')
+    (0, hono_inversify_1.httpPost)('/auth-verification')
 ], Users.prototype, "checkVerificationKey", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/change-role', LoggedCheck_1.LoggedCheck.middleware, changeRoleRateLimit)
+    (0, hono_inversify_1.httpPost)('/change-role', LoggedCheck_1.LoggedCheck.middleware, changeRoleRateLimit)
 ], Users.prototype, "changeRole", null);
 exports.Users = Users = __decorate([
-    (0, inversify_express_utils_1.controller)('/users'),
+    (0, hono_inversify_1.controller)('/users'),
     __param(0, (0, inversify_1.inject)('UserService')),
     __param(1, (0, inversify_1.inject)('LogService')),
     __param(2, (0, inversify_1.inject)('MailService')),

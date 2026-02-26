@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { IGameService } from '../services/GameService';
 import { IInventoryService } from '../services/InventoryService';
 import { IItemService } from '../services/ItemService';

@@ -1,10 +1,12 @@
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
+// crypto shim
+const crypto = (globalThis.crypto as any) || require('crypto');
+// rateLimiting middleware is Node-specific and not available in edge bundles
+// import rateLimit from 'express-rate-limit';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost } from '../hono-inversify';
 import { PublicUser, PublicUserAsAdmin, User } from '../interfaces/User';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
@@ -16,6 +18,8 @@ import { genKey, genVerificationKey } from '../utils/GenKey';
 import { requireFields } from '../utils/helpers';
 import { generateUserJwt } from '../utils/Jwt';
 import { userIdParamValidator } from '../validators/UserValidator';
+
+const rateLimit: any = () => undefined;
 
 const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 

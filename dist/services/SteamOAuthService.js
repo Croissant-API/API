@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SteamOAuthService = void 0;
 const axios_1 = __importDefault(require("axios"));
 const inversify_1 = require("inversify");
-const querystring_1 = __importDefault(require("querystring"));
 const STEAM_API_KEY = process.env.STEAM_API_KEY || 'BE084FB89CC0FF28AC790A9CC5D008A1';
 const STEAM_REALM = process.env.STEAM_REALM || 'http://localhost:8580/';
 const STEAM_RETURN_URL = process.env.STEAM_RETURN_URL || 'http://localhost:8580/api/users/steam-associate';
@@ -27,23 +26,33 @@ let SteamOAuthService = class SteamOAuthService {
      * Génère l'URL d'authentification Steam (OpenID)
      */
     getAuthUrl() {
-        const params = {
+        const params = new URLSearchParams({
             'openid.ns': 'http://specs.openid.net/auth/2.0',
             'openid.mode': 'checkid_setup',
             'openid.return_to': STEAM_RETURN_URL,
             'openid.realm': STEAM_REALM,
             'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
             'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
-        };
-        return `https://steamcommunity.com/openid/login?${querystring_1.default.stringify(params)}`;
+        });
+        return `https://steamcommunity.com/openid/login?${params.toString()}`;
     }
     /**
      * Vérifie la réponse OpenID de Steam et retourne le steamid si succès
      */
     async verifySteamOpenId(query) {
         const body = { ...query, 'openid.mode': 'check_authentication' };
+        const params = new URLSearchParams();
+        for (const key in body) {
+            const value = body[key];
+            if (Array.isArray(value)) {
+                value.forEach((v) => params.append(key, v));
+            }
+            else if (value !== undefined) {
+                params.append(key, String(value));
+            }
+        }
         try {
-            const response = await axios_1.default.post('https://steamcommunity.com/openid/login', querystring_1.default.stringify(body), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+            const response = await axios_1.default.post('https://steamcommunity.com/openid/login', params.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
             if (response.data && response.data.includes('is_valid:true')) {
                 const claimedId = typeof query['openid.claimed_id'] === 'string' ? query['openid.claimed_id'] : (query['openid.claimed_id'] || [])[0];
                 return this.extractSteamId(claimedId);

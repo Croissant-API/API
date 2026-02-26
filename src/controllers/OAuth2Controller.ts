@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpDelete, httpGet, httpPatch, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
+import { controller, httpDelete, httpGet, httpPatch, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IOAuth2Service } from '../services/OAuth2Service';
 import { genVerificationKey } from '../utils/GenKey';
+const rateLimit: any = () => undefined;
 
 const createOAuth2AppRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 

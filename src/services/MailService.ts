@@ -1,9 +1,14 @@
-import ejs from 'ejs';
-import nodemailer from 'nodemailer';
 import path from 'path';
 
-import { config } from 'dotenv';
-config();
+// dynamic import of Node-only libraries; these will be undefined in edge environments
+let ejs: any;
+let nodemailer: any;
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  ejs = require('ejs');
+  nodemailer = require('nodemailer');
+}
+
+// dotenv is not used in edge runtime; credentials must be provided by environment variables
 
 export interface IMailService {
   sendPasswordResetMail(to: string, resetLink: string): Promise<void>;
@@ -11,20 +16,28 @@ export interface IMailService {
 }
 console.log(process.env)
 export class MailService implements IMailService {
-  private transporter;
+  private transporter: any;
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
+    if (nodemailer) {
+      this.transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+    } else {
+      // running in edge environment, no transport available
+      this.transporter = null;
+    }
   }
 
   private async sendTemplateMail(to: string, template: string, subject: string, data?: Record<string, unknown>) {
+    if (!this.transporter) {
+      // no-op when running in edge environment
+      return;
+    }
     const templatePath = path.join(process.cwd(), 'mailTemplates', template);
     const html = await ejs.renderFile(templatePath, data || {});
     const mailOptions = {

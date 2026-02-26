@@ -10,17 +10,19 @@ class OwnerCheck {
 }
 exports.OwnerCheck = OwnerCheck;
 _a = OwnerCheck;
-OwnerCheck.middleware = async (req, res, next) => {
-    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
+OwnerCheck.middleware = async (c, next) => {
+    const authHeader = c.req.header('authorization') ||
+        'Bearer ' + (c.req.header('cookie')?.toString().split('token=')[1]?.split(';')[0] || '');
     const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const roleCookie = req.headers['cookie']?.toString().split('role=')[1]?.split(';')[0];
+    const roleCookie = c.req.header('cookie')?.toString().split('role=')[1]?.split(';')[0];
     const userService = container_1.default.get('UserService');
     const itemService = container_1.default.get('ItemService');
     if (!token) {
-        return res.status(401).send({ message: 'Unauthorized' });
+        return c.json({ message: 'Unauthorized' }, 401);
     }
-    const { userId } = req.body;
-    const itemId = req.body.itemId || req.params.itemId;
+    const body = await c.req.json().catch(() => ({}));
+    const userId = body.userId;
+    const itemId = body.itemId || c.req.param('itemId');
     const item = await itemService.getItem(itemId);
     const authedUser = (await userService.authenticateUser(token));
     const studioService = container_1.default.get('StudioService');
@@ -35,18 +37,18 @@ OwnerCheck.middleware = async (req, res, next) => {
     }
     const user = await userService.getUser(userId);
     if (!item || item.deleted) {
-        return res.status(404).send({ message: 'Item not found' });
+        return c.json({ message: 'Item not found' }, 404);
     }
     if (!owner) {
-        return res.status(404).send({ message: 'Owner not found' });
+        return c.json({ message: 'Owner not found' }, 404);
     }
     if (owner.user_id !== item.owner) {
-        return res.status(403).send({ message: 'You are not the owner of this item' });
+        return c.json({ message: 'You are not the owner of this item' }, 403);
     }
-    req.owner = owner;
-    req.originalUser = authedUser;
+    c.set('owner', owner);
+    c.set('originalUser', authedUser);
     if (user) {
-        req.user = user;
+        c.set('user', user);
     }
-    next();
+    return next();
 };

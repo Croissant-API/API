@@ -6,44 +6,75 @@ class ItemRepository {
         this.databaseService = databaseService;
     }
     async createItem(item) {
+        const db = await this.databaseService.getDb();
         const existing = await this.getItem(item.itemId);
         if (existing)
             throw new Error('ItemId already exists');
-        await this.databaseService.request(`INSERT INTO items (itemId, name, description, price, owner, iconHash, showInStore, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [item.itemId, item.name ?? null, item.description ?? null, item.price ?? 0, item.owner, item.iconHash ?? null, item.showInStore ? 1 : 0, item.deleted ? 1 : 0]);
+        await db.collection('items').insertOne({
+            ...item,
+            showInStore: !!item.showInStore,
+            deleted: !!item.deleted
+        });
     }
     async getItems(filters = {}, select = '*', orderBy = 'name', limit) {
-        let query = `SELECT ${select} FROM items WHERE 1=1`;
-        const params = [];
-        if (filters.itemId) {
-            query += ' AND itemId = ?';
-            params.push(filters.itemId);
-        }
-        if (filters.owner) {
-            query += ' AND owner = ?';
-            params.push(filters.owner);
-        }
-        if (filters.showInStore !== undefined) {
-            query += ' AND showInStore = ?';
-            params.push(filters.showInStore ? 1 : 0);
-        }
-        if (filters.deleted !== undefined) {
-            query += ' AND deleted = ?';
-            params.push(filters.deleted ? 1 : 0);
-        }
+        const db = await this.databaseService.getDb();
+        const query = {};
+        if (filters.itemId)
+            query.itemId = filters.itemId;
+        if (filters.owner)
+            query.owner = filters.owner;
+        if (filters.showInStore !== undefined)
+            query.showInStore = !!filters.showInStore;
+        if (filters.deleted !== undefined)
+            query.deleted = !!filters.deleted;
         if (filters.search) {
-            const searchTerm = `%${filters.search.toLowerCase()}%`;
-            query += ' AND LOWER(name) LIKE ?';
-            params.push(searchTerm);
+            query.name = { $regex: filters.search, $options: 'i' };
         }
-        query += ` ORDER BY ${orderBy}`;
+        // select: if not '*', project only those fields
+        let projection = undefined;
+        if (select !== '*' && select.trim().length > 0) {
+            projection = {};
+            select.split(',').map(f => f.trim()).forEach(f => projection[f] = 1);
+        }
+        let cursor = db.collection('items').find(query, { projection });
+        // orderBy
+        if (orderBy) {
+            const sort = {};
+            sort[orderBy] = 1;
+            cursor = cursor.sort(sort);
+        }
         if (limit)
-            query += ` LIMIT ${limit}`;
-        return this.databaseService.read(query, params);
+            cursor = cursor.limit(limit);
+        const itemsIterations = await cursor.toArray();
+        const items = itemsIterations.map(doc => ({
+            itemId: doc.itemId,
+            name: doc.name,
+            description: doc.description,
+            price: doc.price,
+            owner: doc.owner,
+            iconHash: doc.iconHash,
+            showInStore: doc.showInStore,
+            deleted: doc.deleted
+        }));
+        return items;
+        // return cursor.toArray() as Promise<Item[]>;
     }
     async getItem(itemId) {
-        const items = await this.getItems({ itemId });
-        return items[0] || null;
+        const db = await this.databaseService.getDb();
+        const items = await db.collection('items').find({ itemId }).toArray();
+        if (items.length === 0)
+            return null;
+        const doc = items[0];
+        return {
+            itemId: doc.itemId,
+            name: doc.name,
+            description: doc.description,
+            price: doc.price,
+            owner: doc.owner,
+            iconHash: doc.iconHash,
+            showInStore: doc.showInStore,
+            deleted: doc.deleted
+        };
     }
     async getAllItems() {
         return this.getItems();
@@ -55,14 +86,15 @@ class ItemRepository {
         return this.getItems({ owner: userId, deleted: false }, 'itemId, name, description, owner, price, iconHash, showInStore');
     }
     async updateItem(itemId, item, buildUpdateFields) {
-        const { fields, values } = buildUpdateFields(item);
-        if (!fields.length)
+        const db = await this.databaseService.getDb();
+        // buildUpdateFields is not needed for MongoDB, just use the item object
+        if (!Object.keys(item).length)
             return;
-        values.push(itemId);
-        await this.databaseService.request(`UPDATE items SET ${fields.join(', ')} WHERE itemId = ?`, values);
+        await db.collection('items').updateOne({ itemId }, { $set: item });
     }
     async deleteItem(itemId) {
-        await this.databaseService.request('UPDATE items SET deleted = 1 WHERE itemId = ?', [itemId]);
+        const db = await this.databaseService.getDb();
+        await db.collection('items').updateOne({ itemId }, { $set: { deleted: true } });
     }
     async searchItemsByName(query) {
         return this.getItems({ search: query, showInStore: true, deleted: false }, 'itemId, name, description, owner, price, iconHash, showInStore', 'name', 100);

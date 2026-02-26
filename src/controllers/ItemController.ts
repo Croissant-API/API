@@ -1,10 +1,9 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpDelete, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import { v4 } from 'uuid';
 import { Schema, ValidationError } from 'yup';
 import { describe } from '../decorators/describe';
+import { controller, httpDelete, httpGet, httpPost, httpPut } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { AuthenticatedRequestWithOwner, OwnerCheck } from '../middlewares/OwnerCheck';
 import { IInventoryService } from '../services/InventoryService';
@@ -12,6 +11,7 @@ import { IItemService } from '../services/ItemService';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';
 import { createItemValidator, itemIdParamValidator, updateItemValidator } from '../validators/ItemValidator';
+const rateLimit: any = () => undefined;
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);

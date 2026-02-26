@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "croissant-api" generated at 2026-02-26T11:50:08.777Z.

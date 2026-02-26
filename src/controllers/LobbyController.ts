@@ -1,14 +1,14 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { v4 } from 'uuid';
 import { Schema, ValidationError } from 'yup';
 import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILobbyService } from '../services/LobbyService';
 import { ILogService } from '../services/LogService';
 import { lobbyIdParamSchema, userIdParamSchema } from '../validators/LobbyValidator';
+const rateLimit: any = () => undefined;
 
 function handleError(res: Response, error: unknown, message: string, status = 500) {
   const msg = error instanceof Error ? error.message : String(error);

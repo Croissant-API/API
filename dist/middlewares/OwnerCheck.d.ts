@@ -1,4 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
+import type { Request } from 'express';
+import type { MiddlewareHandler } from 'hono';
 import { User } from '../interfaces/User';
 export interface AuthenticatedRequestWithOwner extends Request {
     owner: User;
@@ -6,5 +7,5 @@ export interface AuthenticatedRequestWithOwner extends Request {
     user?: User;
 }
 export declare class OwnerCheck {
-    static middleware: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+    static middleware: MiddlewareHandler;
 }

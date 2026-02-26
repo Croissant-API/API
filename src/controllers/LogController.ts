@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet } from 'inversify-express-utils';
+import { controller, httpGet } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 

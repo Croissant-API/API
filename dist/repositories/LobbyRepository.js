@@ -6,24 +6,20 @@ class LobbyRepository {
         this.databaseService = databaseService;
     }
     async getLobbies(filters = {}) {
-        const query = 'SELECT lobbyId, users FROM lobbies WHERE 1=1';
-        const rows = await this.databaseService.read(query);
+        const db = await this.databaseService.getDb();
+        const query = {};
+        if (filters.lobbyId)
+            query.lobbyId = filters.lobbyId;
+        if (filters.userId)
+            query.users = filters.userId;
+        const rows = await db.collection('lobbies').find(query).toArray();
         const lobbies = [];
         for (const row of rows) {
-            if (filters.userId && row.users.indexOf(filters.userId) !== -1 && filters.userId) {
-                const users = await this.getUsersByIds(row.users);
-                lobbies.push({
-                    lobbyId: row.lobbyId,
-                    users,
-                });
-            }
-            else if (filters.lobbyId && row.lobbyId === filters.lobbyId) {
-                const users = await this.getUsersByIds(row.users);
-                lobbies.push({
-                    lobbyId: row.lobbyId,
-                    users,
-                });
-            }
+            const users = await this.getUsersByIds(row.users);
+            lobbies.push({
+                lobbyId: row.lobbyId,
+                users,
+            });
         }
         return lobbies;
     }
@@ -41,19 +37,36 @@ class LobbyRepository {
         return this.getLobbies({ userId });
     }
     async createLobby(lobbyId, users = []) {
-        await this.databaseService.request('INSERT INTO lobbies (lobbyId, users) VALUES (?, ?)', [lobbyId, JSON.stringify(users)]);
+        const db = await this.databaseService.getDb();
+        await db.collection('lobbies').insertOne({ lobbyId, users });
     }
     async updateLobbyUsers(lobbyId, users) {
+        const db = await this.databaseService.getDb();
         const usersIds = await this.getUsersIdOnly(users);
-        await this.databaseService.request('UPDATE lobbies SET users = ? WHERE lobbyId = ?', [JSON.stringify(usersIds), lobbyId]);
+        await db.collection('lobbies').updateOne({ lobbyId }, { $set: { users: usersIds } });
     }
     async deleteLobby(lobbyId) {
-        await this.databaseService.request('DELETE FROM lobbies WHERE lobbyId = ?', [lobbyId]);
+        const db = await this.databaseService.getDb();
+        await db.collection('lobbies').deleteOne({ lobbyId });
     }
     async getUsersByIds(userIds) {
-        if (userIds.length === 0)
+        if (!userIds || userIds.length === 0)
             return [];
-        return await this.databaseService.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')}) AND disabled = 0`, userIds);
+        const db = await this.databaseService.getDb();
+        const result = await db.collection('users').find({ user_id: { $in: userIds }, disabled: 0 }).project({ user_id: 1, username: 1, verified: 1, admin: 1, badges: 1, beta_user: 1, created_at: 1, updated_at: 1, _id: 0 }).toArray();
+        // const result = await this.databaseService.read<PublicUser[]>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (?) AND disabled = 0`, [userIds]);
+        const users = result.map(doc => ({
+            user_id: doc.user_id,
+            username: doc.username,
+            verified: doc.verified,
+            admin: doc.admin,
+            badges: doc.badges || [],
+            beta_user: doc.beta_user || false,
+            created_at: doc.created_at,
+            updated_at: doc.updated_at,
+            isStudio: doc.isStudio || false,
+        }));
+        return users;
     }
     async getUsersIdOnly(users) {
         return users.map(user => user.user_id);

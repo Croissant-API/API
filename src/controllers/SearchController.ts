@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet } from 'inversify-express-utils';
+import { controller, httpGet } from '../hono-inversify';
 import { PublicUser, User, UserExtensions } from '../interfaces/User';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';

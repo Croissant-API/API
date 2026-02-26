@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpPost } from 'inversify-express-utils';
 import * as qrcode from 'qrcode';
 import { Totp } from 'time2fa';
+import { controller, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';

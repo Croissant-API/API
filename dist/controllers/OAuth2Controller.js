@@ -8,39 +8,36 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OAuth2 = void 0;
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const GenKey_1 = require("../utils/GenKey");
-const createOAuth2AppRateLimit = (0, express_rate_limit_1.default)({
+const rateLimit = () => undefined;
+const createOAuth2AppRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many OAuth2 app creations, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const updateOAuth2AppRateLimit = (0, express_rate_limit_1.default)({
+const updateOAuth2AppRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many OAuth2 app updates, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const deleteOAuth2AppRateLimit = (0, express_rate_limit_1.default)({
+const deleteOAuth2AppRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
     message: 'Too many OAuth2 app deletions, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const authorizeRateLimit = (0, express_rate_limit_1.default)({
+const authorizeRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 200,
     message: 'Too many authorization requests, please try again later.',
@@ -257,7 +254,7 @@ __decorate([
         },
         example: 'GET /api/oauth2/app/123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/app/:client_id')
+    (0, hono_inversify_1.httpGet)('/app/:client_id')
 ], OAuth2.prototype, "getAppByClientId", null);
 __decorate([
     (0, describe_1.describe)({
@@ -275,7 +272,7 @@ __decorate([
         example: 'POST /api/oauth2/app {"name": "My App", "redirect_urls": ["https://example.com/callback"]}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/app', LoggedCheck_1.LoggedCheck.middleware, createOAuth2AppRateLimit)
+    (0, hono_inversify_1.httpPost)('/app', LoggedCheck_1.LoggedCheck.middleware, createOAuth2AppRateLimit)
 ], OAuth2.prototype, "createApp", null);
 __decorate([
     (0, describe_1.describe)({
@@ -293,7 +290,7 @@ __decorate([
         example: 'GET /api/oauth2/apps',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/apps', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/apps', LoggedCheck_1.LoggedCheck.middleware)
 ], OAuth2.prototype, "getMyApps", null);
 __decorate([
     (0, describe_1.describe)({
@@ -309,7 +306,7 @@ __decorate([
         example: 'PATCH /api/oauth2/app/123 {"name": "Updated App"}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPatch)('/app/:client_id', LoggedCheck_1.LoggedCheck.middleware, updateOAuth2AppRateLimit)
+    (0, hono_inversify_1.httpPatch)('/app/:client_id', LoggedCheck_1.LoggedCheck.middleware, updateOAuth2AppRateLimit)
 ], OAuth2.prototype, "updateApp", null);
 __decorate([
     (0, describe_1.describe)({
@@ -321,7 +318,7 @@ __decorate([
         example: 'DELETE /api/oauth2/app/123',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpDelete)('/app/:client_id', LoggedCheck_1.LoggedCheck.middleware, deleteOAuth2AppRateLimit)
+    (0, hono_inversify_1.httpDelete)('/app/:client_id', LoggedCheck_1.LoggedCheck.middleware, deleteOAuth2AppRateLimit)
 ], OAuth2.prototype, "deleteApp", null);
 __decorate([
     (0, describe_1.describe)({
@@ -336,7 +333,7 @@ __decorate([
         example: 'GET /api/oauth2/authorize?client_id=123&redirect_uri=https://example.com/callback',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/authorize', LoggedCheck_1.LoggedCheck.middleware, authorizeRateLimit)
+    (0, hono_inversify_1.httpGet)('/authorize', LoggedCheck_1.LoggedCheck.middleware, authorizeRateLimit)
 ], OAuth2.prototype, "authorize", null);
 __decorate([
     (0, describe_1.describe)({
@@ -362,10 +359,10 @@ __decorate([
         },
         example: 'GET /api/oauth2/user?code=abc123&client_id=456',
     }),
-    (0, inversify_express_utils_1.httpGet)('/user')
+    (0, hono_inversify_1.httpGet)('/user')
 ], OAuth2.prototype, "getUserByCode", null);
 exports.OAuth2 = OAuth2 = __decorate([
-    (0, inversify_express_utils_1.controller)('/oauth2'),
+    (0, hono_inversify_1.controller)('/oauth2'),
     __param(0, (0, inversify_1.inject)('OAuth2Service')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], OAuth2);

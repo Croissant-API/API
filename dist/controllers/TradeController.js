@@ -11,8 +11,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Trades = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -276,7 +276,7 @@ __decorate([
         example: 'POST /api/trades/start-or-latest/user123',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/start-or-latest/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/start-or-latest/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "startOrGetPendingTrade", null);
 __decorate([
     (0, describe_1.describe)({
@@ -315,7 +315,7 @@ __decorate([
         example: 'GET /api/trades/trade123',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/:id', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/:id', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "getTradeById", null);
 __decorate([
     (0, describe_1.describe)({
@@ -356,7 +356,7 @@ __decorate([
         example: 'GET /api/trades/user/user123',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "getTradesByUser", null);
 __decorate([
     (0, describe_1.describe)({
@@ -375,7 +375,7 @@ __decorate([
         example: 'POST /api/trades/trade123/add-item {"tradeItem": {"itemId": "item456", "amount": 5}} or {"tradeItem": {"itemId": "item456", "amount": 1, "metadata": {"level": 5, "_unique_id": "abc-123"}}}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:id/add-item', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/:id/add-item', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "addItemToTrade", null);
 __decorate([
     (0, describe_1.describe)({
@@ -394,7 +394,7 @@ __decorate([
         example: 'POST /api/trades/trade123/remove-item {"tradeItem": {"itemId": "item456", "amount": 2}} or {"tradeItem": {"itemId": "item456", "metadata": {"_unique_id": "abc-123"}}}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:id/remove-item', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/:id/remove-item', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "removeItemFromTrade", null);
 __decorate([
     (0, describe_1.describe)({
@@ -406,7 +406,7 @@ __decorate([
         example: 'PUT /api/trades/trade123/approve',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPut)('/:id/approve', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPut)('/:id/approve', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "approveTrade", null);
 __decorate([
     (0, describe_1.describe)({
@@ -418,10 +418,10 @@ __decorate([
         example: 'PUT /api/trades/trade123/cancel',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
 ], Trades.prototype, "cancelTrade", null);
 exports.Trades = Trades = __decorate([
-    (0, inversify_express_utils_1.controller)('/trades'),
+    (0, hono_inversify_1.controller)('/trades'),
     __param(0, (0, inversify_1.inject)('TradeService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], Trades);

@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GameGifts = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -227,22 +227,22 @@ let GameGifts = class GameGifts {
 };
 exports.GameGifts = GameGifts;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/:action', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "handleGiftActions", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/sent', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/sent', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getSentGifts", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/received', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/received', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getReceivedGifts", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/:giftCode', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/:giftCode', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "getGiftInfo", null);
 __decorate([
-    (0, inversify_express_utils_1.httpDelete)('/:giftId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpDelete)('/:giftId', LoggedCheck_1.LoggedCheck.middleware)
 ], GameGifts.prototype, "revokeGift", null);
 exports.GameGifts = GameGifts = __decorate([
-    (0, inversify_express_utils_1.controller)('/gifts'),
+    (0, hono_inversify_1.controller)('/gifts'),
     __param(0, (0, inversify_1.inject)('GameGiftService')),
     __param(1, (0, inversify_1.inject)('GameService')),
     __param(2, (0, inversify_1.inject)('UserService')),

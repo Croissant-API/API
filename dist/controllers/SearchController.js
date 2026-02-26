@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SearchController = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const helpers_1 = require("../utils/helpers");
 let SearchController = class SearchController {
     constructor(userService, itemService, gameService, inventoryService, logService) {
@@ -95,10 +95,10 @@ let SearchController = class SearchController {
 };
 exports.SearchController = SearchController;
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], SearchController.prototype, "globalSearch", null);
 exports.SearchController = SearchController = __decorate([
-    (0, inversify_express_utils_1.controller)('/search'),
+    (0, hono_inversify_1.controller)('/search'),
     __param(0, (0, inversify_1.inject)('UserService')),
     __param(1, (0, inversify_1.inject)('ItemService')),
     __param(2, (0, inversify_1.inject)('GameService')),

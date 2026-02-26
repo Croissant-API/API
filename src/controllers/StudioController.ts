@@ -1,11 +1,12 @@
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IStudioService } from '../services/StudioService';
+// rate limiting stubbed for edge build
+const rateLimit: any = () => undefined;
 
 const createStudioRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, 

@@ -8,12 +8,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GameGiftService = void 0;
-const crypto_1 = __importDefault(require("crypto"));
+// crypto shim
+const crypto = globalThis.crypto || require('crypto');
 const inversify_1 = require("inversify");
 const uuid_1 = require("uuid");
 const GameGiftRepository_1 = require("../repositories/GameGiftRepository");
@@ -79,7 +77,7 @@ let GameGiftService = class GameGiftService {
         await this.gameGiftRepository.updateGiftStatus(giftId, false);
     }
     generateGiftCode() {
-        return crypto_1.default.randomBytes(8).toString('hex').toUpperCase();
+        return crypto.randomBytes(8).toString('hex').toUpperCase();
     }
 };
 exports.GameGiftService = GameGiftService;

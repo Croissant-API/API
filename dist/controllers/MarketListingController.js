@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarketListingController = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -172,31 +172,31 @@ let MarketListingController = class MarketListingController {
 };
 exports.MarketListingController = MarketListingController;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware)
 ], MarketListingController.prototype, "createMarketListing", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
 ], MarketListingController.prototype, "cancelMarketListing", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], MarketListingController.prototype, "getMarketListingsByUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/item/:itemId')
+    (0, hono_inversify_1.httpGet)('/item/:itemId')
 ], MarketListingController.prototype, "getActiveListingsForItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/:id')
+    (0, hono_inversify_1.httpGet)('/:id')
 ], MarketListingController.prototype, "getMarketListingById", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], MarketListingController.prototype, "getEnrichedMarketListings", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/search')
+    (0, hono_inversify_1.httpGet)('/search')
 ], MarketListingController.prototype, "searchMarketListings", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/:id/buy', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/:id/buy', LoggedCheck_1.LoggedCheck.middleware)
 ], MarketListingController.prototype, "buyMarketListing", null);
 exports.MarketListingController = MarketListingController = __decorate([
-    (0, inversify_express_utils_1.controller)('/market-listings'),
+    (0, hono_inversify_1.controller)('/market-listings'),
     __param(0, (0, inversify_1.inject)('MarketListingService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], MarketListingController);

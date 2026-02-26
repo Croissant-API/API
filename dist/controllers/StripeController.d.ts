@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';

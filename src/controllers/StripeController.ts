@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost } from 'inversify-express-utils';
 import Stripe from 'stripe';
 import * as yup from 'yup';
 import { Schema, ValidationError } from 'yup';
+import { controller, httpGet, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';
 import { IUserService } from '../services/UserService';

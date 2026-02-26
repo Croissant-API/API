@@ -1,5 +1,4 @@
 "use strict";
-/* eslint-disable @typescript-eslint/no-unused-vars */
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -9,77 +8,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseService = void 0;
 const inversify_1 = require("inversify");
-const knex_1 = require("knex");
+const mongodb_1 = require("mongodb");
 require("reflect-metadata");
 let DatabaseService = class DatabaseService {
     constructor() {
-        console.log(process.env.DB_HOST, process.env.DB_USER, process.env.DB_NAME);
-        this.db = (0, knex_1.knex)({
-            client: 'mysql',
-            connection: {
-                host: process.env.DB_HOST,
-                user: process.env.DB_USER,
-                port: 3306,
-                password: process.env.DB_PASS,
-                database: process.env.DB_NAME,
-            },
-            useNullAsDefault: true,
-        });
-        this.db
-            .raw('SELECT 1')
-            .then(() => {
-            console.log('Database connection established');
+        this.db = null;
+        this.client = new mongodb_1.MongoClient(process.env.MONGO_URI);
+        this.client.connect()
+            .then(async () => {
+            this.db = this.client.db(process.env.MONGO_DB);
+            await this.db.command({ ping: 1 });
+            console.log('MongoDB connection established');
         })
             .catch(err => {
-            console.error('Database connection error:', err);
+            console.error('MongoDB connection error:', err);
         });
     }
-    getKnex() {
-        return this.db;
-    }
-    async request(query, params = []) {
-        try {
-            await this.db.raw(query, params);
-        }
-        catch (err) {
-            console.error('Error executing query', err);
-            throw err;
-        }
-    }
-    async read(query, params = []) {
-        try {
-            const result = await this.db.raw(query, params);
-            const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : result;
-            if (!Array.isArray(rows)) {
-                console.warn('Database query returned non-array result:', rows);
-                return [];
-            }
-            return rows.map((row) => {
-                for (const key in row) {
-                    if (typeof row[key] === 'string') {
-                        try {
-                            const parsed = JSON.parse(row[key]);
-                            row[key] = parsed;
-                        }
-                        catch (e) {
-                            // Not JSON, leave as string
-                        }
+    async getDb() {
+        // if (!this.db) {
+        //   throw new Error('Database not initialized');
+        // }
+        if (!this.db) {
+            // Wait for the database to be initialized
+            await new Promise((resolve, reject) => {
+                const checkDb = () => {
+                    if (this.db) {
+                        resolve();
                     }
-                }
-                return row;
+                    setTimeout(checkDb, 100);
+                };
+                checkDb();
             });
         }
-        catch (err) {
-            console.error('Error reading data', err);
-            throw err;
-        }
+        // We assume that by the time we get here, the database is initialized. If not, it will throw an error.
+        return this.db;
     }
     async destroy() {
-        await this.db.destroy();
+        await this.client.close();
     }
 };
 exports.DatabaseService = DatabaseService;
 exports.DatabaseService = DatabaseService = __decorate([
     (0, inversify_1.injectable)()
 ], DatabaseService);
-exports.default = DatabaseService;

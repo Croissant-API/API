@@ -11,9 +11,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Inventories = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const yup_1 = require("yup");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const InventoryValidator_1 = require("../validators/InventoryValidator");
 function handleError(res, error, message, status = 500) {
@@ -132,7 +132,7 @@ __decorate([
         example: 'GET /api/inventory/@me',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], Inventories.prototype, "getMyInventory", null);
 __decorate([
     (0, describe_1.describe)({
@@ -162,7 +162,7 @@ __decorate([
         },
         example: 'GET /api/inventory/123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/:userId')
+    (0, hono_inversify_1.httpGet)('/:userId')
 ], Inventories.prototype, "getInventory", null);
 __decorate([
     (0, describe_1.describe)({
@@ -180,13 +180,13 @@ __decorate([
         },
         example: 'GET /api/inventory/123/item/456/amount',
     }),
-    (0, inversify_express_utils_1.httpGet)('/:userId/item/:itemId/amount')
+    (0, hono_inversify_1.httpGet)('/:userId/item/:itemId/amount')
 ], Inventories.prototype, "getItemAmount", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], Inventories.prototype, "getAllInventories", null);
 exports.Inventories = Inventories = __decorate([
-    (0, inversify_express_utils_1.controller)('/inventory'),
+    (0, hono_inversify_1.controller)('/inventory'),
     __param(0, (0, inversify_1.inject)('InventoryService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], Inventories);

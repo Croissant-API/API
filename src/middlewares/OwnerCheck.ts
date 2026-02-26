@@ -1,4 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
+import type { Request } from 'express';
+import type { Context, MiddlewareHandler } from 'hono';
 import container from '../container';
 import { Item } from '../interfaces/Item';
 import { User } from '../interfaces/User';
@@ -6,34 +7,38 @@ import { IItemService } from '../services/ItemService';
 import { IStudioService } from '../services/StudioService';
 import { IUserService } from '../services/UserService';
 
+// legacy interface for compile-time compatibility
 export interface AuthenticatedRequestWithOwner extends Request {
   owner: User;
-  originalUser?: User; // Pour conserver l'utilisateur original avant modification de rôle
+  originalUser?: User;
   user?: User;
 }
 
 export class OwnerCheck {
-  static middleware = async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
+  static middleware: MiddlewareHandler = async (c: Context, next) => {
+    const authHeader =
+      c.req.header('authorization') ||
+      'Bearer ' + (c.req.header('cookie')?.toString().split('token=')[1]?.split(';')[0] || '');
     const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const roleCookie = req.headers['cookie']?.toString().split('role=')[1]?.split(';')[0];
+    const roleCookie = c.req.header('cookie')?.toString().split('role=')[1]?.split(';')[0];
 
     const userService = container.get('UserService') as IUserService;
     const itemService = container.get('ItemService') as IItemService;
 
     if (!token) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
-    const { userId } = req.body;
-    const itemId = req.body.itemId || req.params.itemId;
+    const body = await c.req.json().catch(() => ({} as any));
+    const userId = body.userId;
+    const itemId = body.itemId || c.req.param('itemId');
     const item: Item | null = await itemService.getItem(itemId);
     const authedUser: User = (await userService.authenticateUser(token)) as User;
 
     const studioService = container.get('StudioService') as IStudioService;
     const studios = await studioService.getUserStudios(authedUser.user_id);
 
-    let owner = null;
+    let owner: User | null = null;
     const roles = [authedUser.user_id, ...studios.map(s => s.user_id)];
     if (roleCookie && roles.includes(roleCookie)) {
       owner = await userService.getUser(roleCookie);
@@ -43,20 +48,21 @@ export class OwnerCheck {
 
     const user: User | null = await userService.getUser(userId);
     if (!item || item.deleted) {
-      return res.status(404).send({ message: 'Item not found' });
+      return c.json({ message: 'Item not found' }, 404);
     }
     if (!owner) {
-      return res.status(404).send({ message: 'Owner not found' });
+      return c.json({ message: 'Owner not found' }, 404);
     }
     if (owner.user_id !== item.owner) {
-      return res.status(403).send({ message: 'You are not the owner of this item' });
+      return c.json({ message: 'You are not the owner of this item' }, 403);
     }
 
-    (req as AuthenticatedRequestWithOwner).owner = owner;
-    (req as AuthenticatedRequestWithOwner).originalUser = authedUser;
+    c.set('owner', owner);
+    c.set('originalUser', authedUser);
     if (user) {
-      (req as AuthenticatedRequestWithOwner).user = user;
+      c.set('user', user);
     }
-    next();
+
+    return next();
   };
 }

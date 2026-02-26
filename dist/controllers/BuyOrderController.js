@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuyOrderController = void 0;
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -109,19 +109,19 @@ let BuyOrderController = class BuyOrderController {
 };
 exports.BuyOrderController = BuyOrderController;
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware)
 ], BuyOrderController.prototype, "createBuyOrder", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpPut)('/:id/cancel', LoggedCheck_1.LoggedCheck.middleware)
 ], BuyOrderController.prototype, "cancelBuyOrder", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/:userId', LoggedCheck_1.LoggedCheck.middleware)
 ], BuyOrderController.prototype, "getBuyOrdersByUser", null);
 __decorate([
-    (0, inversify_express_utils_1.httpGet)('/item/:itemId')
+    (0, hono_inversify_1.httpGet)('/item/:itemId')
 ], BuyOrderController.prototype, "getActiveBuyOrdersForItem", null);
 exports.BuyOrderController = BuyOrderController = __decorate([
-    (0, inversify_express_utils_1.controller)('/buy-orders'),
+    (0, hono_inversify_1.controller)('/buy-orders'),
     __param(0, (0, inversify_1.inject)('BuyOrderService')),
     __param(1, (0, inversify_1.inject)('ItemService')),
     __param(2, (0, inversify_1.inject)('LogService'))

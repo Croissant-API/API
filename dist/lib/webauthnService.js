@@ -2,10 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAuthentication = exports.getAuthenticationOptions = exports.verifyRegistration = exports.getRegistrationOptions = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const webcrypto_1 = require("@peculiar/webcrypto");
 const server_1 = require("@simplewebauthn/server");
 if (!globalThis.crypto) {
-    globalThis.crypto = new webcrypto_1.Crypto();
+    // only require the Node shim at runtime when crypto is missing
+    const { Crypto } = require('@peculiar/webcrypto');
+    globalThis.crypto = new Crypto();
 }
 function getRegistrationOptions(user) {
     console.log('Generating registration options for user:', user);

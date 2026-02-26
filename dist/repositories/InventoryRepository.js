@@ -6,74 +6,77 @@ class InventoryRepository {
         this.databaseService = databaseService;
     }
     async deleteNonExistingItems(userId) {
-        await this.databaseService.request(`DELETE FROM inventories 
-       WHERE user_id = ? 
-       AND item_id NOT IN (
-         SELECT itemId FROM items WHERE deleted IS NULL OR deleted = 0
-       )`, [userId]);
+        const db = await this.databaseService.getDb();
+        const existingItemIds = await db.collection('items').find({ deleted: { $in: [null, false] } }).project({ itemId: 1 }).toArray();
+        const existingItemIdsSet = new Set(existingItemIds.map(item => item.itemId));
+        await db.collection('inventories').deleteMany({
+            user_id: userId,
+            item_id: { $nin: Array.from(existingItemIdsSet) }
+        });
     }
     async getInventory(filters = {}) {
-        let query = `
-      SELECT 
-        inv.user_id, 
-        inv.item_id, 
-        inv.amount, 
-        inv.metadata,
-        inv.sellable,
-        inv.purchasePrice,
-        inv.rarity,
-        inv.custom_url_link,
-        i.itemId,
-        i.name,
-        i.description,
-        i.iconHash,
-        i.price,
-        i.owner,
-        i.showInStore
-      FROM inventories inv
-      INNER JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE 1=1
-    `;
-        const params = [];
+        const db = await this.databaseService.getDb();
+        const matchStage = {};
         if (filters.userId) {
-            query += ' AND inv.user_id = ?';
-            params.push(filters.userId);
+            matchStage.user_id = filters.userId;
         }
         if (filters.itemId) {
-            query += ' AND inv.item_id = ?';
-            params.push(filters.itemId);
+            matchStage.item_id = filters.itemId;
         }
         if (filters.sellable !== undefined) {
-            query += ' AND inv.sellable = ?';
-            params.push(filters.sellable ? 1 : 0);
-        }
-        if (filters.purchasePrice !== undefined) {
-            query += ' AND (inv.purchasePrice = ? OR (inv.purchasePrice IS NULL AND ? IS NULL))';
-            params.push(filters.purchasePrice, filters.purchasePrice);
-        }
-        if (filters.uniqueId) {
-            query += " AND JSON_EXTRACT(inv.metadata, '$._unique_id') = ?";
-            params.push(filters.uniqueId);
+            matchStage.sellable = filters.sellable;
         }
         if (filters.minAmount !== undefined) {
-            query += ' AND inv.amount >= ?';
-            params.push(filters.minAmount);
+            matchStage.amount = { $gte: filters.minAmount };
         }
-        const items = await this.databaseService.read(query, params);
-        items.map(item => ({
-            user_id: item.user_id,
-            item_id: item.item_id,
-            amount: item.amount,
-            metadata: item.metadata,
-            sellable: !!item.sellable,
-            purchasePrice: item.purchasePrice,
-            name: item.name,
-            description: item.description,
-            iconHash: item.iconHash,
-            price: item.purchasePrice,
-            rarity: item.rarity,
-            custom_url_link: item.custom_url_link,
-        }));
+        if (filters.purchasePrice !== undefined) {
+            matchStage.$or = [
+                { purchasePrice: filters.purchasePrice },
+                { purchasePrice: null }
+            ];
+        }
+        if (filters.uniqueId) {
+            matchStage['metadata._unique_id'] = filters.uniqueId;
+        }
+        const pipeline = [
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: 'items',
+                    let: { itemId: '$item_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$itemId', '$$itemId'] },
+                                deleted: { $in: [null, false] }
+                            }
+                        }
+                    ],
+                    as: 'itemData'
+                }
+            },
+            { $unwind: '$itemData' },
+            {
+                $project: {
+                    user_id: 1,
+                    item_id: 1,
+                    amount: 1,
+                    metadata: 1,
+                    sellable: 1,
+                    purchasePrice: 1,
+                    rarity: 1,
+                    custom_url_link: 1,
+                    itemId: '$itemData.itemId',
+                    name: '$itemData.name',
+                    description: '$itemData.description',
+                    iconHash: '$itemData.iconHash',
+                    price: '$itemData.price',
+                    owner: '$itemData.owner',
+                    showInStore: '$itemData.showInStore'
+                }
+            }
+        ];
+        const items = await db.collection('inventories').aggregate(pipeline).toArray();
         return items;
     }
     async getInventoryItems(userId) {
@@ -94,51 +97,96 @@ class InventoryRepository {
         return totalAmount >= amount;
     }
     async addItem(userId, itemId, amount, metadata, sellable, purchasePrice, uuidv4) {
+        const db = await this.databaseService.getDb();
         if (metadata) {
+            // Insert individual items with unique metadata
+            const documents = [];
             for (let i = 0; i < amount; i++) {
                 const uniqueMetadata = { ...metadata, _unique_id: uuidv4() };
-                await this.databaseService.request('INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice, rarity, custom_url_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [userId, itemId, 1, JSON.stringify(uniqueMetadata), sellable ? 1 : 0, purchasePrice, metadata['rarity'], metadata['custom_url_link']]);
+                documents.push({
+                    user_id: userId,
+                    item_id: itemId,
+                    amount: 1,
+                    metadata: uniqueMetadata,
+                    sellable,
+                    purchasePrice,
+                    rarity: metadata['rarity'],
+                    custom_url_link: metadata['custom_url_link']
+                });
             }
+            await db.collection('inventories').insertMany(documents);
         }
         else {
-            const items = await this.getInventory({ userId, itemId, sellable, purchasePrice });
-            if (items.length > 0) {
-                await this.databaseService.request('UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND (purchasePrice = ? OR (purchasePrice IS NULL AND ? IS NULL))', [amount, userId, itemId, sellable ? 1 : 0, purchasePrice, purchasePrice]);
-            }
-            else {
-                await this.databaseService.request('INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)', [userId, itemId, amount, null, sellable ? 1 : 0, purchasePrice]);
+            // Try to update existing stack
+            const existingFilter = {
+                user_id: userId,
+                item_id: itemId,
+                metadata: null,
+                sellable,
+                purchasePrice: purchasePrice === undefined ? null : purchasePrice
+            };
+            const result = await db.collection('inventories').updateOne(existingFilter, { $inc: { amount } });
+            if (result.matchedCount === 0) {
+                // Insert new stack if it doesn't exist
+                await db.collection('inventories').insertOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    amount,
+                    metadata: null,
+                    sellable,
+                    purchasePrice
+                });
             }
         }
     }
     async setItemAmount(userId, itemId, amount) {
+        const db = await this.databaseService.getDb();
         if (amount <= 0) {
-            await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ?`, [userId, itemId]);
+            await db.collection('inventories').deleteMany({ user_id: userId, item_id: itemId });
             return;
         }
-        const items = await this.getInventory({ userId, itemId });
-        if (items.length > 0) {
-            await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL`, [amount, userId, itemId]);
-        }
-        else {
-            await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`, [userId, itemId, amount, null, 0, null]);
+        const result = await db.collection('inventories').updateOne({ user_id: userId, item_id: itemId, metadata: null }, { $set: { amount } });
+        if (result.matchedCount === 0) {
+            await db.collection('inventories').insertOne({
+                user_id: userId,
+                item_id: itemId,
+                amount,
+                metadata: null,
+                sellable: false,
+                purchasePrice: null
+            });
         }
     }
     async updateItemMetadata(userId, itemId, uniqueId, metadata) {
+        const db = await this.databaseService.getDb();
         const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
-        const metadataJson = JSON.stringify(metadataWithUniqueId);
-        await this.databaseService.request("UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?", [metadataJson, userId, itemId, uniqueId]);
+        await db.collection('inventories').updateOne({ user_id: userId, item_id: itemId, 'metadata._unique_id': uniqueId }, { $set: { metadata: metadataWithUniqueId } });
     }
     async removeItem(userId, itemId, amount, dataItemIndex) {
+        const db = await this.databaseService.getDb();
         const items = await this.getInventory({ userId, itemId });
         if (typeof dataItemIndex === 'number' && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND sellable = ? AND amount = ?  AND purchasePrice = ? LIMIT 1`, [userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]);
+                await db.collection('inventories').deleteOne({
+                    user_id: userId,
+                    item_id: item.item_id,
+                    sellable: item.sellable,
+                    amount: item.amount,
+                    purchasePrice: item.purchasePrice
+                });
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, item.item_id, item.sellable ? 1 : 0, item.amount, item.purchasePrice]);
+                await db.collection('inventories').updateOne({
+                    user_id: userId,
+                    item_id: item.item_id,
+                    metadata: null,
+                    sellable: item.sellable,
+                    amount: item.amount,
+                    purchasePrice: item.purchasePrice
+                }, { $set: { amount: newAmount } });
             }
             return;
         }
@@ -149,18 +197,36 @@ class InventoryRepository {
             const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? LIMIT 1`, [userId, itemId, item.sellable ? 1 : 0, item.amount]);
+                await db.collection('inventories').deleteOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: item.sellable,
+                    amount: item.amount
+                });
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = ? AND amount = ? LIMIT 1`, [newAmount, userId, itemId, item.sellable ? 1 : 0, item.amount]);
+                await db.collection('inventories').updateOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: item.sellable,
+                    amount: item.amount
+                }, { $set: { amount: newAmount } });
             }
             remainingToRemove -= toRemoveFromStack;
         }
     }
     async removeItemByUniqueId(userId, itemId, uniqueId) {
-        await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
+        const db = await this.databaseService.getDb();
+        await db.collection('inventories').deleteOne({
+            user_id: userId,
+            item_id: itemId,
+            'metadata._unique_id': uniqueId
+        });
     }
     async removeSellableItem(userId, itemId, amount) {
+        const db = await this.databaseService.getDb();
         const items = await this.getInventory({ userId, itemId, sellable: true });
         let remainingToRemove = amount;
         for (const item of items) {
@@ -169,25 +235,50 @@ class InventoryRepository {
             const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`, [userId, itemId]);
+                await db.collection('inventories').deleteOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true
+                });
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1`, [newAmount, userId, itemId]);
+                await db.collection('inventories').updateOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true
+                }, { $set: { amount: newAmount } });
             }
             remainingToRemove -= toRemoveFromStack;
         }
     }
     async removeSellableItemWithPrice(userId, itemId, amount, purchasePrice, dataItemIndex) {
+        const db = await this.databaseService.getDb();
         const items = await this.getInventory({ userId, itemId, sellable: true, purchasePrice });
         if (typeof dataItemIndex === 'number' && items[dataItemIndex]) {
             const item = items[dataItemIndex];
             const toRemoveFromStack = Math.min(amount, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [userId, itemId, item.amount, purchasePrice]);
+                await db.collection('inventories').deleteOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true,
+                    amount: item.amount,
+                    purchasePrice
+                });
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, itemId, item.amount, purchasePrice]);
+                await db.collection('inventories').updateOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true,
+                    amount: item.amount,
+                    purchasePrice
+                }, { $set: { amount: newAmount } });
             }
             return;
         }
@@ -198,16 +289,35 @@ class InventoryRepository {
             const toRemoveFromStack = Math.min(remainingToRemove, item.amount);
             const newAmount = item.amount - toRemoveFromStack;
             if (newAmount <= 0) {
-                await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [userId, itemId, item.amount, purchasePrice]);
+                await db.collection('inventories').deleteOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true,
+                    amount: item.amount,
+                    purchasePrice
+                });
             }
             else {
-                await this.databaseService.request(`UPDATE inventories SET amount = ? WHERE user_id = ? AND item_id = ? AND metadata IS NULL AND sellable = 1 AND amount = ? AND purchasePrice = ? LIMIT 1`, [newAmount, userId, itemId, item.amount, purchasePrice]);
+                await db.collection('inventories').updateOne({
+                    user_id: userId,
+                    item_id: itemId,
+                    metadata: null,
+                    sellable: true,
+                    amount: item.amount,
+                    purchasePrice
+                }, { $set: { amount: newAmount } });
             }
             remainingToRemove -= toRemoveFromStack;
         }
     }
     async transferItem(fromUserId, toUserId, itemId, uniqueId) {
-        await this.databaseService.request(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [toUserId, fromUserId, itemId, uniqueId]);
+        const db = await this.databaseService.getDb();
+        await db.collection('inventories').updateOne({
+            user_id: fromUserId,
+            item_id: itemId,
+            'metadata._unique_id': uniqueId
+        }, { $set: { user_id: toUserId } });
     }
 }
 exports.InventoryRepository = InventoryRepository;

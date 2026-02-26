@@ -1,4 +1,5 @@
-import crypto from 'crypto';
+// crypto shim
+const crypto = (globalThis.crypto as any) || require('crypto');
 import { inject, injectable } from 'inversify';
 import { v4 } from 'uuid';
 import { GameGift } from '../interfaces/GameGift';

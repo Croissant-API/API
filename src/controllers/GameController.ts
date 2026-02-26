@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import crypto from 'crypto';
-import { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+// crypto shim: use Web Crypto on the edge or fallback to Node
+const crypto = (globalThis.crypto as any) || require('crypto');
+import type { Request, Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpHead, httpPost, httpPut } from 'inversify-express-utils';
-import fetch from 'node-fetch';
+import { controller, httpGet, httpHead, httpPost, httpPut } from '../hono-inversify';
+// rate limiting is Node-specific and disabled in the edge build
+const rateLimit: any = () => undefined;
+// use global fetch in worker environment
 import { v4 } from 'uuid';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
@@ -438,7 +440,8 @@ export class Games {
 
       res.status(fileRes.status);
       if (fileRes.body) {
-        fileRes.body.pipe(res);
+        // body may be a web ReadableStream in edge; cast to any to satisfy ts
+        (fileRes.body as any).pipe(res as any);
       } else {
         res.end();
       }

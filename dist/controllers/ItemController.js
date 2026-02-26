@@ -8,20 +8,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Items = void 0;
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const uuid_1 = require("uuid");
 const yup_1 = require("yup");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const OwnerCheck_1 = require("../middlewares/OwnerCheck");
 const ItemValidator_1 = require("../validators/ItemValidator");
+const rateLimit = () => undefined;
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -39,56 +36,56 @@ async function validateOr400(schema, data, res, message = 'Invalid data') {
         throw error;
     }
 }
-const createItemRateLimit = (0, express_rate_limit_1.default)({
+const createItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 50,
     message: 'Too many item creations, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const updateItemRateLimit = (0, express_rate_limit_1.default)({
+const updateItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 100,
     message: 'Too many item updates, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const deleteItemRateLimit = (0, express_rate_limit_1.default)({
+const deleteItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 50,
     message: 'Too many item deletions, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const buyItemRateLimit = (0, express_rate_limit_1.default)({
+const buyItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 200,
     message: 'Too many item purchases, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const sellItemRateLimit = (0, express_rate_limit_1.default)({
+const sellItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 200,
     message: 'Too many item sales, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const consumeItemRateLimit = (0, express_rate_limit_1.default)({
+const consumeItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 1000,
     message: 'Too many item consumptions, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const dropItemRateLimit = (0, express_rate_limit_1.default)({
+const dropItemRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 1000,
     message: 'Too many item drops, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const transferOwnershipRateLimit = (0, express_rate_limit_1.default)({
+const transferOwnershipRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 500,
     message: 'Too many ownership transfers, please try again later.',
@@ -507,7 +504,7 @@ __decorate([
         ],
         example: 'GET /api/items',
     }),
-    (0, inversify_express_utils_1.httpGet)('/')
+    (0, hono_inversify_1.httpGet)('/')
 ], Items.prototype, "getAllItems", null);
 __decorate([
     (0, describe_1.describe)({
@@ -528,7 +525,7 @@ __decorate([
         example: 'GET /api/items/@mine',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/@mine', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/@mine', LoggedCheck_1.LoggedCheck.middleware)
 ], Items.prototype, "getMyItems", null);
 __decorate([
     (0, describe_1.describe)({
@@ -549,7 +546,7 @@ __decorate([
         ],
         example: 'GET /api/items/search?q=Apple',
     }),
-    (0, inversify_express_utils_1.httpGet)('/search')
+    (0, hono_inversify_1.httpGet)('/search')
 ], Items.prototype, "searchItems", null);
 __decorate([
     (0, describe_1.describe)({
@@ -568,7 +565,7 @@ __decorate([
         },
         example: 'GET /api/items/123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/:itemId')
+    (0, hono_inversify_1.httpGet)('/:itemId')
 ], Items.prototype, "getItem", null);
 __decorate([
     (0, describe_1.describe)({
@@ -586,7 +583,7 @@ __decorate([
         example: 'POST /api/items/create {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/create', LoggedCheck_1.LoggedCheck.middleware, createItemRateLimit)
+    (0, hono_inversify_1.httpPost)('/create', LoggedCheck_1.LoggedCheck.middleware, createItemRateLimit)
 ], Items.prototype, "createItem", null);
 __decorate([
     (0, describe_1.describe)({
@@ -605,7 +602,7 @@ __decorate([
         example: 'PUT /api/items/update/123 {"name": "Apple", "description": "A fruit", "price": 100, "iconHash": "abc123", "showInStore": true}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPut)('/update/:itemId', OwnerCheck_1.OwnerCheck.middleware, updateItemRateLimit)
+    (0, hono_inversify_1.httpPut)('/update/:itemId', OwnerCheck_1.OwnerCheck.middleware, updateItemRateLimit)
 ], Items.prototype, "updateItem", null);
 __decorate([
     (0, describe_1.describe)({
@@ -617,25 +614,25 @@ __decorate([
         example: 'DELETE /api/items/delete/123',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpDelete)('/delete/:itemId', OwnerCheck_1.OwnerCheck.middleware, deleteItemRateLimit)
+    (0, hono_inversify_1.httpDelete)('/delete/:itemId', OwnerCheck_1.OwnerCheck.middleware, deleteItemRateLimit)
 ], Items.prototype, "deleteItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/buy/:itemId', LoggedCheck_1.LoggedCheck.middleware, buyItemRateLimit)
+    (0, hono_inversify_1.httpPost)('/buy/:itemId', LoggedCheck_1.LoggedCheck.middleware, buyItemRateLimit)
 ], Items.prototype, "buyItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/sell/:itemId', LoggedCheck_1.LoggedCheck.middleware, sellItemRateLimit)
+    (0, hono_inversify_1.httpPost)('/sell/:itemId', LoggedCheck_1.LoggedCheck.middleware, sellItemRateLimit)
 ], Items.prototype, "sellItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/consume/:itemId', OwnerCheck_1.OwnerCheck.middleware, consumeItemRateLimit)
+    (0, hono_inversify_1.httpPost)('/consume/:itemId', OwnerCheck_1.OwnerCheck.middleware, consumeItemRateLimit)
 ], Items.prototype, "consumeItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/drop/:itemId', LoggedCheck_1.LoggedCheck.middleware, dropItemRateLimit)
+    (0, hono_inversify_1.httpPost)('/drop/:itemId', LoggedCheck_1.LoggedCheck.middleware, dropItemRateLimit)
 ], Items.prototype, "dropItem", null);
 __decorate([
-    (0, inversify_express_utils_1.httpPost)('/transfer-ownership/:itemId', OwnerCheck_1.OwnerCheck.middleware, transferOwnershipRateLimit)
+    (0, hono_inversify_1.httpPost)('/transfer-ownership/:itemId', OwnerCheck_1.OwnerCheck.middleware, transferOwnershipRateLimit)
 ], Items.prototype, "transferOwnership", null);
 exports.Items = Items = __decorate([
-    (0, inversify_express_utils_1.controller)('/items'),
+    (0, hono_inversify_1.controller)('/items'),
     __param(0, (0, inversify_1.inject)('ItemService')),
     __param(1, (0, inversify_1.inject)('InventoryService')),
     __param(2, (0, inversify_1.inject)('UserService')),

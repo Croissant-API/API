@@ -1,7 +1,8 @@
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import path from 'path';
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Use the Web Crypto API when running in the worker environment
+const crypto = (globalThis.crypto as any) || require('crypto');
+
+// dotenv is intentionally not loaded here; environment variables should
+// be injected by the host (local Node or Wrangler).
 
 const ALGO = 'aes-256-cbc';
 const IV_LENGTH = 16;

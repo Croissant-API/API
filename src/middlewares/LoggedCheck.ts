@@ -1,54 +1,61 @@
-import { NextFunction, Request, Response } from 'express';
-import { inject } from 'inversify';
+import type { Request } from 'express';
+import type { Context, MiddlewareHandler } from 'hono';
 import container from '../container';
 import { Studio } from '../interfaces/Studio';
 import { User } from '../interfaces/User';
 import { IStudioService } from '../services/StudioService';
 import { IUserService } from '../services/UserService';
 
+// preserve the original interface for controllers that still reference it
 export interface AuthenticatedRequest extends Request {
   user: User;
   originalUser?: User;
 }
 
+// Hono middleware version of LoggedCheck
+
 export class LoggedCheck {
-  constructor(@inject('StudioService') private studioService: IStudioService) {}
-  static middleware = async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'] || 'Bearer ' + req.headers['cookie']?.toString().split('token=')[1]?.split(';')[0];
-    const roleCookie = req.headers['cookie']?.toString().split('role=')[1]?.split(';')[0];
+  // adapt express query parameters if needed
+  static middleware: MiddlewareHandler = async (c: Context, next) => {
+    const authHeader =
+      c.req.header('authorization') ||
+      'Bearer ' + (c.req.header('cookie')?.toString().split('token=')[1]?.split(';')[0] || '');
+    const roleCookie = c.req.header('cookie')?.toString().split('role=')[1]?.split(';')[0];
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
     const token = authHeader.split('Bearer ')[1];
     if (!token) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
     const userService = container.get('UserService') as IUserService;
     const user: User | null = await userService.authenticateUser(token);
 
     if (!user) {
-      return res.status(401).send({ message: 'Unauthorized' });
+      return c.json({ message: 'Unauthorized' }, 401);
     }
 
     if (user.disabled && !user.admin) {
-      return res.status(403).send({ message: 'Account is disabled' });
+      return c.json({ message: 'Account is disabled' }, 403);
     }
 
     const studioService = container.get('StudioService') as IStudioService;
     const studios = await studioService.getUserStudios(user.user_id);
     const roles = [user.user_id, ...studios.map((s: Studio) => s.user_id)];
 
-    let roleUser = null;
+    let roleUser: User | null = null;
     if (roleCookie && roles.includes(roleCookie)) {
       roleUser = await userService.getUser(roleCookie);
     } else {
       roleUser = user;
     }
 
-    (req as AuthenticatedRequest).user = roleUser || user;
-    (req as AuthenticatedRequest).originalUser = user;
-    next();
+    c.set('user', roleUser || user);
+    c.set('originalUser', user);
+
+    return next();
   };
 }

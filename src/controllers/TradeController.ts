@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpGet, httpPost, httpPut } from 'inversify-express-utils';
 import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost, httpPut } from '../hono-inversify';
 import { TradeItem } from '../interfaces/Trade';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { ILogService } from '../services/LogService';

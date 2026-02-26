@@ -1,0 +1,42 @@
+/*
+ * Configuration file for deploying the API with Cloudflare Wrangler.
+ *
+ * Adjust the values below (name, compatibility_date, env vars, build command, etc.)
+ * before running `wrangler publish`.
+ *
+ * See: https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "name": "croissant-api",
+    // entry point for the worker; Hono application lives in src/index.ts
+    "main": "dist/worker.js",
+    // set to a recent date for compatibility with runtime features you need
+    "compatibility_date": "2026-02-26",
+    "compatibility_flags": [
+        "global_fetch_strictly_public",
+        "nodejs_compat"
+    ],
+    // build step that invokes our custom esbuild script
+    "build": {
+        "command": "npm run build:worker",
+        "upload": {
+            "format": "module"
+        }
+    },
+    // // example environment variables (use `wrangler secret` for secrets)
+    // "vars": {
+    //     // "MONGODB_URI": "",
+    //     // "OTHER_VAR": ""
+    // },
+    // // R2 buckets or other bindings can be added here
+    // "r2_buckets": [],
+    // // you can configure environments like "production" below
+    // "env": {
+    //     "production": {
+    //         "vars": {
+    //             // overrides for production
+    //         }
+    //     }
+    // }
+}

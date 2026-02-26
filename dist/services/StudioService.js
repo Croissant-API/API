@@ -8,12 +8,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudioService = void 0;
-const crypto_1 = __importDefault(require("crypto"));
+// crypto shim: prefer Web Crypto in edge
+const crypto = globalThis.crypto || require('crypto');
 const inversify_1 = require("inversify");
 const StudioRepository_1 = require("../repositories/StudioRepository");
 const GenKey_1 = require("../utils/GenKey");
@@ -27,7 +25,7 @@ let StudioService = class StudioService {
         const studio = await this.studioRepository.getStudio(user_id);
         if (!studio)
             return null;
-        const users = await this.getUsersByIds(studio.users);
+        const users = await this.getUsersByIds(studio.users.map(u => u.user_id));
         const me = (await this.userService.getUserWithPublicProfile(studio.user_id));
         return { ...studio, users, me };
     }
@@ -50,7 +48,7 @@ let StudioService = class StudioService {
         }));
     }
     async createStudio(studioName, admin_id) {
-        const user_id = crypto_1.default.randomUUID();
+        const user_id = crypto.randomUUID();
         await this.userService.createBrandUser(user_id, studioName);
         await this.studioRepository.createStudio(user_id, admin_id);
     }
@@ -74,7 +72,10 @@ let StudioService = class StudioService {
     async getUsersByIds(userIds) {
         if (!userIds.length)
             return [];
-        return this.db.read(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
+        const users = await this.userService.getAllUsersWithDisabled();
+        // return users.filter(u => userIds.some(user => user.user_id === u.user_id));
+        return users.filter(u => userIds.includes(u.user_id));
+        // return this.db.read<User>(`SELECT user_id, username, verified, admin FROM users WHERE user_id IN (${userIds.map(() => '?').join(',')})`, userIds);
     }
 };
 exports.StudioService = StudioService;

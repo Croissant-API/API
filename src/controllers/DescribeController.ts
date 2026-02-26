@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { controller, httpGet } from 'inversify-express-utils';
+import type { Request, Response } from 'express';
 import { getAllDescriptions } from '../decorators/describe';
+import { controller, httpGet } from '../hono-inversify';
 
 @controller('/describe')
 export class DescribeController {

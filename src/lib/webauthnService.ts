@@ -1,8 +1,10 @@
  
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Crypto } from '@peculiar/webcrypto';
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server';
+
 if (!globalThis.crypto) {
+  // only require the Node shim at runtime when crypto is missing
+  const { Crypto } = require('@peculiar/webcrypto');
   globalThis.crypto = new Crypto();
 }
 

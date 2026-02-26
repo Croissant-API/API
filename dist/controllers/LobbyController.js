@@ -8,19 +8,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Lobbies = void 0;
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const uuid_1 = require("uuid");
 const yup_1 = require("yup");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
 const LobbyValidator_1 = require("../validators/LobbyValidator");
+const rateLimit = () => undefined;
 function handleError(res, error, message, status = 500) {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(status).send({ message, error: msg });
@@ -38,21 +35,21 @@ async function validateOr400(schema, data, res) {
         throw error;
     }
 }
-const createLobbyRateLimit = (0, express_rate_limit_1.default)({
+const createLobbyRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 30,
     message: 'Too many lobby creations, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const joinLobbyRateLimit = (0, express_rate_limit_1.default)({
+const joinLobbyRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 100,
     message: 'Too many lobby joins, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const leaveLobbyRateLimit = (0, express_rate_limit_1.default)({
+const leaveLobbyRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 100,
     message: 'Too many lobby leaves, please try again later.',
@@ -193,7 +190,7 @@ __decorate([
         example: 'POST /api/lobbies',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createLobbyRateLimit)
+    (0, hono_inversify_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createLobbyRateLimit)
 ], Lobbies.prototype, "createLobby", null);
 __decorate([
     (0, describe_1.describe)({
@@ -216,7 +213,7 @@ __decorate([
         },
         example: 'GET /api/lobbies/123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/:lobbyId')
+    (0, hono_inversify_1.httpGet)('/:lobbyId')
 ], Lobbies.prototype, "getLobby", null);
 __decorate([
     (0, describe_1.describe)({
@@ -227,7 +224,7 @@ __decorate([
         example: 'GET /api/lobbies/user/@me',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/user/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], Lobbies.prototype, "getMyLobby", null);
 __decorate([
     (0, describe_1.describe)({
@@ -238,7 +235,7 @@ __decorate([
         responseType: { lobbyId: 'string', users: ['string'] },
         example: 'GET /api/lobbies/user/123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/user/:userId')
+    (0, hono_inversify_1.httpGet)('/user/:userId')
 ], Lobbies.prototype, "getUserLobby", null);
 __decorate([
     (0, describe_1.describe)({
@@ -250,7 +247,7 @@ __decorate([
         example: 'POST /api/lobbies/123/join',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:lobbyId/join', LoggedCheck_1.LoggedCheck.middleware, joinLobbyRateLimit)
+    (0, hono_inversify_1.httpPost)('/:lobbyId/join', LoggedCheck_1.LoggedCheck.middleware, joinLobbyRateLimit)
 ], Lobbies.prototype, "joinLobby", null);
 __decorate([
     (0, describe_1.describe)({
@@ -262,10 +259,10 @@ __decorate([
         example: 'POST /api/lobbies/123/leave',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:lobbyId/leave', LoggedCheck_1.LoggedCheck.middleware, leaveLobbyRateLimit)
+    (0, hono_inversify_1.httpPost)('/:lobbyId/leave', LoggedCheck_1.LoggedCheck.middleware, leaveLobbyRateLimit)
 ], Lobbies.prototype, "leaveLobby", null);
 exports.Lobbies = Lobbies = __decorate([
-    (0, inversify_express_utils_1.controller)('/lobbies'),
+    (0, hono_inversify_1.controller)('/lobbies'),
     __param(0, (0, inversify_1.inject)('LobbyService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], Lobbies);

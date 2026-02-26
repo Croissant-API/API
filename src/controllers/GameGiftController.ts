@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { inject } from 'inversify';
-import { controller, httpDelete, httpGet, httpPost } from 'inversify-express-utils';
+import { controller, httpDelete, httpGet, httpPost } from '../hono-inversify';
 import { AuthenticatedRequest, LoggedCheck } from '../middlewares/LoggedCheck';
 import { IGameGiftService } from '../services/GameGiftService';
 import { IGameService } from '../services/GameService';

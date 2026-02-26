@@ -8,31 +8,29 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Studios = void 0;
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const inversify_1 = require("inversify");
-const inversify_express_utils_1 = require("inversify-express-utils");
 const describe_1 = require("../decorators/describe");
+const hono_inversify_1 = require("../hono-inversify");
 const LoggedCheck_1 = require("../middlewares/LoggedCheck");
-const createStudioRateLimit = (0, express_rate_limit_1.default)({
+// rate limiting stubbed for edge build
+const rateLimit = () => undefined;
+const createStudioRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 3,
     message: 'Too many studio creations, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const addUserToStudioRateLimit = (0, express_rate_limit_1.default)({
+const addUserToStudioRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many add user requests, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-const removeUserFromStudioRateLimit = (0, express_rate_limit_1.default)({
+const removeUserFromStudioRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
     message: 'Too many remove user requests, please try again later.',
@@ -174,7 +172,7 @@ __decorate([
         example: 'POST /api/studios {"studioName": "My Studio"}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createStudioRateLimit)
+    (0, hono_inversify_1.httpPost)('/', LoggedCheck_1.LoggedCheck.middleware, createStudioRateLimit)
 ], Studios.prototype, "createStudio", null);
 __decorate([
     (0, describe_1.describe)({
@@ -198,7 +196,7 @@ __decorate([
         },
         example: 'GET /api/studios/studio123',
     }),
-    (0, inversify_express_utils_1.httpGet)('/:studioId')
+    (0, hono_inversify_1.httpGet)('/:studioId')
 ], Studios.prototype, "getStudio", null);
 __decorate([
     (0, describe_1.describe)({
@@ -226,7 +224,7 @@ __decorate([
         example: 'GET /api/studios/user/@me',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpGet)('/user/@me', LoggedCheck_1.LoggedCheck.middleware)
+    (0, hono_inversify_1.httpGet)('/user/@me', LoggedCheck_1.LoggedCheck.middleware)
 ], Studios.prototype, "getMyStudios", null);
 __decorate([
     (0, describe_1.describe)({
@@ -239,7 +237,7 @@ __decorate([
         example: 'POST /api/studios/studio123/add-user {"userId": "user456"}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:studioId/add-user', LoggedCheck_1.LoggedCheck.middleware, addUserToStudioRateLimit)
+    (0, hono_inversify_1.httpPost)('/:studioId/add-user', LoggedCheck_1.LoggedCheck.middleware, addUserToStudioRateLimit)
 ], Studios.prototype, "addUserToStudio", null);
 __decorate([
     (0, describe_1.describe)({
@@ -252,10 +250,10 @@ __decorate([
         example: 'POST /api/studios/studio123/remove-user {"userId": "user456"}',
         requiresAuth: true,
     }),
-    (0, inversify_express_utils_1.httpPost)('/:studioId/remove-user', LoggedCheck_1.LoggedCheck.middleware, removeUserFromStudioRateLimit)
+    (0, hono_inversify_1.httpPost)('/:studioId/remove-user', LoggedCheck_1.LoggedCheck.middleware, removeUserFromStudioRateLimit)
 ], Studios.prototype, "removeUserFromStudio", null);
 exports.Studios = Studios = __decorate([
-    (0, inversify_express_utils_1.controller)('/studios'),
+    (0, hono_inversify_1.controller)('/studios'),
     __param(0, (0, inversify_1.inject)('StudioService')),
     __param(1, (0, inversify_1.inject)('LogService'))
 ], Studios);

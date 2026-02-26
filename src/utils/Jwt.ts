@@ -1,8 +1,6 @@
-import * as dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 
-dotenv.config();
-
+// JWT_SECRET must be provided via environment (Wrangler secrets or Node env)
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export function generateUserJwt(user: { user_id: string; username: string; email: string }, apiKey: string) {

@@ -1,16 +1,13 @@
-import { Knex } from 'knex';
+import { Db } from 'mongodb';
 import 'reflect-metadata';
 export interface IDatabaseService {
-    request(query: string, params?: unknown[]): Promise<void>;
-    read<T>(query: string, params?: unknown[]): Promise<T[]>;
-    getKnex(): Knex;
-}
-export declare class DatabaseService implements IDatabaseService {
-    private db;
-    constructor();
-    getKnex(): Knex;
-    request(query: string, params?: unknown[]): Promise<void>;
-    read<T>(query: string, params?: unknown[]): Promise<T[]>;
+    getDb(): Promise<Db>;
     destroy(): Promise<void>;
 }
-export default DatabaseService;
+export declare class DatabaseService implements IDatabaseService {
+    private client;
+    private db;
+    constructor();
+    getDb(): Promise<Db>;
+    destroy(): Promise<void>;
+}

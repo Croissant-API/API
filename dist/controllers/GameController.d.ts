@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/LoggedCheck';
 import { IGameService } from '../services/GameService';
 import { IGameViewService } from '../services/GameViewService';

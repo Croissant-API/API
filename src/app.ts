@@ -1,7 +1,6 @@
-import { config } from 'dotenv';
+// dotenv is not loaded in the edge worker; environment variables are provided by Wrangler
 import 'reflect-metadata';
 import container from './container';
-config();
 
 import './controllers/AuthenticatorController';
 import './controllers/BuyOrderController';
