@@ -126,9 +126,12 @@ export class TradeService implements ITradeService {
 
     // Vérification de la possession de l'item
     if (tradeItem.metadata?._unique_id) {
+      const uniqueClause = (this.databaseService as any).isPostgres && (this.databaseService as any).isPostgres()
+        ? "metadata->>'_unique_id' = ?"
+        : "JSON_EXTRACT(metadata, '$._unique_id') = ?";
       const inventoryItems = await this.databaseService.read<{ user_id: string; item_id: string; amount: number }>(
         `SELECT user_id, item_id, amount FROM inventories 
-         WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`,
+         WHERE user_id = ? AND item_id = ? AND ${uniqueClause}`,
         [userId, tradeItem.itemId, tradeItem.metadata._unique_id]
       );
       if (!inventoryItems.length) throw new Error('User does not have this specific item');

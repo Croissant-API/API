@@ -241,65 +241,90 @@ export class UserService implements IUserService {
   }
 
   async getUserWithCompleteProfile(user_id: string): Promise<(User & UserExtensions) | null> {
+    // sanitize the incoming UUID/identifier by escaping single quotes. bright
+    // though the ids are GUIDs, this prevents SQL injection if someone passes
+    // a malicious string.
+    const safeId = user_id.replace(/'/g, "''");
+
     const query = `
       SELECT 
         u.*,
-        COALESCE(json_group_array(
-          CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
-            json_object(
-              'user_id', inv.user_id,
-              'item_id', inv.item_id,
-              'itemId', i.itemId,
-              'name', i.name,
-              'description', i.description,
-              'amount', inv.amount,
-              'iconHash', i.iconHash,
-              'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
-              'purchasePrice', inv.purchasePrice,
-              'rarity', inv.rarity,
-              'custom_url_link', inv.custom_url_link,
-              'metadata', inv.metadata
-            )
-          END
-        ), '[]') as inventory,
-        (SELECT COALESCE(json_group_array(
-          json_object(
-            'itemId', oi.itemId,
-            'name', oi.name,
-            'description', oi.description,
-            'owner', oi.owner,
-            'price', oi.price,
-            'iconHash', oi.iconHash,
-            'showInStore', oi.showInStore
+        COALESCE(
+          json_agg(
+            CASE WHEN inv.item_id IS NOT NULL AND i.itemId IS NOT NULL THEN
+              json_build_object(
+                'user_id', inv.user_id,
+                'item_id', inv.item_id,
+                'itemId', i.itemId,
+                'name', i.name,
+                'description', i.description,
+                'amount', inv.amount,
+                'iconHash', i.iconHash,
+                'sellable', CASE WHEN inv.sellable = 1 THEN 1 ELSE 0 END,
+                'purchasePrice', inv.purchasePrice,
+                'rarity', inv.rarity,
+                'custom_url_link', inv.custom_url_link,
+                'metadata', inv.metadata
+              )
+            END
+          ) FILTER (WHERE inv.item_id IS NOT NULL AND i.itemId IS NOT NULL),
+          '[]'::json
+        ) AS inventory,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'itemId', oi.itemId,
+                'name', oi.name,
+                'description', oi.description,
+                'owner', oi.owner,
+                'price', oi.price,
+                'iconHash', oi.iconHash,
+                'showInStore', oi.showInStore
+              ) ORDER BY oi.name
+            ),
+            '[]'::json
           )
-        ), '[]') FROM items oi WHERE oi.owner = u.user_id AND (oi.deleted IS NULL OR oi.deleted = 0) AND oi.showInStore = 1 ORDER BY oi.name) as ownedItems,
-        (SELECT COALESCE(json_group_array(
-          json_object(
-            'gameId', g.gameId,
-            'name', g.name,
-            'description', g.description,
-            'price', g.price,
-            'owner_id', g.owner_id,
-            'showInStore', g.showInStore,
-            'iconHash', g.iconHash,
-            'splashHash', g.splashHash,
-            'bannerHash', g.bannerHash,
-            'genre', g.genre,
-            'release_date', g.release_date,
-            'developer', g.developer,
-            'publisher', g.publisher,
-            'platforms', g.platforms,
-            'rating', g.rating,
-            'website', g.website,
-            'trailer_link', g.trailer_link,
-            'multiplayer', g.multiplayer,
-            'download_link', g.download_link
+          FROM items oi
+          WHERE oi.owner = u.user_id
+            AND (oi.deleted IS NULL OR oi.deleted = 0)
+            AND oi.showInStore = 1
+        ) AS ownedItems,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'gameId', g.gameId,
+                'name', g.name,
+                'description', g.description,
+                'price', g.price,
+                'owner_id', g.owner_id,
+                'showInStore', g.showInStore,
+                'iconHash', g.iconHash,
+                'splashHash', g.splashHash,
+                'bannerHash', g.bannerHash,
+                'genre', g.genre,
+                'release_date', g.release_date,
+                'developer', g.developer,
+                'publisher', g.publisher,
+                'platforms', g.platforms,
+                'rating', g.rating,
+                'website', g.website,
+                'trailer_link', g.trailer_link,
+                'multiplayer', g.multiplayer,
+                'download_link', g.download_link
+              ) ORDER BY g.name
+            ),
+            '[]'::json
           )
-        ), '[]') FROM games g WHERE g.owner_id = u.user_id AND g.showInStore = 1 ORDER BY g.name) as createdGames
+          FROM games g
+          WHERE g.owner_id = u.user_id
+            AND g.showInStore = 1
+        ) AS createdGames
       FROM users u
       LEFT JOIN inventories inv ON u.user_id = inv.user_id AND inv.amount > 0
       LEFT JOIN items i ON inv.item_id = i.itemId AND (i.deleted IS NULL OR i.deleted = 0)
-      WHERE (u.user_id = ? OR u.discord_id = ? OR u.google_id = ? OR u.steam_id = ?)
+      WHERE (u.user_id = '${safeId}' OR u.discord_id = '${safeId}' OR u.google_id = '${safeId}' OR u.steam_id = '${safeId}')
       GROUP BY u.user_id
     `;
 
@@ -318,7 +343,10 @@ export class UserService implements IUserService {
       [user_id, user_id, user_id, user_id]
     );
 
-    const results = await this.databaseService.read<User & UserExtensions>(query, [user_id, user_id, user_id, user_id]);
+    // parameters are already inlined via `safeId`, so we don't send any
+    // values to the helper.  this prevents the JSON parse error that occurred
+    // when the RPC tried to treat the uuid array as JSON.
+    const results = await this.databaseService.read<User & UserExtensions>(query);
     if (results.length === 0) return null;
 
     const user = results[0];

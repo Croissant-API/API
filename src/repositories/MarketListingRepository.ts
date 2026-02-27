@@ -5,56 +5,111 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class MarketListingRepository {
   constructor(private databaseService: IDatabaseService) {}
 
+  private listings() {
+    return this.databaseService.from<MarketListing>('market_listings');
+  }
+
+  private inventories() {
+    // we don't know full shape here so use any
+    return this.databaseService.from<any>('inventories');
+  }
+
+  private buyOrders() {
+    return this.databaseService.from<any>('buy_orders');
+  }
+
+  private items() {
+    return this.databaseService.from<any>('items');
+  }
+
   async insertMarketListing(listing: MarketListing): Promise<void> {
-    await this.databaseService.request(
-      `INSERT INTO market_listings (id, seller_id, item_id, price, status, metadata, created_at, updated_at, purchasePrice) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [listing.id, listing.seller_id, listing.item_id, listing.price, listing.status, JSON.stringify(listing.metadata || {}), listing.created_at, listing.updated_at, listing.purchasePrice]
-    );
+    const { error } = await this.listings().insert(listing);
+    if (error) throw error;
   }
 
   // --- INVENTORY HELPERS ---
   async removeInventoryItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
+    if (this.databaseService.isPostgres()) {
+      const { error } = await this.inventories()
+        .delete()
+        .eq('user_id', userId)
+        .eq('item_id', itemId)
+        .filter("metadata->>_unique_id", "eq", uniqueId);
+      if (error) throw error;
+    } else {
+      // sqlite fallback still needs raw SQL
+      const uniqueClause = "JSON_EXTRACT(metadata, '$._unique_id') = ?";
+      await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND ${uniqueClause}`, [userId, itemId, uniqueId]);
+    }
   }
 
   async updateInventoryAmountOrDelete(userId: string, itemId: string, purchasePrice: number): Promise<void> {
-    const [row] = await this.databaseService.read<{ amount: number }>(`SELECT amount FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [userId, itemId, purchasePrice]);
+    const { data, error } = await this.inventories()
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('item_id', itemId)
+      .eq('purchasePrice', purchasePrice)
+      .limit(1);
+    if (error) throw error;
+    const row = data && data[0];
     if (row && row.amount > 1) {
-      await this.databaseService.request(`UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [userId, itemId, purchasePrice]);
+      const { error: err } = await this.inventories()
+        .update({ amount: row.amount - 1 })
+        .eq('user_id', userId)
+        .eq('item_id', itemId)
+        .eq('purchasePrice', purchasePrice);
+      if (err) throw err;
     } else {
-      await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [userId, itemId, purchasePrice]);
+      const { error: err } = await this.inventories()
+        .delete()
+        .eq('user_id', userId)
+        .eq('item_id', itemId)
+        .eq('purchasePrice', purchasePrice);
+      if (err) throw err;
     }
   }
 
   async decrementOrDeleteInventory(userId: string, itemId: string): Promise<void> {
-    await this.databaseService.request(`UPDATE inventories SET amount = amount - 1 WHERE user_id = ? AND item_id = ? AND amount > 0`, [userId, itemId]);
-    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND amount = 0`, [userId, itemId]);
+    // decrement using PostgREST increment helper
+    await this.inventories()
+      .update({})
+      .eq('user_id', userId)
+      .eq('item_id', itemId)
+      .gt('amount', 0)
+      .increment('amount', -1);
+
+    await this.inventories()
+      .delete()
+      .eq('user_id', userId)
+      .eq('item_id', itemId)
+      .eq('amount', 0);
   }
 
   // --- MARKET LISTING GENERIC GETTER ---
-  async getMarketListings(filters: { id?: string; sellerId?: string; itemId?: string; status?: string } = {}, select: string = '*', orderBy: string = 'created_at DESC', limit?: number): Promise<MarketListing[]> {
-    let query = `SELECT ${select} FROM market_listings WHERE 1=1`;
-    const params = [];
-    if (filters.id) {
-      query += ' AND id = ?';
-      params.push(filters.id);
+  async getMarketListings(
+    filters: { id?: string; sellerId?: string; itemId?: string; status?: string } = {},
+    select: string = '*',
+    orderBy: string = 'created_at DESC',
+    limit?: number
+  ): Promise<MarketListing[]> {
+    let query = this.listings().select(select as any);
+    if (filters.id) query = query.eq('id', filters.id);
+    if (filters.sellerId) query = query.eq('seller_id', filters.sellerId);
+    if (filters.itemId) query = query.eq('item_id', filters.itemId);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    // apply ordering (only basic support)
+    const parts = orderBy.split(',').map(p => p.trim());
+    for (const part of parts) {
+      const [col, dir] = part.split(' ');
+      query = query.order(col, { ascending: (dir || 'DESC').toUpperCase() === 'ASC' });
     }
-    if (filters.sellerId) {
-      query += ' AND seller_id = ?';
-      params.push(filters.sellerId);
-    }
-    if (filters.itemId) {
-      query += ' AND item_id = ?';
-      params.push(filters.itemId);
-    }
-    if (filters.status) {
-      query += ' AND status = ?';
-      params.push(filters.status);
-    }
-    query += ` ORDER BY ${orderBy}`;
-    if (limit) query += ` LIMIT ${limit}`;
-    return this.databaseService.read<MarketListing>(query, params);
+
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
   }
 
   // --- Surcharges utilisant la méthode générique ---
@@ -69,18 +124,18 @@ export class MarketListingRepository {
   }
 
   async getMarketListingsByUser(userId: string): Promise<EnrichedMarketListing[]> {
-    return this.databaseService.read<EnrichedMarketListing>(
-      `SELECT 
-                ml.*,
-                i.name as item_name,
-                i.description as item_description,
-                i.iconHash as item_icon_hash
-             FROM market_listings ml
-             JOIN items i ON ml.item_id = i.itemId
-             WHERE ml.seller_id = ?
-             ORDER BY ml.created_at DESC`,
-      [userId]
-    );
+    // select nested item data and map to enriched shape
+    const { data, error } = await this.listings()
+      .select('*, items!inner(name, description, iconHash)')
+      .eq('seller_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      ...row,
+      item_name: row.items.name,
+      item_description: row.items.description,
+      item_icon_hash: row.items.iconHash,
+    }));
   }
 
   async getActiveListingsForItem(itemId: string): Promise<MarketListing[]> {
@@ -88,62 +143,97 @@ export class MarketListingRepository {
   }
 
   async getEnrichedMarketListings(limit: number, offset: number): Promise<EnrichedMarketListing[]> {
-    return this.databaseService.read<EnrichedMarketListing>(
-      `SELECT 
-                ml.*,
-                i.name as item_name,
-                i.description as item_description,
-                i.iconHash as item_icon_hash
-             FROM market_listings ml
-             JOIN items i ON ml.item_id = i.itemId
-             WHERE ml.status = 'active' AND (i.deleted IS NULL OR i.deleted = 0)
-             ORDER BY ml.created_at DESC
-             LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
+    const { data, error } = await this.listings()
+      .select('*, items!inner(name, description, iconHash)')
+      .eq('status', 'active')
+      .not('items.deleted', 'is', 1)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+      .offset(offset);
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      ...row,
+      item_name: row.items.name,
+      item_description: row.items.description,
+      item_icon_hash: row.items.iconHash,
+    }));
   }
 
   async searchMarketListings(searchTerm: string, limit: number): Promise<EnrichedMarketListing[]> {
-    return this.databaseService.read<EnrichedMarketListing>(
-      `SELECT 
-                ml.*,
-                i.name as item_name,
-                i.description as item_description,
-                i.iconHash as item_icon_hash
-             FROM market_listings ml
-             JOIN items i ON ml.item_id = i.itemId
-             WHERE ml.status = 'active' 
-               AND (i.deleted IS NULL OR i.deleted = 0)
-               AND i.name LIKE ?
-             ORDER BY ml.price ASC, ml.created_at ASC
-             LIMIT ?`,
-      [`%${searchTerm}%`, limit]
-    );
+    const { data, error } = await this.listings()
+      .select('*, items!inner(name, description, iconHash)')
+      .eq('status', 'active')
+      .not('items.deleted', 'is', 1)
+      .like('items.name', `%${searchTerm}%`)
+      .order('price', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      ...row,
+      item_name: row.items.name,
+      item_description: row.items.description,
+      item_icon_hash: row.items.iconHash,
+    }));
   }
 
   // --- UPDATE STATUS ---
   async updateMarketListingStatus(listingId: string, status: string, updatedAt: string): Promise<void> {
-    await this.databaseService.request(`UPDATE market_listings SET status = ?, updated_at = ? WHERE id = ?`, [status, updatedAt, listingId]);
+    const { error } = await this.listings().update({ status, updated_at: updatedAt }).eq('id', listingId);
+    if (error) throw error;
   }
 
   async updateMarketListingSold(listingId: string, buyerId: string, now: string): Promise<void> {
-    await this.databaseService.request(`UPDATE market_listings SET status = 'sold', buyer_id = ?, sold_at = ?, updated_at = ? WHERE id = ?`, [buyerId, now, now, listingId]);
+    const { error } = await this.listings()
+      .update({ status: 'sold', buyer_id: buyerId, sold_at: now, updated_at: now })
+      .eq('id', listingId);
+    if (error) throw error;
   }
 
   async updateBuyOrderToFulfilled(buyOrderId: string, now: string): Promise<void> {
-    await this.databaseService.request(`UPDATE buy_orders SET status = 'fulfilled', fulfilled_at = ?, updated_at = ? WHERE id = ?`, [now, now, buyOrderId]);
+    const { error } = await this.buyOrders()
+      .update({ status: 'fulfilled', fulfilled_at: now, updated_at: now })
+      .eq('id', buyOrderId);
+    if (error) throw error;
   }
 
   // --- INVENTORY ADD ---
   async addItemToInventory(inventoryItem: InventoryItem): Promise<void> {
     if (inventoryItem.metadata && inventoryItem.metadata._unique_id) {
-      await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`, [inventoryItem.user_id, inventoryItem.item_id, inventoryItem.amount, JSON.stringify(inventoryItem.metadata), inventoryItem.sellable, inventoryItem.purchasePrice]);
+      const { error } = await this.inventories().insert({
+        user_id: inventoryItem.user_id,
+        item_id: inventoryItem.item_id,
+        amount: inventoryItem.amount,
+        metadata: inventoryItem.metadata,
+        sellable: inventoryItem.sellable,
+        purchasePrice: inventoryItem.purchasePrice,
+      });
+      if (error) throw error;
     } else {
-      const existingResult = await this.databaseService.read(`SELECT * FROM inventories WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [inventoryItem.user_id, inventoryItem.item_id, inventoryItem.purchasePrice || null]);
-      if (existingResult.length > 0) {
-        await this.databaseService.request(`UPDATE inventories SET amount = amount + ? WHERE user_id = ? AND item_id = ? AND purchasePrice = ?`, [inventoryItem.amount, inventoryItem.user_id, inventoryItem.item_id, inventoryItem.purchasePrice || null]);
+      const { data } = await this.inventories()
+        .select('*')
+        .eq('user_id', inventoryItem.user_id)
+        .eq('item_id', inventoryItem.item_id)
+        .eq('purchasePrice', inventoryItem.purchasePrice || null)
+        .limit(1);
+      if (data && data.length > 0) {
+        const existing = data[0];
+        const { error } = await this.inventories()
+          .update({ amount: existing.amount + inventoryItem.amount })
+          .eq('user_id', inventoryItem.user_id)
+          .eq('item_id', inventoryItem.item_id)
+          .eq('purchasePrice', inventoryItem.purchasePrice || null);
+        if (error) throw error;
       } else {
-        await this.databaseService.request(`INSERT INTO inventories (user_id, item_id, amount, metadata, sellable, purchasePrice) VALUES (?, ?, ?, ?, ?, ?)`, [inventoryItem.user_id, inventoryItem.item_id, inventoryItem.amount, null, inventoryItem.sellable, inventoryItem.purchasePrice]);
+        const { error } = await this.inventories().insert({
+          user_id: inventoryItem.user_id,
+          item_id: inventoryItem.item_id,
+          amount: inventoryItem.amount,
+          metadata: null,
+          sellable: inventoryItem.sellable,
+          purchasePrice: inventoryItem.purchasePrice,
+        });
+        if (error) throw error;
       }
     }
   }

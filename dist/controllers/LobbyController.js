@@ -1,0 +1,281 @@
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+import { inject, injectable } from 'inversify';
+import { LoggedCheck } from 'middlewares/LoggedCheck';
+import { v4 } from 'uuid';
+import { describe } from '../decorators/describe';
+import { controller, httpGet, httpPost } from '../hono-inversify';
+import { createRateLimit } from '../middlewares/hono/rateLimit';
+const createLobbyRateLimit = createRateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 30,
+    message: 'Too many lobby creations, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+const joinLobbyRateLimit = createRateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 100,
+    message: 'Too many lobby joins, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+const leaveLobbyRateLimit = createRateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 100,
+    message: 'Too many lobby leaves, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+let Lobbies = class Lobbies {
+    constructor(lobbyService, logService) {
+        this.lobbyService = lobbyService;
+        this.logService = logService;
+    }
+    sendError(c, status, message) {
+        return c.json({ message }, status);
+    }
+    async createLog(c, action, tableName, statusCode, userId, body) {
+        try {
+            const clientIP = c.req.header('cf-connecting-ip') ||
+                c.req.header('x-forwarded-for') ||
+                c.req.header('x-real-ip') ||
+                'unknown';
+            await this.logService.createLog({
+                ip_address: clientIP,
+                table_name: tableName,
+                controller: `LobbyController.${action}`,
+                original_path: c.req.path,
+                http_method: c.req.method,
+                request_body: JSON.stringify(body || {}),
+                user_id: userId,
+                status_code: statusCode,
+            });
+        }
+        catch (error) {
+            console.error('Error creating log:', error);
+        }
+    }
+    getUserFromContext(c) {
+        return c.get('user');
+    }
+    async createLobby(c) {
+        try {
+            const user = this.getUserFromContext(c);
+            if (!user)
+                return this.sendError(c, 401, 'Unauthorized');
+            const lobbyId = v4();
+            await this.lobbyService.createLobby(lobbyId, [user.user_id]);
+            await this.lobbyService.joinLobby(lobbyId, user.user_id);
+            await this.createLog(c, 'createLobby', 'lobbies', 201, user.user_id);
+            return c.json({ message: 'Lobby created' }, 201);
+        }
+        catch (error) {
+            const user = this.getUserFromContext(c);
+            await this.createLog(c, 'createLobby', 'lobbies', 500, user?.user_id);
+            return this.sendError(c, 500, 'Error creating lobby');
+        }
+    }
+    async getLobby(c) {
+        const lobbyId = c.req.param('lobbyId');
+        // Optionally validate lobbyId with lobbyIdParamSchema here
+        try {
+            const lobby = await this.lobbyService.getLobby(lobbyId);
+            if (!lobby) {
+                await this.createLog(c, 'getLobby', 'lobbies', 404);
+                return this.sendError(c, 404, 'Lobby not found');
+            }
+            await this.createLog(c, 'getLobby', 'lobbies', 200);
+            return c.json(lobby);
+        }
+        catch (error) {
+            await this.createLog(c, 'getLobby', 'lobbies', 500);
+            return this.sendError(c, 500, error?.message || 'Error fetching lobby');
+        }
+    }
+    async getMyLobby(c) {
+        try {
+            const user = this.getUserFromContext(c);
+            if (!user)
+                return this.sendError(c, 401, 'Unauthorized');
+            const lobby = await this.lobbyService.getUserLobby(user.user_id);
+            if (!lobby) {
+                await this.createLog(c, 'getMyLobby', 'lobbies', 200, user.user_id);
+                return c.json({ success: false, message: 'User is not in any lobby' });
+            }
+            await this.createLog(c, 'getMyLobby', 'lobbies', 200, user.user_id);
+            return c.json({ success: true, ...lobby });
+        }
+        catch (error) {
+            const user = this.getUserFromContext(c);
+            await this.createLog(c, 'getMyLobby', 'lobbies', 500, user?.user_id);
+            return this.sendError(c, 500, 'Error fetching user lobby');
+        }
+    }
+    async getUserLobby(c) {
+        const userId = c.req.param('userId');
+        // Optionally validate userId with userIdParamSchema here
+        try {
+            const lobby = await this.lobbyService.getUserLobby(userId);
+            if (!lobby) {
+                await this.createLog(c, 'getUserLobby', 'lobbies', 404, userId);
+                return this.sendError(c, 404, 'User is not in any lobby');
+            }
+            await this.createLog(c, 'getUserLobby', 'lobbies', 200, userId);
+            return c.json(lobby);
+        }
+        catch (error) {
+            await this.createLog(c, 'getUserLobby', 'lobbies', 500, userId);
+            return this.sendError(c, 500, 'Error fetching user lobby');
+        }
+    }
+    async joinLobby(c) {
+        const user = this.getUserFromContext(c);
+        if (!user)
+            return this.sendError(c, 401, 'Unauthorized');
+        const lobbyId = c.req.param('lobbyId');
+        // Optionally validate lobbyId with lobbyIdParamSchema here
+        try {
+            await this.lobbyService.leaveAllLobbies(user.user_id);
+            await this.lobbyService.joinLobby(lobbyId, user.user_id);
+            await this.createLog(c, 'joinLobby', 'lobbies', 200, user.user_id);
+            return c.json({ message: 'Joined lobby' });
+        }
+        catch (error) {
+            await this.createLog(c, 'joinLobby', 'lobbies', 500, user.user_id);
+            return this.sendError(c, 500, 'Error joining lobby');
+        }
+    }
+    async leaveLobby(c) {
+        const user = this.getUserFromContext(c);
+        if (!user)
+            return this.sendError(c, 401, 'Unauthorized');
+        const lobbyId = c.req.param('lobbyId');
+        // Optionally validate lobbyId with lobbyIdParamSchema here
+        try {
+            await this.lobbyService.leaveLobby(lobbyId, user.user_id);
+            await this.createLog(c, 'leaveLobby', 'lobbies', 200, user.user_id);
+            return c.json({ message: 'Left lobby' });
+        }
+        catch (error) {
+            await this.createLog(c, 'leaveLobby', 'lobbies', 500, user.user_id);
+            return this.sendError(c, 500, 'Error leaving lobby');
+        }
+    }
+};
+__decorate([
+    describe({
+        endpoint: '/lobbies',
+        method: 'POST',
+        description: 'Create a new lobby.',
+        responseType: { message: 'string' },
+        example: 'POST /api/lobbies',
+        requiresAuth: true,
+    }),
+    httpPost('/', LoggedCheck, createLobbyRateLimit),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "createLobby", null);
+__decorate([
+    describe({
+        endpoint: '/lobbies/:lobbyId',
+        method: 'GET',
+        description: 'Get a lobby by lobbyId',
+        params: { lobbyId: 'The id of the lobby' },
+        responseType: {
+            lobbyId: 'string',
+            users: [
+                {
+                    username: 'string',
+                    user_id: 'string',
+                    verified: 'boolean',
+                    steam_username: 'string',
+                    steam_avatar_url: 'string',
+                    steam_id: 'string',
+                },
+            ],
+        },
+        example: 'GET /api/lobbies/123',
+    }),
+    httpGet('/:lobbyId'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "getLobby", null);
+__decorate([
+    describe({
+        endpoint: '/lobbies/user/@me',
+        method: 'GET',
+        description: 'Get the lobby the authenticated user is in.',
+        responseType: { success: 'boolean', lobbyId: 'string', users: ['string'] },
+        example: 'GET /api/lobbies/user/@me',
+        requiresAuth: true,
+    }),
+    httpGet('/user/@me', LoggedCheck),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "getMyLobby", null);
+__decorate([
+    describe({
+        endpoint: '/lobbies/user/:userId',
+        method: 'GET',
+        description: 'Get the lobby a user is in',
+        params: { userId: 'The id of the user' },
+        responseType: { lobbyId: 'string', users: ['string'] },
+        example: 'GET /api/lobbies/user/123',
+    }),
+    httpGet('/user/:userId'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "getUserLobby", null);
+__decorate([
+    describe({
+        endpoint: '/lobbies/:lobbyId/join',
+        method: 'POST',
+        description: 'Join a lobby. This will make the user leave all other lobbies first.',
+        params: { lobbyId: 'The id of the lobby' },
+        responseType: { message: 'string' },
+        example: 'POST /api/lobbies/123/join',
+        requiresAuth: true,
+    }),
+    httpPost('/:lobbyId/join', LoggedCheck, joinLobbyRateLimit),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "joinLobby", null);
+__decorate([
+    describe({
+        endpoint: '/lobbies/:lobbyId/leave',
+        method: 'POST',
+        description: 'Leave a lobby.',
+        params: { lobbyId: 'The id of the lobby' },
+        responseType: { message: 'string' },
+        example: 'POST /api/lobbies/123/leave',
+        requiresAuth: true,
+    }),
+    httpPost('/:lobbyId/leave', LoggedCheck, leaveLobbyRateLimit),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Function]),
+    __metadata("design:returntype", Promise)
+], Lobbies.prototype, "leaveLobby", null);
+Lobbies = __decorate([
+    injectable(),
+    controller('/lobbies'),
+    __param(0, inject('LobbyService')),
+    __param(1, inject('LogService')),
+    __metadata("design:paramtypes", [Object, Object])
+], Lobbies);
+export { Lobbies };

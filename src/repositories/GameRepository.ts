@@ -4,31 +4,36 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class GameRepository {
   constructor(private databaseService: IDatabaseService) {}
 
+  private games() {
+    return this.databaseService.from<Game>('games');
+  }
+
   async getGames(filters: { gameId?: string; ownerId?: string; showInStore?: boolean; search?: string } = {}, select: string = '*', orderBy: string = '', limit?: number): Promise<Game[]> {
-    let query = `SELECT ${select} FROM games WHERE 1=1`;
-    const params = [];
+    let query = this.games().select(select);
 
     if (filters.gameId) {
-      query += ` AND gameId = ?`;
-      params.push(filters.gameId);
+      query = query.eq('gameId', filters.gameId);
     }
     if (filters.ownerId) {
-      query += ` AND owner_id = ?`;
-      params.push(filters.ownerId);
+      query = query.eq('owner_id', filters.ownerId);
     }
     if (filters.showInStore !== undefined) {
-      query += ` AND showInStore = ?`;
-      params.push(filters.showInStore ? 1 : 0);
+      query = query.eq('showInStore', filters.showInStore ? 1 : 0);
     }
     if (filters.search) {
-      const searchTerm = `%${filters.search.toLowerCase()}%`;
-      query += ` AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(genre) LIKE ?)`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      const term = `%${filters.search.toLowerCase()}%`;
+      query = query.ilike('name', term).or(`description.ilike.${term},genre.ilike.${term}`);
     }
-    if (orderBy) query += ` ORDER BY ${orderBy}`;
-    if (limit) query += ` LIMIT ${limit}`;
+    if (orderBy) {
+      query = query.order(orderBy);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
 
-    return await this.databaseService.read<Game>(query, params);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
   }
 
   async getGame(gameId: string): Promise<Game | null> {
@@ -46,28 +51,29 @@ export class GameRepository {
   }
 
   async getGameForOwner(gameId: string, userId: string): Promise<Game | null> {
-    const rows = await this.databaseService.read<Game>(
-      `SELECT g.*,
-              CASE 
-                WHEN g.owner_id = ? OR go.ownerId IS NOT NULL 
-                THEN 1 ELSE 0 
-              END as can_download
-       FROM games g 
-       LEFT JOIN game_owners go ON g.gameId = go.gameId AND go.ownerId = ?
-       WHERE g.gameId = ?`,
-      [userId, userId, gameId]
-    );
-    return rows.length > 0 ? rows[0] : null;
+    // use an inner join against the game_owners relation to decide whether the
+    // user can download; we fetch the flag in the client rather than through
+    // a custom RPC.
+    const { data, error } = await this.games()
+      .select('*, game_owners!inner(ownerId)')
+      .eq('gameId', gameId)
+      .eq('game_owners.ownerId', userId)
+      .limit(1);
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    const row = data[0] as any;
+    return {
+      ...row,
+      can_download: row.game_owners && row.game_owners.length ? 1 : row.owner_id === userId ? 1 : 0,
+    } as Game;
   }
 
   async getUserGames(userId: string): Promise<Game[]> {
-    return await this.databaseService.read<Game>(
-      `SELECT g.* 
-       FROM games g 
-       INNER JOIN game_owners go ON g.gameId = go.gameId 
-       WHERE go.ownerId = ?`,
-      [userId]
-    );
+    const { data, error } = await this.games()
+      .select('*, game_owners!inner(ownerId)')
+      .eq('game_owners.ownerId', userId);
+    if (error) throw error;
+    return data || [];
   }
 
   async listGames(): Promise<Game[]> {
@@ -87,13 +93,11 @@ export class GameRepository {
   }
 
   async getUserOwnedGames(userId: string): Promise<Game[]> {
-    return await this.databaseService.read<Game>(
-      `SELECT g.* 
-       FROM games g 
-       INNER JOIN game_owners go ON g.gameId = go.gameId 
-       WHERE go.ownerId = ?`,
-      [userId]
-    );
+    const { data, error } = await this.games()
+      .select('*, game_owners!inner(ownerId)')
+      .eq('game_owners.ownerId', userId);
+    if (error) throw error;
+    return data || [];
   }
 
   async searchGames(query: string): Promise<Game[]> {
@@ -105,19 +109,25 @@ export class GameRepository {
   }
 
   async createGame(game: Omit<Game, 'id'>): Promise<void> {
-    await this.databaseService.request(
-      `INSERT INTO games (
-                gameId, name, description, price, owner_id, showInStore, download_link,
-                iconHash, splashHash, bannerHash, genre, release_date, developer,
-                publisher, platforms, rating, website, trailer_link, multiplayer
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [game.gameId, game.name, game.description, game.price, game.owner_id, game.showInStore ? 1 : 0, game.download_link, game.iconHash ?? null, game.splashHash ?? null, game.bannerHash ?? null, game.genre ?? null, game.release_date ?? null, game.developer ?? null, game.publisher ?? null, game.platforms ?? null, game.rating ?? 0, game.website ?? null, game.trailer_link ?? null, game.multiplayer ? 1 : 0]
-    );
+    const row: Partial<Game> = {
+      ...game,
+      showInStore: game.showInStore ? 1 : 0,
+      rating: game.rating ?? 0,
+      multiplayer: game.multiplayer ? 1 : 0,
+    };
+    const { error } = await this.games().insert(row);
+    if (error) throw error;
   }
 
   async updateGame(gameId: string, fields: string[], values: unknown[]): Promise<void> {
-    values.push(gameId);
-    await this.databaseService.request(`UPDATE games SET ${fields.join(', ')} WHERE gameId = ?`, values);
+    const obj: Record<string, unknown> = {};
+    fields.forEach((f, i) => {
+      // field strings were like "foo = ?"; extract key
+      const key = f.split('=')[0].trim();
+      obj[key] = values[i];
+    });
+    const { error } = await this.games().update(obj).eq('gameId', gameId);
+    if (error) throw error;
   }
 
   async deleteGame(gameId: string): Promise<void> {

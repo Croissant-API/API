@@ -4,72 +4,93 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class UserRepository {
   constructor(private databaseService: IDatabaseService) {}
 
+  private users() {
+    return this.databaseService.from<User>('users');
+  }
+
   async getUserByAnyId(user_id: string, includeDisabled = false): Promise<User | null> {
-    const base = '(user_id = ? OR discord_id = ? OR google_id = ? OR steam_id = ?)';
-    const where = includeDisabled ? base : base + ' AND (disabled = 0 OR disabled IS NULL)';
-    const users = await this.databaseService.read<User>(`SELECT * FROM users WHERE ${where}`, [user_id, user_id, user_id, user_id]);
-    return users.length > 0 ? users[0] : null;
+    let query = this.users()
+      .select('*')
+      .or(`user_id.eq.${user_id},discord_id.eq.${user_id},google_id.eq.${user_id},steam_id.eq.${user_id}`);
+
+    if (!includeDisabled) {
+      query = query.is('disabled', null).or('disabled.eq.0');
+    }
+
+    const { data, error } = await query.limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async getAllUsers(includeDisabled = false): Promise<User[]> {
-    if (includeDisabled) {
-      return await this.databaseService.read<User>('SELECT * FROM users');
+    let query = this.users().select('*');
+    if (!includeDisabled) {
+      query = query.is('disabled', null).or('disabled.eq.0');
     }
-    return await this.databaseService.read<User>('SELECT * FROM users WHERE (disabled = 0 OR disabled IS NULL)');
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
   }
 
   async updateUserFields(user_id: string, fields: Partial<Pick<User, 'username' | 'balance' | 'password'>>): Promise<void> {
-    const updates: string[] = [];
-    const params: unknown[] = [];
-    if (fields.username !== undefined) {
-      updates.push('username = ?');
-      params.push(fields.username);
-    }
-    if (fields.balance !== undefined) {
-      updates.push('balance = ?');
-      params.push(fields.balance);
-    }
-    if (fields.password !== undefined) {
-      updates.push('password = ?');
-      params.push(fields.password);
-    }
-    if (updates.length === 0) return;
-    params.push(user_id);
-    await this.databaseService.request(`UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`, params);
+    if (Object.keys(fields).length === 0) return;
+    const { error } = await this.users().update(fields).eq('user_id', user_id);
+    if (error) throw error;
   }
 
   async updateSteamFields(user_id: string, steam_id: string | null, steam_username: string | null, steam_avatar_url: string | null): Promise<void> {
-    await this.databaseService.request('UPDATE users SET steam_id = ?, steam_username = ?, steam_avatar_url = ? WHERE user_id = ?', [steam_id, steam_username, steam_avatar_url, user_id]);
+    const { error } = await this.users().update({ steam_id, steam_username, steam_avatar_url }).eq('user_id', user_id);
+    if (error) throw error;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const users = await this.databaseService.read<User>('SELECT * FROM users WHERE email = ?', [email]);
-    return users.length > 0 ? users[0] : null;
+    const { data, error } = await this.users().select('*').eq('email', email).limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async associateOAuth(user_id: string, provider: 'discord' | 'google', providerId: string): Promise<void> {
     const column = provider === 'discord' ? 'discord_id' : 'google_id';
-    await this.databaseService.request(`UPDATE users SET ${column} = ? WHERE user_id = ?`, [providerId, user_id]);
+    const { error } = await this.users().update({ [column]: providerId }).eq('user_id', user_id);
+    if (error) throw error;
   }
 
   async disableAccount(targetUserId: string): Promise<void> {
-    await this.databaseService.request('UPDATE users SET disabled = 1 WHERE user_id = ?', [targetUserId]);
+    const { error } = await this.users().update({ disabled: 1 }).eq('user_id', targetUserId);
+    if (error) throw error;
   }
 
   async reenableAccount(targetUserId: string): Promise<void> {
-    await this.databaseService.request('UPDATE users SET disabled = 0 WHERE user_id = ?', [targetUserId]);
+    const { error } = await this.users().update({ disabled: 0 }).eq('user_id', targetUserId);
+    if (error) throw error;
   }
 
   async searchUsers(): Promise<User[]> {
-    return await this.databaseService.read<User>(`SELECT user_id, username, verified, isStudio, admin, badges, beta_user, disabled FROM users LIMIT 100`);
+    const { data, error } = await this.users()
+      .select('user_id, username, verified, isStudio, admin, badges, beta_user, disabled')
+      .limit(100);
+    if (error) throw error;
+    return data || [];
   }
 
   async createUser(user_id: string, username: string, email: string, password: string | null, provider?: 'discord' | 'google', providerId?: string, created_at?: string): Promise<void> {
-    await this.databaseService.request('INSERT INTO users (user_id, username, email, password, balance, discord_id, google_id, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, COALESCE(?, datetime("now")))', [user_id, username, email, password, provider === 'discord' ? providerId : null, provider === 'google' ? providerId : null, created_at]);
+    const row: Partial<User> = {
+      user_id,
+      username,
+      email,
+      password,
+      balance: 0,
+      discord_id: provider === 'discord' ? providerId : null,
+      google_id: provider === 'google' ? providerId : null,
+      created_at: created_at || new Date().toISOString(),
+    };
+    const { error } = await this.users().insert(row);
+    if (error) throw error;
   }
 
   async createBrandUser(user_id: string, username: string): Promise<void> {
-    await this.databaseService.request('INSERT INTO users (user_id, username, email, balance, isStudio) VALUES (?, ?, ?, 0, 1)', [user_id, username, '']);
+    const { error } = await this.users().insert({ user_id, username, email: '', balance: 0, isStudio: 1 });
+    if (error) throw error;
   }
 
   async updateUserPassword(user_id: string, hashedPassword: string): Promise<void> {
@@ -77,38 +98,56 @@ export class UserRepository {
   }
 
   async getUserBySteamId(steamId: string): Promise<User | null> {
-    const users = await this.databaseService.read<User>('SELECT * FROM users WHERE steam_id = ? AND (disabled = 0 OR disabled IS NULL)', [steamId]);
-    return users.length > 0 ? users[0] : null;
+    const { data, error } = await this.users()
+      .select('*')
+      .eq('steam_id', steamId)
+      .is('disabled', null)
+      .or('disabled.eq.0')
+      .limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async generatePasswordResetToken(email: string, token: string): Promise<void> {
-    await this.databaseService.request('UPDATE users SET forgot_password_token = ? WHERE email = ?', [token, email]);
+    const { error } = await this.users().update({ forgot_password_token: token }).eq('email', email);
+    if (error) throw error;
   }
 
   async deleteUser(user_id: string): Promise<void> {
-    await this.databaseService.request('DELETE FROM users WHERE user_id = ?', [user_id]);
+    const { error } = await this.users().delete().eq('user_id', user_id);
+    if (error) throw error;
   }
 
   async updateWebauthnChallenge(user_id: string, challenge: string | null): Promise<void> {
-    await this.databaseService.request('UPDATE users SET webauthn_challenge = ? WHERE user_id = ?', [challenge, user_id]);
+    const { error } = await this.users().update({ webauthn_challenge: challenge }).eq('user_id', user_id);
+    if (error) throw error;
   }
 
   async addWebauthnCredential(userId: string, credentials: string): Promise<void> {
-    await this.databaseService.request('UPDATE users SET webauthn_credentials = ? WHERE user_id = ?', [credentials, userId]);
+    const { error } = await this.users().update({ webauthn_credentials: credentials }).eq('user_id', userId);
+    if (error) throw error;
   }
 
   async getUserByCredentialId(credentialId: string): Promise<User | null> {
-    const users = await this.databaseService.read<User>('SELECT * FROM users WHERE webauthn_credentials LIKE ? AND (disabled = 0 OR disabled IS NULL)', [`%${credentialId}%`]);
-    return users.length > 0 ? users[0] : null;
+    const { data, error } = await this.users()
+      .select('*')
+      .like('webauthn_credentials', `%${credentialId}%`)
+      .is('disabled', null)
+      .or('disabled.eq.0')
+      .limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async setAuthenticatorSecret(userId: string, secret: string | null): Promise<void> {
-    await this.databaseService.request('UPDATE users SET authenticator_secret = ? WHERE user_id = ?', [secret, userId]);
+    const { error } = await this.users().update({ authenticator_secret: secret }).eq('user_id', userId);
+    if (error) throw error;
   }
 
   async findByResetToken(reset_token: string): Promise<User | null> {
-    const users = await this.databaseService.read<User>('SELECT * FROM users WHERE forgot_password_token = ?', [reset_token]);
-    return users.length > 0 ? users[0] : null;
+    const { data, error } = await this.users().select('*').eq('forgot_password_token', reset_token).limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 }
 

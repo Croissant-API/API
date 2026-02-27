@@ -43,7 +43,7 @@ export class InversifyHonoServer {
 
   private registerControllers(): void {
     const registry = getControllerRegistry();
-    console.log(`Registering ${registry.size} controllers from registry`);
+    // console.log(`Registering ${registry.size} controllers from registry`);
     registry.forEach((controllerConstructor) => {
       const metadata = Reflect.getMetadata(METADATA_KEY.controller, controllerConstructor);
     
@@ -79,9 +79,9 @@ export class InversifyHonoServer {
       controllerInstance.constructor
     );
 
-    console.log(`Registering controller: ${controllerInstance.constructor.name}`);
+    // console.log(`Registering controller: ${controllerInstance.constructor.name}`);
 
-    console.log(`Registering controller with ${handlerMetadatas.length} handlers`);
+    // console.log(`Registering controller with ${handlerMetadatas.length} handlers`);
 
     // Register each method as a route
     handlerMetadatas.forEach((handlerMetadata) => {
@@ -173,7 +173,7 @@ export class InversifyHonoServer {
         console.warn(`Unsupported HTTP method: ${method}`);
     }
 
-    console.log(`Registered ${method.toUpperCase()} ${path} -> ${controllerInstance.constructor.name}.${handlerMetadata.key}`);
+    // console.log(`Registered ${method.toUpperCase()} ${path} -> ${controllerInstance.constructor.name}.${handlerMetadata.key}`);
   }
 
   private getHandlersFromMetadata(constructor: object): HonoHandlerDecorator[] {

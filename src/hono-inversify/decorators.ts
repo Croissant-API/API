@@ -22,7 +22,7 @@ export function controller(path?: string, ...middleware: MiddlewareHandler[]) {
     
     // Add to registry
     controllerRegistry.add(target);
-    console.log(`Registered controller: ${target.name} with path: ${metadata.path}`);
+    // console.log(`Registered controller: ${target.name} with path: ${metadata.path}`);
     
     return target;
   };

@@ -1,0 +1,11 @@
+import { MiddlewareHandler } from 'hono';
+import 'reflect-metadata';
+export declare function getControllerRegistry(): Set<any>;
+export declare function controller(path?: string, ...middleware: MiddlewareHandler[]): <T extends new (...args: any[]) => object>(target: T) => T;
+export declare function httpGet(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpPost(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpPut(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpPatch(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpDelete(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpHead(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;
+export declare function httpAll(path?: string, ...middleware: MiddlewareHandler[]): (target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor;

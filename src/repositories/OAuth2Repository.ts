@@ -6,27 +6,29 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class OAuth2Repository {
   constructor(private db: IDatabaseService) {}
 
+  private apps() {
+    return this.db.from<OAuth2App>('oauth2_apps');
+  }
+
+  private codes() {
+    return this.db.from<{ code: string; client_id: string; redirect_uri: string; user_id: string }>('oauth2_codes');
+  }
+
   async createApp(owner_id: string, name: string, redirect_urls: string[]): Promise<OAuth2App> {
     const client_id = v4();
     const client_secret = v4();
-    await this.db.request('INSERT INTO oauth2_apps (owner_id, client_id, client_secret, name, redirect_urls) VALUES (?, ?, ?, ?, ?)', [owner_id, client_id, client_secret, name, JSON.stringify(redirect_urls)]);
+    const { error } = await this.apps().insert({ owner_id, client_id, client_secret, name, redirect_urls });
+    if (error) throw error;
     return { owner_id, client_id, client_secret, name, redirect_urls };
   }
 
   async getApps(filters: { owner_id?: string; client_id?: string } = {}, select: string = '*'): Promise<OAuth2App[]> {
-    let query = `SELECT ${select} FROM oauth2_apps WHERE 1=1`;
-    const params = [];
-    if (filters.owner_id) {
-      query += ' AND owner_id = ?';
-      params.push(filters.owner_id);
-    }
-    if (filters.client_id) {
-      query += ' AND client_id = ?';
-      params.push(filters.client_id);
-    }
-    const apps = await this.db.read<OAuth2App>(query, params);
-
-    return apps.map(app => ({
+    let query = this.apps().select(select as any);
+    if (filters.owner_id) query = query.eq('owner_id', filters.owner_id);
+    if (filters.client_id) query = query.eq('client_id', filters.client_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(app => ({
       ...app,
       redirect_urls: typeof app.redirect_urls === 'string' ? JSON.parse(app.redirect_urls) : app.redirect_urls,
     }));
@@ -44,12 +46,13 @@ export class OAuth2Repository {
       redirect_urls: string[];
     }>
   > {
-    const apps = await this.db.read<OAuth2App>('SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE owner_id = ?', [owner_id]);
-    return apps.map(app => ({
+    const { data, error } = await this.apps().select('client_id, client_secret, name, redirect_urls').eq('owner_id', owner_id);
+    if (error) throw error;
+    return (data || []).map(app => ({
       client_id: app.client_id,
       client_secret: app.client_secret,
       name: app.name,
-      redirect_urls: app.redirect_urls,
+      redirect_urls: app.redirect_urls as string[],
     }));
   }
 
@@ -64,45 +67,52 @@ export class OAuth2Repository {
     name: string;
     redirect_urls: string[];
   } | null> {
-    const rows = await this.db.read<OAuth2App>('SELECT client_id, client_secret, name, redirect_urls FROM oauth2_apps WHERE client_id = ?', [client_id]);
-    if (!rows) return null;
-    const app = rows[0];
+    const { data, error } = await this.apps().select('client_id, client_secret, name, redirect_urls').eq('client_id', client_id).limit(1);
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    const app = data[0];
     return {
       client_id: app.client_id,
       client_secret: app.client_secret,
       name: app.name,
-      redirect_urls: app.redirect_urls,
+      redirect_urls: app.redirect_urls as string[],
     };
   }
 
   async generateAuthCode(client_id: string, redirect_uri: string, user_id: string): Promise<string> {
     const code = v4();
-    await this.db.request('INSERT INTO oauth2_codes (code, client_id, redirect_uri, user_id) VALUES (?, ?, ?, ?)', [code, client_id, redirect_uri, user_id]);
+    const { error } = await this.codes().insert({ code, client_id, redirect_uri, user_id });
+    if (error) throw error;
     return code;
   }
 
   async deleteApp(client_id: string, owner_id: string): Promise<void> {
-    await this.db.request('DELETE FROM oauth2_apps WHERE client_id = ? AND owner_id = ?', [client_id, owner_id]);
+    const { error } = await this.apps().delete().eq('client_id', client_id).eq('owner_id', owner_id);
+    if (error) throw error;
   }
 
   async updateApp(client_id: string, owner_id: string, update: { name?: string; redirect_urls?: string[] }): Promise<void> {
-    const { fields, values } = buildUpdateFields(update, { redirect_urls: v => JSON.stringify(v) });
-    if (!fields.length) return;
-    values.push(client_id, owner_id);
-    await this.db.request(`UPDATE oauth2_apps SET ${fields.join(', ')} WHERE client_id = ? AND owner_id = ?`, values);
+    const payload: Record<string, unknown> = {};
+    if (update.name !== undefined) payload.name = update.name;
+    if (update.redirect_urls !== undefined) payload.redirect_urls = update.redirect_urls;
+    if (Object.keys(payload).length === 0) return;
+    const { error } = await this.apps().update(payload).eq('client_id', client_id).eq('owner_id', owner_id);
+    if (error) throw error;
   }
 
   async getUserByCode(code: string, client_id: string): Promise<Oauth2User | null> {
-    const users = await this.db.read<Oauth2User>(
-      `SELECT u.username, u.user_id, u.email, u.balance, u.verified, 
-              u.steam_username, u.steam_avatar_url, u.steam_id, u.discord_id, u.google_id
-       FROM oauth2_codes c
-       INNER JOIN oauth2_apps a ON c.client_id = a.client_id
-       INNER JOIN users u ON c.user_id = u.user_id
-       WHERE c.code = ? AND c.client_id = ?`,
-      [code, client_id]
-    );
-    return users[0] || null;
+    // perform two-step lookup to avoid complex join logic
+    const { data: codes, error: codeErr } = await this.codes().select('user_id').eq('code', code).eq('client_id', client_id).limit(1);
+    if (codeErr) throw codeErr;
+    if (!codes || codes.length === 0) return null;
+    const userId = codes[0].user_id;
+
+    const { data: users, error: userErr } = await this.db.from<Oauth2User>('users')
+      .select('username, user_id, email, balance, verified, steam_username, steam_avatar_url, steam_id, discord_id, google_id')
+      .eq('user_id', userId)
+      .limit(1);
+    if (userErr) throw userErr;
+    return users && users.length ? users[0] : null;
   }
 }
 

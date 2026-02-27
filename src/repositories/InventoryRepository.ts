@@ -55,7 +55,11 @@ export class InventoryRepository {
       params.push(filters.purchasePrice, filters.purchasePrice);
     }
     if (filters.uniqueId) {
-      query += " AND JSON_EXTRACT(inv.metadata, '$._unique_id') = ?";
+      if ((this.databaseService as any).isPostgres && (this.databaseService as any).isPostgres()) {
+        query += " AND inv.metadata->>'_unique_id' = ?";
+      } else {
+        query += " AND JSON_EXTRACT(inv.metadata, '$._unique_id') = ?";
+      }
       params.push(filters.uniqueId);
     }
     if (filters.minAmount !== undefined) {
@@ -133,7 +137,12 @@ export class InventoryRepository {
   async updateItemMetadata(userId: string, itemId: string, uniqueId: string, metadata: object): Promise<void> {
     const metadataWithUniqueId = { ...metadata, _unique_id: uniqueId };
     const metadataJson = JSON.stringify(metadataWithUniqueId);
-    await this.databaseService.request("UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?", [metadataJson, userId, itemId, uniqueId]);
+    {
+      const uniqueClause = (this.databaseService as any).isPostgres && (this.databaseService as any).isPostgres()
+        ? "metadata->>'_unique_id' = ?"
+        : "JSON_EXTRACT(metadata, '$._unique_id') = ?";
+      await this.databaseService.request(`UPDATE inventories SET metadata = ? WHERE user_id = ? AND item_id = ? AND ${uniqueClause}`, [metadataJson, userId, itemId, uniqueId]);
+    }
   }
 
   async removeItem(userId: string, itemId: string, amount: number, dataItemIndex?: number): Promise<void> {
@@ -166,7 +175,12 @@ export class InventoryRepository {
   }
 
   async removeItemByUniqueId(userId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [userId, itemId, uniqueId]);
+    {
+      const uniqueClause = (this.databaseService as any).isPostgres && (this.databaseService as any).isPostgres()
+        ? "metadata->>'_unique_id' = ?"
+        : "JSON_EXTRACT(metadata, '$._unique_id') = ?";
+      await this.databaseService.request(`DELETE FROM inventories WHERE user_id = ? AND item_id = ? AND ${uniqueClause}`, [userId, itemId, uniqueId]);
+    }
   }
 
   async removeSellableItem(userId: string, itemId: string, amount: number): Promise<void> {
@@ -215,6 +229,11 @@ export class InventoryRepository {
   }
 
   async transferItem(fromUserId: string, toUserId: string, itemId: string, uniqueId: string): Promise<void> {
-    await this.databaseService.request(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND JSON_EXTRACT(metadata, '$._unique_id') = ?`, [toUserId, fromUserId, itemId, uniqueId]);
+    {
+      const uniqueClause = (this.databaseService as any).isPostgres && (this.databaseService as any).isPostgres()
+        ? "metadata->>'_unique_id' = ?"
+        : "JSON_EXTRACT(metadata, '$._unique_id') = ?";
+      await this.databaseService.request(`UPDATE inventories SET user_id = ? WHERE user_id = ? AND item_id = ? AND ${uniqueClause}`, [toUserId, fromUserId, itemId, uniqueId]);
+    }
   }
 }

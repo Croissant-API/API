@@ -62,9 +62,11 @@ server.setConfig((app) => {
   });
 
   app.use('*', async (c, next) => {
-    // c.env contient le binding D1
+    // ensure the database client is initialised per request, passing whatever
+    // environment the worker provides (Supabase URL/KEY will be pulled from
+    // c.env inside the service).
     const dbService: IDatabaseService = container.get("DatabaseService");
-    await dbService.initialize(c.env); // Passe l'env à chaque requête
+    await dbService.initialize(c.env);
     await next();
   });
 });

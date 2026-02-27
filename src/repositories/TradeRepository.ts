@@ -4,44 +4,52 @@ import { IDatabaseService } from '../services/DatabaseService';
 export class TradeRepository {
   constructor(private db: IDatabaseService) {}
 
+  private trades() {
+    return this.db.from<Trade>('trades');
+  }
+
   async findPendingTrade(fromUserId: string, toUserId: string) {
-    const trades = await this.db.read<Trade>(
-      `SELECT * FROM trades
-       WHERE status = 'pending'
-         AND ((fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?))
-       ORDER BY createdAt DESC
-       LIMIT 1`,
-      [fromUserId, toUserId, toUserId, fromUserId]
-    );
-    return trades[0] ?? null;
+    const { data, error } = await this.trades()
+      .select('*')
+      .eq('status', 'pending')
+      .or(`(fromUserId.eq.${fromUserId},toUserId.eq.${toUserId}),(fromUserId.eq.${toUserId},toUserId.eq.${fromUserId})`)
+      .order('createdAt', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async createTrade(trade: Trade) {
-    await this.db.request(
-      `INSERT INTO trades (id, fromUserId, toUserId, fromUserItems, toUserItems, approvedFromUser, approvedToUser, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [trade.id, trade.fromUserId, trade.toUserId, JSON.stringify(trade.fromUserItems), JSON.stringify(trade.toUserItems), 0, 0, trade.status, trade.createdAt, trade.updatedAt]
-    );
+    // supabase handles JSON automatically when you pass objects/arrays
+    const { error } = await this.trades().insert(trade);
+    if (error) throw error;
   }
 
   async getTradeById(id: string) {
-    const trades = await this.db.read<Trade>('SELECT * FROM trades WHERE id = ?', [id]);
-    return trades[0] ?? null;
+    const { data, error } = await this.trades().select('*').eq('id', id).limit(1);
+    if (error) throw error;
+    return data && data.length ? data[0] : null;
   }
 
   async getTradesByUser(userId: string) {
-    return this.db.read<Trade>('SELECT * FROM trades WHERE fromUserId = ? OR toUserId = ? ORDER BY createdAt DESC', [userId, userId]);
+    const { data, error } = await this.trades()
+      .select('*')
+      .or(`fromUserId.eq.${userId},toUserId.eq.${userId}`)
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
   }
 
   async updateTradeField(tradeId: string, field: string, value: unknown, updatedAt: string) {
-    await this.db.request(`UPDATE trades SET ${field} = ?, updatedAt = ? WHERE id = ?`, [value, updatedAt, tradeId]);
+    const { error } = await this.trades().update({ [field]: value, updatedAt }).eq('id', tradeId);
+    if (error) throw error;
   }
 
   async updateTradeFields(tradeId: string, fields: Record<string, unknown>) {
-    const setClause = Object.keys(fields)
-      .map(f => `${f} = ?`)
-      .join(', ');
-    const values = [...Object.values(fields), tradeId];
-    await this.db.request(`UPDATE trades SET ${setClause} WHERE id = ?`, values);
+    if (Object.keys(fields).length === 0) return;
+    const payload: Record<string, unknown> = { ...fields };
+    const { error } = await this.trades().update(payload).eq('id', tradeId);
+    if (error) throw error;
   }
 }
+

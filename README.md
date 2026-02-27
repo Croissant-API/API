@@ -5,6 +5,51 @@ You can use this icon to search and travel through endpoints
 
 This API provides endpoints for inventories, items, lobbies, trades, users, OAuth2, and studios.
 
+> **Database:** the service now uses the Supabase JavaScript client (`createClient` from `@supabase/supabase-js`) and
+> requires a PostgreSQL RPC function (`execute_sql`) to run raw SQL. Supply `SUPABASE_URL` and
+> `SUPABASE_KEY` via environment variables or the worker `env` object.
+>
+> **Important:** the RPC signature must match the order used by the client. create
+> the function with parameters `(params json, query text)` (or add an overload)
+> so that an invocation such as `supabase.rpc('execute_sql', { params, query })`
+> will succeed. Example for your database:
+>
+> ```sql
+> create or replace function public.execute_sql(params json, query text)
+>   returns json as $$
+> begin
+>   -- params should be a JSON array matching the $1, $2, ... placeholders in `query`
+>   return (select json_agg(t) from (execute query using params) t);
+> end;
+> $$ language plpgsql;
+> ```
+> 
+> You can also define a second variant taking `(query text, params json)` if you
+> prefer, but the above order is the one the client currently looks for.
+>
+> ### Querying the database (ORM style)
+>
+> The codebase has been refactored to stop concatenating SQL strings in
+> repositories.  Instead, `DatabaseService` exposes a helper method
+> `from<T>(table)` which returns the Supabase query builder.  Repositories
+> should use the chainable API (`select`, `insert`, `update`, `delete`,
+> `eq`, `ilike`, etc.) rather than calling `db.read` / `db.request`.  The raw
+> helpers remain only for edge‑cases or migrations and are considered legacy.
+>
+> Example:
+>
+> ```ts
+> const { data, error } = await db.from<User>('users')
+>   .select('*')
+>   .eq('user_id', someId);
+> if (error) throw error;
+> ```
+>
+> Several repositories have already been converted; see
+> `src/repositories/UserRepository.ts`, `GameRepository.ts`, and
+> `ItemRepository.ts` for reference.
+
+
 ## Authentication
 
 Some endpoints require authentication via a token.

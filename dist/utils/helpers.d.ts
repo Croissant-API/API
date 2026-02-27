@@ -1,0 +1,80 @@
+import { Response } from 'express';
+import { Game } from '../interfaces/Game';
+import { User } from '../interfaces/User';
+import { IItemService } from '../services/ItemService';
+export declare function sendError(res: Response, status: number, message: string, error?: unknown): Response<any, Record<string, any>>;
+export declare function findUserByResetToken(users: User[], reset_token: string): User | undefined;
+export declare function requireFields(obj: object, fields: string[]): string | null;
+export declare function mapUser(user: User): {
+    id: string;
+    userId: string;
+    username: string;
+    email: string;
+    balance: number | undefined;
+    verified: boolean;
+    steam_id: string | undefined;
+    steam_username: string | undefined;
+    steam_avatar_url: string | undefined;
+    isStudio: boolean;
+    admin: boolean;
+    disabled: boolean;
+};
+export declare function mapUserSearch(user: User): {
+    id: string;
+    userId: string;
+    username: string;
+    verified: boolean;
+    steam_id: string | undefined;
+    steam_username: string | undefined;
+    steam_avatar_url: string | undefined;
+    isStudio: boolean;
+    admin: boolean;
+};
+export declare function mapItem(item: {
+    itemId: string;
+    name: string;
+    description: string;
+    owner: string;
+    price: number;
+    iconHash?: string;
+    showInStore?: boolean;
+}): {
+    showInStore?: boolean | undefined;
+    itemId: string;
+    name: string;
+    description: string;
+    owner: string;
+    price: number;
+    iconHash: string | undefined;
+};
+export declare function filterGame(game: Game, userId?: string, myId?: string): {
+    download_link?: string | null | undefined;
+    gameId: string;
+    name: string;
+    description: string;
+    price: number;
+    owner_id: string;
+    showInStore: boolean;
+    iconHash: string | null | undefined;
+    splashHash: string | null | undefined;
+    bannerHash: string | null | undefined;
+    genre: string | null | undefined;
+    release_date: string | null | undefined;
+    developer: string | null | undefined;
+    publisher: string | null | undefined;
+    platforms: string | null | undefined;
+    rating: number;
+    website: string | null | undefined;
+    trailer_link: string | null | undefined;
+    multiplayer: boolean;
+};
+export declare function formatInventory(inventory: Array<{
+    item_id: string;
+    amount: number;
+}>, itemService: IItemService): Promise<({
+    itemId: string;
+    name: string;
+    description: string;
+    amount: number;
+    iconHash: string;
+} | null)[]>;
